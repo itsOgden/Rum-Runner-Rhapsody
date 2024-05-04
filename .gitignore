@@ -62,18 +62,11 @@ typings/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-.env
-.env.test
-
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 
 # next.js build output
 .next
-
-# nuxt.js build output
-.nuxt
 
 # vuepress build output
 .vuepress/dist
@@ -86,3 +79,26 @@ typings/
 
 # DynamoDB Local files
 .dynamodb/
+
+# Nuxt dev/build outputs
+.output
+.data
+.nuxt
+.nitro
+dist
+
+# Custom Nuxt output
+.review
+
+# Node dependencies
+node_modules
+
+# Misc
+.DS_Store
+.fleet
+.idea
+
+# Local env files
+.env
+.env.*
+!.env.example
