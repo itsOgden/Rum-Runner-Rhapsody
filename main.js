@@ -1,11 +1,10 @@
 import { platform } from 'node:process'
-import path, { join } from 'node:path'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { BrowserWindow, app } from 'electron'
 
-// https://iamwebwiz.medium.com/how-to-fix-dirname-is-not-defined-in-es-module-scope-34d94a86694d
-const __filename = fileURLToPath(import.meta.url) // get the resolved path to the file
-const __dirname = path.dirname(__filename) // get the name of the directory
+// https://github.com/electron/forge/issues/3502#issuecomment-2059567859
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 function createWindow() {
   const win = new BrowserWindow({
