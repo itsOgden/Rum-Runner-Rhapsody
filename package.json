@@ -3,6 +3,8 @@
   "type": "module",
   "version": "1.0.0",
   "main": "main.js",
+  "author": "Pdog1",
+  "description": "A basic soundboard structured around the local filesystem. Heavily inspired by LoredCast/soundboard.",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -16,6 +18,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^2.6.3",
     "@pinia-plugin-persistedstate/nuxt": "^1.2.0",
+    "electron": "^30.0.2",
     "eslint": "^8.56.0",
     "nuxt": "^3.9.3",
     "postcss": "^8.4.33",
@@ -27,7 +30,6 @@
   "dependencies": {
     "@pinia/nuxt": "^0.5.1",
     "@vueuse/core": "^10.9.0",
-    "electron": "^30.0.2",
     "pinia": "^2.1.7",
     "vue-final-modal": "^4.5.3"
   }
