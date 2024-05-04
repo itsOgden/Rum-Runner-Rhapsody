@@ -6,14 +6,10 @@
   "author": "Pdog1",
   "description": "A basic soundboard structured around the local filesystem. Heavily inspired by LoredCast/soundboard.",
   "scripts": {
-    "build": "nuxt build",
-    "dev": "nuxt dev",
-    "generate": "nuxt generate",
-    "preview": "nuxt preview",
-    "analyze": "nuxt analyze",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "start": "electron ."
+    "nuxt-build": "nuxt build",
+    "nuxt-dev": "nuxt dev",
+    "nuxt-generate": "nuxt generate",
+    "electron-start": "electron ."
   },
   "devDependencies": {
     "@antfu/eslint-config": "^2.6.3",
