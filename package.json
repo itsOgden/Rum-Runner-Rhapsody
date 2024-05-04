@@ -1,7 +1,8 @@
 {
-  "name": "nuxt-app",
+  "name": "rum-runner-rhapsody",
   "type": "module",
-  "private": true,
+  "version": "1.0.0",
+  "main": "main.js",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -9,7 +10,8 @@
     "preview": "nuxt preview",
     "analyze": "nuxt analyze",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "start": "electron ."
   },
   "devDependencies": {
     "@antfu/eslint-config": "^2.6.3",
@@ -25,6 +27,7 @@
   "dependencies": {
     "@pinia/nuxt": "^0.5.1",
     "@vueuse/core": "^10.9.0",
+    "electron": "^30.0.2",
     "pinia": "^2.1.7",
     "vue-final-modal": "^4.5.3"
   }
