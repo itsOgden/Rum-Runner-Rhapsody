@@ -6,27 +6,34 @@
   "author": "Pdog1",
   "description": "A basic soundboard structured around the local filesystem. Heavily inspired by LoredCast/soundboard.",
   "scripts": {
-    "nuxt-build": "nuxt build",
-    "nuxt-dev": "nuxt dev",
-    "nuxt-generate": "nuxt generate",
-    "electron-start": "electron ."
+    "nuxt-dev": "nuxi dev",
+    "nuxt-generate": "nuxi generate",
+    "tauri-dev": "tauri dev",
+    "tauri-build": "tauri build"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^2.6.3",
     "@pinia-plugin-persistedstate/nuxt": "^1.2.0",
-    "electron": "^30.0.2",
+    "@tauri-apps/cli": ">=2.0.0-beta.0",
+    "@vitejs/plugin-vue": "^5.0.4",
     "eslint": "^8.56.0",
     "nuxt": "^3.9.3",
     "postcss": "^8.4.33",
     "sass": "^1.70.0",
     "tailwindcss": "^3.4.1",
+    "typescript": "^5.0.2",
     "vue": "^3.4.14",
-    "vue-router": "^4.2.5"
+    "vue-router": "^4.2.5",
+    "vite": "^5.0.0",
+    "vue-tsc": "^1.8.5"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.5.1",
+    "@tauri-apps/api": ">=2.0.0-beta.0",
+    "@tauri-apps/plugin-shell": ">=2.0.0-beta.0",
     "@vueuse/core": "^10.9.0",
     "pinia": "^2.1.7",
+    "vue": "^3.3.4",
     "vue-final-modal": "^4.5.3"
   }
 }
