@@ -4,15 +4,25 @@
   "version": "1.0.0",
   "main": "main.js",
   "author": "Pdog1",
-  "description": "A basic soundboard structured around the local filesystem. Heavily inspired by LoredCast/soundboard.",
+  "description": "A simple soundboard that is structured around the local filesystem. Heavily inspired by LoredCast/soundboard.",
   "scripts": {
     "nuxt-build": "nuxt build",
     "nuxt-dev": "nuxt dev",
     "nuxt-generate": "nuxt generate",
-    "electron-start": "electron ."
+    "electron-start": "electron-forge start",
+    "electron-package": "electron-forge package",
+    "electron-make": "electron-forge make"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^2.6.3",
+    "@electron-forge/cli": "^7.4.0",
+    "@electron-forge/maker-deb": "^7.4.0",
+    "@electron-forge/maker-rpm": "^7.4.0",
+    "@electron-forge/maker-squirrel": "^7.4.0",
+    "@electron-forge/maker-zip": "^7.4.0",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.4.0",
+    "@electron-forge/plugin-fuses": "^7.4.0",
+    "@electron/fuses": "^1.8.0",
     "@pinia-plugin-persistedstate/nuxt": "^1.2.0",
     "electron": "^30.0.2",
     "eslint": "^8.56.0",
@@ -26,6 +36,7 @@
   "dependencies": {
     "@pinia/nuxt": "^0.5.1",
     "@vueuse/core": "^10.9.0",
+    "electron-squirrel-startup": "^1.0.0",
     "pinia": "^2.1.7",
     "vue-final-modal": "^4.5.3"
   }

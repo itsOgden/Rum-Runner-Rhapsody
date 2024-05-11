@@ -6,6 +6,8 @@ import { BrowserWindow, app } from 'electron'
 // https://github.com/electron/forge/issues/3502#issuecomment-2059567859
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
+// TODO: Window Customization
+// https://www.electronjs.org/docs/latest/tutorial/window-customization
 function createWindow() {
   const win = new BrowserWindow({
     width: 800,
