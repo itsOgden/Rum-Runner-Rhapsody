@@ -1,5 +1,8 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 
+// Tauri Icons
+// https://tauri.app/v1/guides/features/icons/
+
 export default defineNuxtConfig({
   devtools: { enabled: true },
   ssr: false,
