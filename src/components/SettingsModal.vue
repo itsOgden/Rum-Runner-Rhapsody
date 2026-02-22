@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useSettings } from '../composables/useSettings.js'
+import { settingsModalOpen } from '../modalState.js'
 
 const { settings, saveSettings } = useSettings()
 
@@ -23,11 +24,6 @@ async function handleSave() {
 }
 </script>
 
-<script>
-import { ref } from 'vue'
-export const settingsModalOpen = ref(false)
-</script>
-
 <template>
   <Teleport to="body">
     <div
@@ -35,7 +31,7 @@ export const settingsModalOpen = ref(false)
       class="fixed inset-0 bg-black/60 backdrop-blur-xs z-[100] flex justify-center items-center"
       @click.self="settingsModalOpen = false"
     >
-      <div class="bg-bg-raised border border-border-light rounded-lg p-7 w-[420px] shadow-lg">
+      <div class="bg-bg-raised border border-border rounded-lg p-7 w-[420px] shadow-lg">
         <div class="text-lg font-bold mb-5 text-text-primary">Settings</div>
 
         <!-- Grid Columns -->

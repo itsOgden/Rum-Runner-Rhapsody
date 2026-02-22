@@ -2,7 +2,7 @@
 import { useAudioDevices } from '../composables/useAudioDevices.js'
 import { useAudioPlayer } from '../composables/useAudioPlayer.js'
 import { useSettings } from '../composables/useSettings.js'
-import { settingsModalOpen } from './SettingsModal.vue'
+import { settingsModalOpen } from '../modalState.js'
 
 const { refreshDevices } = useAudioDevices()
 const { stopAll } = useAudioPlayer()
