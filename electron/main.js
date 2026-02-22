@@ -10,7 +10,7 @@ const fs = require("fs");
 const GLOBAL_SETTINGS_FILE = path.join(
   app.isPackaged
     ? path.dirname(process.execPath)
-    : __dirname,
+    : path.join(__dirname, ".."),
   "rrr-settings.json"
 );
 
@@ -183,7 +183,11 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadFile(path.join(__dirname, "renderer", "index.html"));
+  if (process.env.VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+  }
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();

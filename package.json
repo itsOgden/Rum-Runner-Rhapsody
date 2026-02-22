@@ -1,29 +1,42 @@
 {
   "name": "rum-runner-rhapsody",
   "version": "0.0.1",
-  "description": "A basic soundboard structured around the local filesystem. Heavily inspired by LoredCast/soundboard.",
-  "main": "main.js",
+  "description": "A dual-output soundboard for Windows. Plays audio to headphones and a virtual cable simultaneously.",
+  "main": "dist-electron/main.js",
   "author": "Pdog1",
   "scripts": {
-    "start": "electron .",
-    "build": "electron-builder --win portable",
-    "build:installer": "electron-builder --win nsis"
+    "dev": "vite",
+    "build": "vite build && electron-builder --win portable",
+    "build:installer": "vite build && electron-builder --win nsis"
   },
   "license": "MIT",
+  "dependencies": {
+    "vue": "^3.5.0"
+  },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@vitejs/plugin-vue": "^5.2.0",
     "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron-builder": "^25.0.0",
+    "tailwindcss": "^4.0.0",
+    "vite": "^6.0.0",
+    "vite-plugin-electron": "^0.29.0"
   },
   "build": {
     "appId": "com.rum-runner-rhapsody.app",
     "productName": "Rum-Runner Rhapsody",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
     "win": {
       "target": [
         {
           "target": "portable",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ],
       "icon": "app-icon.png"
@@ -36,17 +49,12 @@
       "allowToChangeInstallationDirectory": false,
       "artifactName": "RRR-Setup.exe"
     },
-    "files": [
-      "main.js",
-      "preload.js",
-      "renderer/**/*"
-    ],
     "extraResources": []
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "electron"
+      "electron",
+      "esbuild"
     ]
-  },
-  "packageManager": "pnpm@10.30.1+sha512.3590e550d5384caa39bd5c7c739f72270234b2f6059e13018f975c313b1eb9fefcc09714048765d4d9efe961382c312e624572c0420762bdc5d5940cdf9be73a"
+  }
 }
