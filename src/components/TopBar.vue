@@ -1,19 +1,12 @@
 <script setup>
 import { computed } from 'vue'
-import { useAudioDevices } from '../composables/useAudioDevices.js'
 import { useAudioPlayer } from '../composables/useAudioPlayer.js'
 import { useSettings } from '../composables/useSettings.js'
 import { settingsModalOpen } from '../modalState.js'
 import appIcon from '../../app-icon.png'
 
-const { refreshDevices } = useAudioDevices()
-const { stopAll } = useAudioPlayer()
-const { settings, loadSounds, saveSettings } = useSettings()
-
-async function handleRefresh() {
-  await refreshDevices()
-  await loadSounds()
-}
+const { stopAll, playingPaths } = useAudioPlayer()
+const { settings, saveSettings } = useSettings()
 
 function toggleTheme() {
   const next = settings.value.theme === 'dark' ? 'light' : 'dark'
@@ -58,14 +51,23 @@ function onMasterChange() {
 
     <!-- Controls -->
     <div class="flex gap-2 shrink-0">
+      <!-- Stop All — only visible while sounds are playing -->
+      <button
+        v-if="playingPaths.size > 0"
+        class="btn btn-danger p-1.5"
+        @click="stopAll"
+        title="Stop all sounds"
+      >
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+          <rect width="12" height="12" rx="1"/>
+        </svg>
+      </button>
       <button
         class="btn"
         @click="toggleTheme"
         :title="settings.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
       >{{ settings.theme === 'dark' ? '☾' : '☀' }}</button>
       <button class="btn" @click="settingsModalOpen = true">Settings</button>
-      <button class="btn" @click="handleRefresh">Refresh</button>
-      <button class="btn btn-danger" @click="stopAll">Stop All</button>
     </div>
   </div>
 </template>

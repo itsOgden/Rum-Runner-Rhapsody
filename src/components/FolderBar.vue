@@ -1,8 +1,10 @@
 <script setup>
 import { useSettings } from '../composables/useSettings.js'
+import { useAudioDevices } from '../composables/useAudioDevices.js'
 import { filterQuery } from '../filterState.js'
 
-const { settings, onFolderChanged, saveSettings } = useSettings()
+const { settings, onFolderChanged, saveSettings, loadSounds } = useSettings()
+const { refreshDevices } = useAudioDevices()
 
 async function handleBrowse() {
   const result = await window.api.pickFolder()
@@ -10,6 +12,11 @@ async function handleBrowse() {
     filterQuery.value = ''
     await onFolderChanged(result)
   }
+}
+
+async function handleRefresh() {
+  await refreshDevices()
+  await loadSounds()
 }
 
 function toggleDensity() {
@@ -28,6 +35,22 @@ function toggleDensity() {
     >
       {{ settings.soundFolder || '(no folder selected)' }}
     </span>
+
+    <!-- Search input -->
+    <div class="relative flex items-center shrink-0">
+      <input
+        type="text"
+        v-model="filterQuery"
+        placeholder="Search"
+        class="font-sans text-[12px] bg-bg-surface border border-border rounded-sm pl-2.5 pr-6 py-1 text-text-primary placeholder:text-text-dim outline-none focus:border-accent w-40 transition-colors"
+      />
+      <button
+        v-if="filterQuery"
+        @click="filterQuery = ''"
+        class="absolute right-2 rounded-full text-[10px] w-4 h-4 flex items-center justify-center shrink-0 border border-accent text-accent hover:bg-accent hover:text-bg-base leading-none cursor-pointer"
+        title="Clear filter"
+      >✕</button>
+    </div>
 
     <!-- Density toggle -->
     <button
@@ -56,22 +79,13 @@ function toggleDensity() {
       </svg>
     </button>
 
-    <!-- Search input -->
-    <div class="relative flex items-center shrink-0">
-      <input
-        type="text"
-        v-model="filterQuery"
-        placeholder="Search"
-        class="font-sans text-[12px] bg-bg-surface border border-border rounded-sm pl-2.5 pr-6 py-1 text-text-primary placeholder:text-text-dim outline-none focus:border-accent w-40 transition-colors"
-      />
-      <button
-        v-if="filterQuery"
-        @click="filterQuery = ''"
-        class="absolute right-2 rounded-full text-[10px] w-4 h-4 flex items-center justify-center shrink-0 border border-accent text-accent hover:bg-accent hover:text-bg-base leading-none cursor-pointer"
-        title="Clear filter"
-      >✕</button>
-    </div>
-
     <button class="btn btn-accent shrink-0" @click="handleBrowse">Browse…</button>
+
+    <!-- Refresh -->
+    <button
+      class="btn p-1.5 shrink-0 text-[15px] leading-none"
+      @click="handleRefresh"
+      title="Refresh devices and sounds"
+    >↻</button>
   </div>
 </template>
