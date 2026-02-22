@@ -1,7 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Run" type="CompoundRunConfigurationType">
-    <toRun name="Run Electron" type="js.build_tools.npm" />
-    <toRun name="Run Web" type="js.build_tools.npm" />
-    <method v="2" />
-  </configuration>
-</component>
