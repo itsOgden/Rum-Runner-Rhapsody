@@ -1,11 +1,15 @@
 <script setup>
 import { computed } from 'vue'
 import { useSettings } from '../composables/useSettings.js'
+import { useSoundManagement } from '../composables/useSoundManagement.js'
 import { filterQuery } from '../filterState.js'
 import AccordionSection from './AccordionSection.vue'
 
 const { settings, soundGroups, soundCount, isLoadingSounds } = useSettings()
+const { buildSections, addCategory } = useSoundManagement()
 
+// Count from raw sound groups so the "no matches" state is purely about
+// the filter, not about hidden/moved sound state.
 const filteredSoundCount = computed(() => {
   if (!filterQuery.value) return soundCount.value
   const q = filterQuery.value.toLowerCase()
@@ -14,6 +18,8 @@ const filteredSoundCount = computed(() => {
     0
   )
 })
+
+const sections = computed(() => buildSections())
 </script>
 
 <template>
@@ -51,12 +57,20 @@ const filteredSoundCount = computed(() => {
     <!-- Accordion sections -->
     <template v-else>
       <AccordionSection
-        v-for="group in soundGroups"
-        :key="group.folderPath"
-        :group="group"
+        v-for="section in sections"
+        :key="section.id"
+        :section="section"
         :density="settings.density || 'loose'"
         :filter="filterQuery"
       />
+
+      <!-- New Category -->
+      <div class="mt-2">
+        <button
+          class="btn text-[12px] w-full text-text-dim hover:text-text-secondary"
+          @click="addCategory"
+        >+ New Category</button>
+      </div>
     </template>
   </div>
 </template>

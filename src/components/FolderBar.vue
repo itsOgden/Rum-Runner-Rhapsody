@@ -1,15 +1,22 @@
 <script setup>
 import { useSettings } from '../composables/useSettings.js'
 import { useAudioDevices } from '../composables/useAudioDevices.js'
+import { useSoundManagement } from '../composables/useSoundManagement.js'
 import { filterQuery } from '../filterState.js'
 
 const { settings, onFolderChanged, saveSettings, loadSounds } = useSettings()
 const { refreshDevices } = useAudioDevices()
+const { showHidden, resetSessionState } = useSoundManagement()
+
+function toggleShowHidden() {
+  showHidden.value = !showHidden.value
+}
 
 async function handleBrowse() {
   const result = await window.api.pickFolder()
   if (result) {
     filterQuery.value = ''
+    resetSessionState()
     await onFolderChanged(result)
   }
 }
@@ -51,6 +58,26 @@ function toggleDensity() {
         title="Clear filter"
       >✕</button>
     </div>
+
+    <!-- Show hidden toggle -->
+    <button
+      class="btn p-1.5 shrink-0"
+      :class="showHidden ? 'btn-accent' : ''"
+      @click="toggleShowHidden"
+      :title="showHidden ? 'Hide hidden sounds' : 'Show hidden sounds'"
+    >
+      <!-- Crossed-eye: show hidden is OFF (default) -->
+      <svg v-if="!showHidden" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1 8 C3 4.5 5.5 3 8 3 C10.5 3 13 4.5 15 8 C13 11.5 10.5 13 8 13 C5.5 13 3 11.5 1 8Z"/>
+        <circle cx="8" cy="8" r="2.5" fill="currentColor" stroke="none"/>
+        <line x1="2" y1="2" x2="14" y2="14" stroke-width="1.5"/>
+      </svg>
+      <!-- Open eye: show hidden is ON -->
+      <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1 8 C3 4.5 5.5 3 8 3 C10.5 3 13 4.5 15 8 C13 11.5 10.5 13 8 13 C5.5 13 3 11.5 1 8Z"/>
+        <circle cx="8" cy="8" r="2.5" fill="currentColor" stroke="none"/>
+      </svg>
+    </button>
 
     <!-- Density toggle -->
     <button

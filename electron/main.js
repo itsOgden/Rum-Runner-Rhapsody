@@ -35,6 +35,11 @@ const DEFAULT_FOLDER_SETTINGS = {
   primaryEnabled: true,
   secondaryEnabled: true,
   stopHotkey: "Escape",
+  hiddenSounds: [],
+  categoryNames: {},
+  customCategories: [],
+  soundCategories: {},
+  collapsedSections: [],
 };
 
 const GLOBAL_KEYS = new Set(Object.keys(DEFAULT_GLOBAL_SETTINGS));

@@ -15,6 +15,11 @@ const settings = ref({
   primaryEnabled: true,
   secondaryEnabled: true,
   stopHotkey: 'Escape',
+  hiddenSounds: [],
+  categoryNames: {},
+  customCategories: [],
+  soundCategories: {},
+  collapsedSections: [],
 })
 
 const soundGroups = ref([])
