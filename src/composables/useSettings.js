@@ -16,6 +16,7 @@ const settings = ref({
   secondaryEnabled: true,
   stopHotkey: 'Escape',
   hiddenSounds: [],
+  hiddenSections: [],
   categoryNames: {},
   customCategories: [],
   soundCategories: {},

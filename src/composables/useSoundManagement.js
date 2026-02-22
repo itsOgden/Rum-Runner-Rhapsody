@@ -87,6 +87,20 @@ export function useSoundManagement() {
     saveSettings({ hiddenSounds: hidden })
   }
 
+  // ── Hidden sections ────────────────────────────────────────────────────────
+
+  function hideSection(sectionId) {
+    const hidden = [...new Set([...(settings.value.hiddenSections || []), sectionId])]
+    settings.value.hiddenSections = hidden
+    saveSettings({ hiddenSections: hidden })
+  }
+
+  function unhideSection(sectionId) {
+    const hidden = (settings.value.hiddenSections || []).filter(id => id !== sectionId)
+    settings.value.hiddenSections = hidden
+    saveSettings({ hiddenSections: hidden })
+  }
+
   // ── Custom categories ──────────────────────────────────────────────────────
 
   function addCategory() {
@@ -107,9 +121,11 @@ export function useSoundManagement() {
     const cats = (settings.value.customCategories || []).filter(c => c.id !== categoryId)
     const names = { ...(settings.value.categoryNames || {}) }
     delete names[categoryId]
+    const hiddenSecs = (settings.value.hiddenSections || []).filter(id => id !== categoryId)
     settings.value.customCategories = cats
     settings.value.categoryNames = names
-    saveSettings({ customCategories: cats, categoryNames: names })
+    settings.value.hiddenSections = hiddenSecs
+    saveSettings({ customCategories: cats, categoryNames: names, hiddenSections: hiddenSecs })
     return true
   }
 
@@ -118,7 +134,7 @@ export function useSoundManagement() {
   function moveSound(key, targetCategoryId) {
     const sc = { ...(settings.value.soundCategories || {}), [key]: targetCategoryId }
     settings.value.soundCategories = sc
-    // Keep customCategories.sounds arrays in sync
+    // Keep customCategories.sounds arrays in sync (only relevant for custom targets)
     const cats = (settings.value.customCategories || []).map(c => ({
       ...c,
       sounds: c.id === targetCategoryId
@@ -149,7 +165,7 @@ export function useSoundManagement() {
 
   // ── Section restore ────────────────────────────────────────────────────────
   // Resets a folder section to defaults: removes custom display name, unhides
-  // sounds, and returns any moved sounds back to their original section.
+  // the section, unhides its sounds, and returns any moved sounds back.
 
   function restoreSection(sectionId) {
     const group = soundGroups.value.find(g => g.folderName === sectionId)
@@ -170,11 +186,14 @@ export function useSoundManagement() {
     const names = { ...(settings.value.categoryNames || {}) }
     delete names[sectionId]
 
+    const hiddenSecs = (settings.value.hiddenSections || []).filter(id => id !== sectionId)
+
     settings.value.soundCategories = sc
     settings.value.hiddenSounds = hidden
     settings.value.customCategories = cats
     settings.value.categoryNames = names
-    saveSettings({ soundCategories: sc, hiddenSounds: hidden, customCategories: cats, categoryNames: names })
+    settings.value.hiddenSections = hiddenSecs
+    saveSettings({ soundCategories: sc, hiddenSounds: hidden, customCategories: cats, categoryNames: names, hiddenSections: hiddenSecs })
   }
 
   // ── Collapse state ─────────────────────────────────────────────────────────
@@ -198,6 +217,7 @@ export function useSoundManagement() {
   function buildSections() {
     const sc = settings.value.soundCategories || {}
     const hiddenSet = new Set(settings.value.hiddenSounds || [])
+    const hiddenSectionsSet = new Set(settings.value.hiddenSections || [])
     const customCats = settings.value.customCategories || []
     const catNames = settings.value.categoryNames || {}
     const showing = showHidden.value
@@ -206,33 +226,43 @@ export function useSoundManagement() {
 
     // Original folder sections (in discovery order)
     for (const group of soundGroups.value) {
-      const sounds = group.sounds
+      const isHidden = hiddenSectionsSet.has(group.folderName)
+      if (!showing && isHidden) continue
+
+      // Sounds originally in this group that haven't been moved away
+      const nativeKeys = new Set(group.sounds.map(s => getSoundKey(s)))
+      const nativeSounds = group.sounds
         .filter(s => { const k = getSoundKey(s); const c = sc[k]; return !c || c === group.folderName })
         .map(s => {
           const key = getSoundKey(s)
-          return {
-            ...s,
-            key,
-            isHidden: hiddenSet.has(key),
-            isMoved: false,
-            originalFolder: group.folderName,
-          }
+          return { ...s, key, isHidden: hiddenSet.has(key), isMoved: false, originalFolder: group.folderName }
         })
+
+      // Fix 2: sounds from other groups explicitly moved to this folder section
+      const movedInSounds = Object.entries(sc)
+        .filter(([key, catId]) => catId === group.folderName && !nativeKeys.has(key))
+        .map(([key]) => soundMap[key])
+        .filter(Boolean)
+        .map(s => ({ ...s, isHidden: hiddenSet.has(s.key), isMoved: true }))
+
+      const sounds = [...nativeSounds, ...movedInSounds]
         .filter(s => showing || !s.isHidden)
-      // Fix 1: hide folder sections with no visible sounds
-      if (sounds.length === 0) continue
+
       result.push({
         id: group.folderName,
         displayName: catNames[group.folderName] ?? group.folderName,
         isCustom: false,
+        isHidden,
         folderPath: group.folderPath,
         sounds,
       })
     }
 
     // Custom category sections (in creation order)
-    // Always included even when empty — they are user-created and manageable.
     for (const cat of customCats) {
+      const isHidden = hiddenSectionsSet.has(cat.id)
+      if (!showing && isHidden) continue
+
       const sounds = Object.entries(sc)
         .filter(([, catId]) => catId === cat.id)
         .map(([key]) => soundMap[key])
@@ -243,6 +273,7 @@ export function useSoundManagement() {
         id: cat.id,
         displayName: catNames[cat.id] ?? cat.name,
         isCustom: true,
+        isHidden,
         sounds,
       })
     }
@@ -259,6 +290,8 @@ export function useSoundManagement() {
     renameCategory,
     hideSound,
     restoreSound,
+    hideSection,
+    unhideSection,
     addCategory,
     deleteCategory,
     moveSound,

@@ -51,10 +51,10 @@ function onMasterChange() {
 
     <!-- Controls -->
     <div class="flex gap-2 shrink-0">
-      <!-- Stop All — only visible while sounds are playing -->
+      <!-- Stop All — always present to reserve layout space; invisible when idle -->
       <button
-        v-if="playingPaths.size > 0"
         class="btn btn-danger p-1.5"
+        :class="{ 'invisible pointer-events-none': playingPaths.size === 0 }"
         @click="stopAll"
         title="Stop all sounds"
       >

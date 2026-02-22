@@ -15,10 +15,12 @@ const {
   isCollapsedSection,
   setCollapsedSection,
   restoreSection,
+  hideSection,
+  unhideSection,
   pendingRenameId,
 } = useSoundManagement()
 
-// ── Collapse — initialise from persisted settings ──────────────────────────
+// ── Collapse — initialize from persisted settings ──────────────────────────
 
 const collapsed = ref(isCollapsedSection(props.section.id))
 
@@ -81,7 +83,7 @@ function cancelRename() {
   isEditing.value = false
 }
 
-// ── Delete / restore custom / folder sections ───────────────────────────────
+// ── Section actions ─────────────────────────────────────────────────────────
 
 function handleDelete() {
   headerMenuOpen.value = false
@@ -91,6 +93,16 @@ function handleDelete() {
 function handleRestoreSection() {
   headerMenuOpen.value = false
   restoreSection(props.section.id)
+}
+
+function handleHideSection() {
+  headerMenuOpen.value = false
+  hideSection(props.section.id)
+}
+
+function handleUnhideSection() {
+  headerMenuOpen.value = false
+  unhideSection(props.section.id)
 }
 
 // ── Fix 6: auto-enter rename mode for newly-created categories ─────────────
@@ -107,7 +119,11 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
 
 <template>
   <!-- Always show sections with no filter active; hide only if filter produces no matches -->
-  <div v-if="!filter || visibleSounds.length > 0" class="mb-3">
+  <div
+    v-if="!filter || visibleSounds.length > 0"
+    class="mb-3 transition-opacity"
+    :class="{ 'opacity-40': section.isHidden }"
+  >
     <!-- Header -->
     <div
       class="group/hdr flex items-center gap-2 px-3 py-2 bg-bg-raised border border-border rounded-sm select-none"
@@ -158,16 +174,29 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
           class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
           @click="startRename"
         >Rename</button>
+
+        <!-- Hide / Unhide section (all sections) -->
+        <button
+          v-if="!section.isHidden"
+          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
+          @click="handleHideSection"
+        >Hide section</button>
+        <button
+          v-else
+          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
+          @click="handleUnhideSection"
+        >Unhide section</button>
+
         <!-- Restore defaults — original folder sections only -->
         <button
           v-if="!section.isCustom"
-          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
+          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary border-t border-border"
           @click="handleRestoreSection"
         >Restore defaults</button>
         <!-- Delete — custom categories only -->
         <button
           v-if="section.isCustom"
-          class="w-full text-left px-3 py-1.5 text-[12px] text-danger hover:bg-bg-surface"
+          class="w-full text-left px-3 py-1.5 text-[12px] text-danger hover:bg-bg-surface border-t border-border"
           @click="handleDelete"
         >Delete</button>
       </div>

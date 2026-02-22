@@ -36,6 +36,7 @@ const DEFAULT_FOLDER_SETTINGS = {
   secondaryEnabled: true,
   stopHotkey: "Escape",
   hiddenSounds: [],
+  hiddenSections: [],
   categoryNames: {},
   customCategories: [],
   soundCategories: {},
