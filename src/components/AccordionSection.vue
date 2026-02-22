@@ -4,7 +4,7 @@ import SoundButton from './SoundButton.vue'
 
 const props = defineProps({
   group: { type: Object, required: true },
-  columns: { type: Number, default: 4 },
+  density: { type: String, default: 'loose' },
   filter: { type: String, default: '' },
 })
 
@@ -20,9 +20,10 @@ const visibleSounds = computed(() => {
 const isCollapsed = computed(() => collapsed.value && !props.filter)
 
 function toggleCollapse() {
-  // Don't change collapsed state while a filter is active
   if (!props.filter) collapsed.value = !collapsed.value
 }
+
+const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200px')
 </script>
 
 <template>
@@ -36,7 +37,7 @@ function toggleCollapse() {
         class="text-[10px] text-text-dim transition-transform duration-200"
         :class="{ '-rotate-90': isCollapsed }"
       >&#x25BC;</span>
-      <span class="font-display text-sm text-warning flex-1">
+      <span class="font-display text-sm text-accent flex-1">
         {{ group.folderName }}
       </span>
       <span class="font-mono text-[11px] text-text-dim">{{ visibleSounds.length }}</span>
@@ -46,7 +47,7 @@ function toggleCollapse() {
     <div v-show="!isCollapsed" class="pt-2">
       <div
         class="grid gap-2"
-        :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }"
+        :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${minCellSize}, 1fr))` }"
       >
         <SoundButton
           v-for="(sound, index) in visibleSounds"

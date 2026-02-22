@@ -54,7 +54,7 @@ const filteredSoundCount = computed(() => {
         v-for="group in soundGroups"
         :key="group.folderPath"
         :group="group"
-        :columns="settings.columns || 4"
+        :density="settings.density || 'loose'"
         :filter="filterQuery"
       />
     </template>

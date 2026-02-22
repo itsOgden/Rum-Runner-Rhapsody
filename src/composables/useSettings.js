@@ -6,14 +6,14 @@ const settings = ref({
   windowHeight: 680,
   theme: 'dark',
   masterVolume: 1.0,
-  playbackMode: 'overlap',
+  playbackMode: 'restart',
+  density: 'loose',
   primaryDevice: '',
   secondaryDevice: '',
   primaryVolume: 1.0,
   secondaryVolume: 1.0,
   primaryEnabled: true,
   secondaryEnabled: true,
-  columns: 4,
   stopHotkey: 'Escape',
 })
 

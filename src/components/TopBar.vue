@@ -53,7 +53,7 @@ function onMasterChange() {
         @change="onMasterChange"
         class="flex-1"
       />
-      <span class="font-mono text-[11px] text-text-secondary min-w-[36px] text-right shrink-0">{{ masterPercent }}%</span>
+      <span class="font-mono text-[11px] text-text-secondary min-w-9 text-right shrink-0">{{ masterPercent }}%</span>
     </div>
 
     <!-- Controls -->
@@ -62,7 +62,7 @@ function onMasterChange() {
         class="btn"
         @click="toggleTheme"
         :title="settings.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-      >{{ settings.theme === 'dark' ? '☀' : '☾' }}</button>
+      >{{ settings.theme === 'dark' ? '☾' : '☀' }}</button>
       <button class="btn" @click="settingsModalOpen = true">Settings</button>
       <button class="btn" @click="handleRefresh">Refresh</button>
       <button class="btn btn-danger" @click="stopAll">Stop All</button>

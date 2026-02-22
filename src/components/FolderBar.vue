@@ -12,10 +12,10 @@ async function handleBrowse() {
   }
 }
 
-function adjustColumns(delta) {
-  const next = Math.min(10, Math.max(1, (settings.value.columns || 4) + delta))
-  settings.value.columns = next
-  saveSettings({ columns: next })
+function toggleDensity() {
+  const next = settings.value.density === 'compact' ? 'loose' : 'compact'
+  settings.value.density = next
+  saveSettings({ density: next })
 }
 </script>
 
@@ -29,20 +29,39 @@ function adjustColumns(delta) {
       {{ settings.soundFolder || '(no folder selected)' }}
     </span>
 
-    <!-- Column count control -->
-    <div class="flex items-center gap-1 shrink-0">
-      <span class="font-mono text-[10px] text-text-dim uppercase tracking-wider mr-0.5">Cols</span>
-      <button class="btn py-0.5 px-2 text-[12px]" @click="adjustColumns(-1)">−</button>
-      <span class="font-mono text-[12px] text-text-secondary w-5 text-center select-none">{{ settings.columns || 4 }}</span>
-      <button class="btn py-0.5 px-2 text-[12px]" @click="adjustColumns(1)">+</button>
-    </div>
+    <!-- Density toggle -->
+    <button
+      class="btn p-1.5 shrink-0"
+      @click="toggleDensity"
+      :title="settings.density === 'loose' ? 'Switch to compact view' : 'Switch to loose view'"
+    >
+      <!-- Loose grid icon — shown in compact mode, clicking → loose -->
+      <svg v-if="settings.density === 'loose'" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="0" width="6" height="6"/>
+        <rect x="10" y="0" width="6" height="6"/>
+        <rect x="0" y="10" width="6" height="6"/>
+        <rect x="10" y="10" width="6" height="6"/>
+      </svg>
+      <!-- Dense grid icon — shown in loose mode, clicking → compact -->
+      <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0" y="0" width="4" height="4"/>
+        <rect x="6" y="0" width="4" height="4"/>
+        <rect x="12" y="0" width="4" height="4"/>
+        <rect x="0" y="6" width="4" height="4"/>
+        <rect x="6" y="6" width="4" height="4"/>
+        <rect x="12" y="6" width="4" height="4"/>
+        <rect x="0" y="12" width="4" height="4"/>
+        <rect x="6" y="12" width="4" height="4"/>
+        <rect x="12" y="12" width="4" height="4"/>
+      </svg>
+    </button>
 
     <!-- Search input -->
     <div class="relative flex items-center shrink-0">
       <input
         type="text"
         v-model="filterQuery"
-        placeholder="Filter sounds…"
+        placeholder="Search"
         class="font-sans text-[12px] bg-bg-surface border border-border rounded-sm pl-2.5 pr-6 py-1 text-text-primary placeholder:text-text-dim outline-none focus:border-accent w-40 transition-colors"
       />
       <button

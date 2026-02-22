@@ -11,7 +11,7 @@ const { settings, saveSettings } = useSettings()
 const { audioDevices, findMatchingDeviceId, cleanDeviceLabel, getDeviceLabel } = useAudioDevices()
 
 const label = computed(() =>
-  props.role === 'primary' ? 'Monitor Output' : 'Stream Output'
+  props.role === 'primary' ? 'Monitor' : 'Output'
 )
 
 const deviceKey = computed(() => `${props.role}Device`)

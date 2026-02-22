@@ -20,7 +20,8 @@ const DEFAULT_GLOBAL_SETTINGS = {
   windowHeight: 680,
   theme: "dark",
   masterVolume: 1.0,
-  playbackMode: "overlap",
+  playbackMode: "restart",
+  density: "loose",
 };
 
 // Per-folder settings file — stored inside each sound folder
@@ -33,7 +34,6 @@ const DEFAULT_FOLDER_SETTINGS = {
   secondaryVolume: 1.0,
   primaryEnabled: true,
   secondaryEnabled: true,
-  columns: 4,
   stopHotkey: "Escape",
 };
 
