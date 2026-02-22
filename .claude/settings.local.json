@@ -1,10 +1,11 @@
 {
-  "model": "sonnet",
   "permissions": {
     "allow": [
       "Bash(pnpm approve-builds:*)",
       "Bash(pnpm install:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(pnpm exec vite build:*)"
     ]
-  }
+  },
+  "model": "sonnet"
 }

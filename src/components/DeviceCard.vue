@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useSettings } from '../composables/useSettings.js'
 import { useAudioDevices } from '../composables/useAudioDevices.js'
 
@@ -11,7 +11,7 @@ const { settings, saveSettings } = useSettings()
 const { audioDevices, findMatchingDeviceId, cleanDeviceLabel, getDeviceLabel } = useAudioDevices()
 
 const label = computed(() =>
-  props.role === 'primary' ? '\u{1F3A7} Primary \u2014 Headphones' : '\u{1F50A} Secondary \u2014 VB-Cable'
+  props.role === 'primary' ? 'Monitor Output' : 'Stream Output'
 )
 
 const deviceKey = computed(() => `${props.role}Device`)
@@ -73,10 +73,10 @@ function onEnabledChange() {
 </script>
 
 <template>
-  <div class="flex-1 bg-bg-raised border border-border rounded-md p-3.5">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-2.5">
-      <span class="text-[11px] font-semibold tracking-[1.5px] uppercase text-text-dim">{{ label }}</span>
+  <div class="flex-1 flex items-center gap-3 bg-bg-raised border border-border rounded-md px-3 py-2">
+    <!-- Label + Toggle -->
+    <div class="flex items-center gap-2 shrink-0">
+      <span class="text-[10px] font-semibold tracking-[1.5px] uppercase text-text-dim whitespace-nowrap">{{ label }}</span>
       <label class="toggle">
         <input type="checkbox" v-model="enabled" @change="onEnabledChange" />
         <span class="toggle-track"></span>
@@ -84,20 +84,25 @@ function onEnabledChange() {
       </label>
     </div>
 
+    <!-- Divider -->
+    <div class="w-px h-4 bg-border shrink-0"></div>
+
     <!-- Device select -->
-    <select class="device-select" v-model="selectedDeviceId" @change="onDeviceChange">
-      <option
-        v-for="d in audioDevices"
-        :key="d.deviceId"
-        :value="d.deviceId"
-      >
-        {{ cleanDeviceLabel(d.label || `Device ${d.deviceId.slice(0, 8)}`) }}
-      </option>
-    </select>
+    <div class="flex-1 min-w-0">
+      <select class="device-select" v-model="selectedDeviceId" @change="onDeviceChange">
+        <option
+          v-for="d in audioDevices"
+          :key="d.deviceId"
+          :value="d.deviceId"
+        >
+          {{ cleanDeviceLabel(d.label || `Device ${d.deviceId.slice(0, 8)}`) }}
+        </option>
+      </select>
+    </div>
 
     <!-- Volume -->
-    <div class="flex items-center gap-2.5 mt-2.5">
-      <span class="font-mono text-[11px] text-text-dim min-w-[30px]">VOL</span>
+    <div class="flex items-center gap-2 shrink-0">
+      <span class="font-mono text-[10px] text-text-dim">VOL</span>
       <input
         type="range"
         min="0"
@@ -105,6 +110,7 @@ function onEnabledChange() {
         v-model.number="volumePercent"
         @input="onVolumeInput"
         @change="onVolumeChange"
+        class="w-20"
       />
       <span class="font-mono text-[11px] text-text-secondary min-w-[36px] text-right">{{ volumePercent }}%</span>
     </div>

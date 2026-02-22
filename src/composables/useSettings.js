@@ -5,6 +5,8 @@ const settings = ref({
   windowWidth: 960,
   windowHeight: 680,
   theme: 'dark',
+  masterVolume: 1.0,
+  playbackMode: 'overlap',
   primaryDevice: '',
   secondaryDevice: '',
   primaryVolume: 1.0,

@@ -19,6 +19,8 @@ const DEFAULT_GLOBAL_SETTINGS = {
   windowWidth: 960,
   windowHeight: 680,
   theme: "dark",
+  masterVolume: 1.0,
+  playbackMode: "overlap",
 };
 
 // Per-folder settings file — stored inside each sound folder

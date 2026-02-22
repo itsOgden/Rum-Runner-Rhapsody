@@ -5,21 +5,24 @@ import { settingsModalOpen } from '../modalState.js'
 
 const { settings, saveSettings } = useSettings()
 
-const localColumns = ref(4)
 const localHotkey = ref('Escape')
+const localPlaybackMode = ref('overlap')
 
 // Sync local state when modal opens
 watch(settingsModalOpen, (open) => {
   if (open) {
-    localColumns.value = settings.value.columns || 4
     localHotkey.value = settings.value.stopHotkey || 'Escape'
+    localPlaybackMode.value = settings.value.playbackMode || 'overlap'
   }
 })
 
 async function handleSave() {
-  settings.value.columns = localColumns.value
   settings.value.stopHotkey = localHotkey.value
-  await saveSettings({ columns: localColumns.value, stopHotkey: localHotkey.value })
+  settings.value.playbackMode = localPlaybackMode.value
+  await saveSettings({
+    stopHotkey: localHotkey.value,
+    playbackMode: localPlaybackMode.value,
+  })
   settingsModalOpen.value = false
 }
 </script>
@@ -34,20 +37,6 @@ async function handleSave() {
       <div class="bg-bg-raised border border-border rounded-lg p-7 w-[420px] shadow-lg">
         <div class="text-lg font-bold mb-5 text-text-primary">Settings</div>
 
-        <!-- Grid Columns -->
-        <div class="mb-4">
-          <label class="block text-xs font-semibold uppercase tracking-wider text-text-dim mb-1.5">
-            Grid Columns
-          </label>
-          <input
-            type="number"
-            class="modal-input"
-            min="1"
-            max="10"
-            v-model.number="localColumns"
-          />
-        </div>
-
         <!-- Stop-All Hotkey -->
         <div class="mb-4">
           <label class="block text-xs font-semibold uppercase tracking-wider text-text-dim mb-1.5">
@@ -59,6 +48,29 @@ async function handleSave() {
             placeholder="e.g. Escape, F1"
             v-model="localHotkey"
           />
+        </div>
+
+        <!-- Playback Mode -->
+        <div class="mb-4">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-text-dim mb-1.5">
+            Playback Mode
+          </label>
+          <div class="flex gap-2">
+            <button
+              class="flex-1 btn"
+              :class="{ 'btn-accent': localPlaybackMode === 'overlap' }"
+              @click="localPlaybackMode = 'overlap'"
+            >Overlap</button>
+            <button
+              class="flex-1 btn"
+              :class="{ 'btn-accent': localPlaybackMode === 'restart' }"
+              @click="localPlaybackMode = 'restart'"
+            >Restart</button>
+          </div>
+          <p class="text-[11px] text-text-dim mt-1.5 leading-relaxed">
+            <template v-if="localPlaybackMode === 'overlap'">Clicking a playing sound adds a new simultaneous instance.</template>
+            <template v-else>Clicking a playing sound stops and restarts it.</template>
+          </p>
         </div>
 
         <!-- Actions -->

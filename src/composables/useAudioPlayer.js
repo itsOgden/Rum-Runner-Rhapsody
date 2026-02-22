@@ -12,6 +12,20 @@ export function useAudioPlayer() {
   const { findMatchingDeviceId } = useAudioDevices()
 
   async function playSound(sound) {
+    // Read playbackMode directly from the live ref — not a cached snapshot — to avoid stale reads
+    if (settings.value.playbackMode === 'restart' && playingPaths.value.has(sound.path)) {
+      const toStop = activeSources.filter(e => e.path === sound.path)
+      toStop.forEach(e => {
+        e.source.onended = null  // prevent stale cleanup from removing the path we're about to re-add
+        try { e.source.stop() } catch {}
+        try { e.audioCtx.close() } catch {}
+      })
+      for (let i = activeSources.length - 1; i >= 0; i--) {
+        if (activeSources[i].path === sound.path) activeSources.splice(i, 1)
+      }
+      // Keep sound.path in playingPaths — we're immediately restarting
+    }
+
     const arrayBuffer = await window.api.readSoundFile(sound.path)
     if (!arrayBuffer) {
       statusText.value = `Error reading: ${sound.filename}`
@@ -19,9 +33,11 @@ export function useAudioPlayer() {
       return
     }
 
+    // Read settings fresh after the async IPC call
     const s = settings.value
     const primaryDeviceId = findMatchingDeviceId(s.primaryDevice)
     const secondaryDeviceId = findMatchingDeviceId(s.secondaryDevice)
+    const masterVol = s.masterVolume ?? 1.0
 
     statusText.value = `Playing: ${sound.name}`
     playingPaths.value = new Set([...playingPaths.value, sound.path])
@@ -29,10 +45,10 @@ export function useAudioPlayer() {
     const promises = []
 
     if (s.primaryEnabled && primaryDeviceId) {
-      promises.push(playSoundOnDevice(arrayBuffer.slice(0), primaryDeviceId, s.primaryVolume))
+      promises.push(playSoundOnDevice(arrayBuffer.slice(0), primaryDeviceId, s.primaryVolume * masterVol, sound.path))
     }
     if (s.secondaryEnabled && secondaryDeviceId) {
-      promises.push(playSoundOnDevice(arrayBuffer.slice(0), secondaryDeviceId, s.secondaryVolume))
+      promises.push(playSoundOnDevice(arrayBuffer.slice(0), secondaryDeviceId, s.secondaryVolume * masterVol, sound.path))
     }
 
     Promise.all(promises)
@@ -52,7 +68,7 @@ export function useAudioPlayer() {
       })
   }
 
-  function playSoundOnDevice(arrayBuffer, deviceId, volume) {
+  function playSoundOnDevice(arrayBuffer, deviceId, volume, path) {
     return new Promise(async (resolve, reject) => {
       try {
         const audioCtx = new AudioContext()
@@ -71,7 +87,7 @@ export function useAudioPlayer() {
           await audioCtx.setSinkId(deviceId)
         }
 
-        const sourceEntry = { source, audioCtx }
+        const sourceEntry = { source, audioCtx, path }
         activeSources.push(sourceEntry)
 
         source.onended = () => {
