@@ -67,7 +67,7 @@ function toggleDensity() {
       <button
         v-if="filterQuery"
         @click="filterQuery = ''"
-        class="absolute right-2 text-[11px] text-text-dim hover:text-text-primary leading-none"
+        class="absolute right-2 rounded-full text-[10px] w-4 h-4 flex items-center justify-center shrink-0 border border-accent text-accent hover:bg-accent hover:text-bg-base leading-none cursor-pointer"
         title="Clear filter"
       >✕</button>
     </div>

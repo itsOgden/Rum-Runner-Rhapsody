@@ -29,11 +29,11 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
 <template>
   <div v-if="!filter || visibleSounds.length > 0" class="mb-3">
     <!-- Header -->
-    <div
-      class="flex items-center gap-2 px-3 py-2 bg-bg-raised border border-border rounded-sm cursor-pointer select-none transition-colors hover:bg-bg-surface-hover hover:border-border-light"
+    <div :class="!filter && 'cursor-pointer transition-colors hover:bg-bg-surface-hover hover:border-border-light'"
+      class="flex items-center gap-2 px-3 py-2 bg-bg-raised border border-border rounded-sm select-none"
       @click="toggleCollapse"
     >
-      <span
+      <span v-if="!filter"
         class="text-[10px] text-text-dim transition-transform duration-200"
         :class="{ '-rotate-90': isCollapsed }"
       >&#x25BC;</span>
