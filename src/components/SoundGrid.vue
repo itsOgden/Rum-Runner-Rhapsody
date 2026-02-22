@@ -2,14 +2,23 @@
 import { useSettings } from '../composables/useSettings.js'
 import AccordionSection from './AccordionSection.vue'
 
-const { settings, soundGroups, soundCount } = useSettings()
+const { settings, soundGroups, soundCount, isLoadingSounds } = useSettings()
 </script>
 
 <template>
   <div class="flex-1 overflow-y-auto px-5 py-4">
+    <!-- Loading state -->
+    <div
+      v-if="isLoadingSounds"
+      class="flex flex-col items-center justify-center h-full text-text-dim gap-3"
+    >
+      <div class="spinner"></div>
+      <span class="text-[13px]">Scanning folder...</span>
+    </div>
+
     <!-- Empty state -->
     <div
-      v-if="soundCount === 0"
+      v-else-if="soundCount === 0"
       class="flex flex-col items-center justify-center h-full text-text-dim text-center gap-3 px-10"
     >
       <div class="text-5xl opacity-30">&#x1F3B5;</div>
@@ -20,11 +29,13 @@ const { settings, soundGroups, soundCount } = useSettings()
     </div>
 
     <!-- Accordion sections -->
-    <AccordionSection
-      v-for="group in soundGroups"
-      :key="group.folderPath"
-      :group="group"
-      :columns="settings.columns || 4"
-    />
+    <template v-else>
+      <AccordionSection
+        v-for="group in soundGroups"
+        :key="group.folderPath"
+        :group="group"
+        :columns="settings.columns || 4"
+      />
+    </template>
   </div>
 </template>

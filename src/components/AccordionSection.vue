@@ -21,7 +21,7 @@ const collapsed = ref(false)
         class="text-[10px] text-text-dim transition-transform duration-200"
         :class="{ '-rotate-90': collapsed }"
       >&#x25BC;</span>
-      <span class="font-mono text-xs font-semibold text-text-secondary flex-1">
+      <span class="font-display text-sm text-text-secondary flex-1">
         {{ group.folderName }}
       </span>
       <span class="font-mono text-[11px] text-text-dim">{{ group.sounds.length }}</span>

@@ -4,6 +4,7 @@ const settings = ref({
   soundFolder: '',
   windowWidth: 960,
   windowHeight: 680,
+  theme: 'dark',
   primaryDevice: '',
   secondaryDevice: '',
   primaryVolume: 1.0,
@@ -15,6 +16,7 @@ const settings = ref({
 })
 
 const soundGroups = ref([])
+const isLoadingSounds = ref(false)
 
 const soundCount = computed(() =>
   soundGroups.value.reduce((sum, g) => sum + g.sounds.length, 0)
@@ -28,7 +30,12 @@ export function useSettings() {
   }
 
   async function loadSounds() {
-    soundGroups.value = await window.api.getSounds()
+    isLoadingSounds.value = true
+    try {
+      soundGroups.value = await window.api.getSounds()
+    } finally {
+      isLoadingSounds.value = false
+    }
   }
 
   async function saveSettings(partial) {
@@ -46,6 +53,7 @@ export function useSettings() {
     settings,
     soundGroups,
     soundCount,
+    isLoadingSounds,
     loadSettings,
     loadSounds,
     saveSettings,

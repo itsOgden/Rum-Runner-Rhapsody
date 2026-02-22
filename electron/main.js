@@ -18,6 +18,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
   soundFolder: "",
   windowWidth: 960,
   windowHeight: 680,
+  theme: "dark",
 };
 
 // Per-folder settings file — stored inside each sound folder

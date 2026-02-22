@@ -36,3 +36,6 @@ Thumbs.db
 
 # Settings file (generated at runtime)
 rrr-settings.json
+
+# Binary design source files
+Logo.afdesign

@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { useSettings } from './useSettings.js'
 import { useAudioDevices } from './useAudioDevices.js'
+import { showToast } from '../toastState.js'
 
 const activeSources = []
 const playingPaths = ref(new Set())
@@ -14,6 +15,7 @@ export function useAudioPlayer() {
     const arrayBuffer = await window.api.readSoundFile(sound.path)
     if (!arrayBuffer) {
       statusText.value = `Error reading: ${sound.filename}`
+      showToast(`Could not read file: ${sound.name}`)
       return
     }
 
@@ -46,6 +48,7 @@ export function useAudioPlayer() {
         next.delete(sound.path)
         playingPaths.value = next
         statusText.value = `Error: ${e.message}`
+        showToast(`Playback failed: ${sound.name}`)
       })
   }
 
