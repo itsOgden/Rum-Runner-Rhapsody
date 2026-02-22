@@ -134,7 +134,7 @@ Click **Settings** in the top bar to adjust:
 - **Grid Columns** — how many buttons per row (1–10)
 - **Stop-All Hotkey** — which key stops playback (default: Escape)
 
-All settings are saved automatically to `soundboard_settings.json` next to the app.
+Settings are saved per-folder as `rrr-settings.json` inside each sound folder. This means each folder acts as its own soundboard profile with independent device, volume, and layout settings. A global `rrr-settings.json` next to the app stores which folder was last used and the window size.
 
 ---
 
@@ -228,13 +228,14 @@ That's it. The settings file is created automatically on first run.
 ## Project Structure
 
 ```
-soundboard/
+rum-runner-rhapsody/
 ├── main.js                  # Electron main process (window, IPC, file I/O)
 ├── preload.js               # Secure bridge between main and renderer
 ├── renderer/
 │   └── index.html           # UI (HTML + CSS + JS, single file)
-├── package.json             # Dependencies and build config
-├── soundboard_settings.json # Auto-generated user settings
+├── app-icon.png             # App icon
+├── package.json             # Dependencies and build config (pnpm)
+├── rrr-settings.json        # Auto-generated global settings
 └── README.md                # This file
 ```
 
@@ -249,7 +250,7 @@ soundboard/
 
 **Dual audio output** uses `AudioContext.setSinkId()` — a Web API that lets you route audio to a specific output device by its device ID. The app creates a separate `AudioContext` for each output device and plays the decoded audio through both simultaneously.
 
-**Settings** are stored as a JSON file next to the executable. The main process handles read/write; the renderer communicates via IPC (`ipcRenderer.invoke` / `ipcMain.handle`).
+**Settings** are split into two layers: global settings (window size, last folder) stored next to the executable, and per-folder settings (devices, volumes, columns, hotkey) stored as `rrr-settings.json` inside each sound folder. This lets each folder act as an independent soundboard profile. The main process handles read/write; the renderer communicates via IPC (`ipcRenderer.invoke` / `ipcMain.handle`).
 
 **Security**: `contextIsolation: true` and `nodeIntegration: false` are set. The renderer cannot access Node.js directly — everything goes through the `preload.js` bridge.
 
@@ -257,11 +258,20 @@ soundboard/
 
 ## Settings Reference
 
-`soundboard_settings.json` — auto-created and auto-saved.
+Settings are split into two files, both named `rrr-settings.json`:
+
+### Global settings (next to the app)
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `soundFolder` | string | `""` | Path to folder with sound files |
+| `soundFolder` | string | `""` | Path to last-used sound folder |
+| `windowWidth` | int | `960` | Window width (px) |
+| `windowHeight` | int | `680` | Window height (px) |
+
+### Per-folder settings (inside each sound folder)
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
 | `primaryDevice` | string | `""` | Primary output device name |
 | `secondaryDevice` | string | `""` | Secondary output device name |
 | `primaryVolume` | float | `1.0` | Primary volume (0.0 – 1.0) |
@@ -270,8 +280,6 @@ soundboard/
 | `secondaryEnabled` | bool | `true` | Secondary output active |
 | `columns` | int | `4` | Sound grid columns |
 | `stopHotkey` | string | `"Escape"` | Key to stop all playback |
-| `windowWidth` | int | `960` | Window width (px) |
-| `windowHeight` | int | `680` | Window height (px) |
 
 ---
 
@@ -306,7 +314,7 @@ The app needs microphone permission to read device labels. On first launch, clic
 - If Windows SmartScreen blocks it, click "More info" → "Run anyway"
 
 ### Reset Settings
-Delete `soundboard_settings.json` next to the app. It will be recreated with defaults on next launch.
+Delete `rrr-settings.json` next to the app (global settings) and/or inside your sound folder (per-folder settings). They will be recreated with defaults on next launch.
 
 ---
 

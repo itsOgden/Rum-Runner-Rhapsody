@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' blob: mediadevice:; media-src 'self' blob: file:;" />
-  <title>Soundboard</title>
+  <title>Rum-Runner Rhapsody</title>
   <style>
     /* ===================================================================
        DESIGN: Industrial-meets-studio — dark, tactile, functional.
@@ -291,19 +291,74 @@
     }
     .folder-path.active { color: var(--text-secondary); }
 
-    /* ---- Sound Grid ---- */
+    /* ---- Sound Grid Container ---- */
     .sound-grid-container {
       flex: 1;
       overflow-y: auto;
       padding: 16px 20px;
     }
 
-    .sound-grid {
+    /* ---- Accordion Sections ---- */
+    .accordion-section {
+      margin-bottom: 12px;
+    }
+
+    .accordion-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s ease;
+    }
+    .accordion-header:hover {
+      background: var(--bg-surface-hover);
+      border-color: var(--border-light);
+    }
+
+    .accordion-chevron {
+      font-size: 10px;
+      color: var(--text-dim);
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+    }
+    .accordion-section.collapsed .accordion-chevron {
+      transform: rotate(-90deg);
+    }
+
+    .accordion-folder-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+
+    .accordion-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .accordion-body {
+      padding-top: 8px;
+      overflow: hidden;
+    }
+    .accordion-section.collapsed .accordion-body {
+      display: none;
+    }
+
+    .accordion-grid {
       display: grid;
       grid-template-columns: repeat(var(--columns, 4), 1fr);
       gap: 8px;
     }
 
+    /* ---- Sound Buttons ---- */
     .sound-btn {
       position: relative;
       background: var(--bg-raised);
@@ -474,7 +529,7 @@
   <!-- Top Bar -->
   <div class="topbar">
     <div class="topbar-left">
-      <span class="logo">SNDBOARD<span class="logo-dot"></span></span>
+      <span class="logo">RUM-RUNNER<span class="logo-dot"></span></span>
     </div>
     <div class="topbar-actions">
       <button class="btn" id="btn-settings">Settings</button>
@@ -528,14 +583,13 @@
     <button class="btn btn-accent" id="btn-browse">Browse...</button>
   </div>
 
-  <!-- Sound Grid -->
+  <!-- Sound Grid — accordion sections rendered dynamically -->
   <div class="sound-grid-container" id="sound-grid-container">
     <div class="empty-state" id="empty-state">
       <div class="empty-state-icon">&#x1F3B5;</div>
       <div class="empty-state-title">No sounds loaded</div>
       <div class="empty-state-sub">Click "Browse..." to select a folder containing your audio files (WAV, MP3, OGG, FLAC, etc.)</div>
     </div>
-    <div class="sound-grid" id="sound-grid" style="display: none;"></div>
   </div>
 
   <!-- Status Bar -->
@@ -565,14 +619,15 @@
 
   <script>
     // =====================================================================
-    // SOUNDBOARD RENDERER
+    // RUM-RUNNER RHAPSODY — RENDERER
     // =====================================================================
 
     // ---- State ----
     let settings = {};
     let sounds = [];
+    let soundGroups = [];
     let audioDevices = [];
-    let activeSources = []; // track playing audio for stop-all
+    let activeSources = [];
 
     // ---- DOM refs ----
     const $ = (sel) => document.querySelector(sel);
@@ -585,7 +640,7 @@
     const primaryEnabledEl = $("#primary-enabled");
     const secondaryEnabledEl = $("#secondary-enabled");
     const folderPathEl = $("#folder-path");
-    const soundGridEl = $("#sound-grid");
+    const soundGridContainerEl = $("#sound-grid-container");
     const emptyStateEl = $("#empty-state");
     const statusEl = $("#status");
     const soundCountEl = $("#sound-count");
@@ -594,16 +649,8 @@
     async function init() {
       settings = await window.api.getSettings();
 
-      // Load audio devices
       await refreshDevices();
-
-      // Apply settings to UI
-      primaryEnabledEl.checked = settings.primaryEnabled;
-      secondaryEnabledEl.checked = settings.secondaryEnabled;
-      primaryVolEl.value = Math.round(settings.primaryVolume * 100);
-      secondaryVolEl.value = Math.round(settings.secondaryVolume * 100);
-      primaryVolVal.textContent = primaryVolEl.value + "%";
-      secondaryVolVal.textContent = secondaryVolEl.value + "%";
+      applySettingsToUI();
 
       if (settings.soundFolder) {
         folderPathEl.textContent = settings.soundFolder;
@@ -614,12 +661,23 @@
       bindEvents();
     }
 
+    function applySettingsToUI() {
+      primaryEnabledEl.checked = settings.primaryEnabled;
+      secondaryEnabledEl.checked = settings.secondaryEnabled;
+      primaryVolEl.value = Math.round(settings.primaryVolume * 100);
+      secondaryVolEl.value = Math.round(settings.secondaryVolume * 100);
+      primaryVolVal.textContent = primaryVolEl.value + "%";
+      secondaryVolVal.textContent = secondaryVolEl.value + "%";
+      populateDeviceSelect(primaryDeviceEl, settings.primaryDevice);
+      populateDeviceSelect(secondaryDeviceEl, settings.secondaryDevice);
+    }
+
+    // ---- Device management ----
     async function refreshDevices() {
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         audioDevices = devices.filter((d) => d.kind === "audiooutput" && d.deviceId !== "");
 
-        // If we only get default, request mic permission to unlock device labels
         if (audioDevices.length <= 1 || audioDevices.every(d => !d.label)) {
           try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -638,23 +696,39 @@
       }
     }
 
+    function cleanDeviceLabel(label) {
+      // Strip trailing USB VID:PID patterns like " (26ce:0a08)"
+      return label.replace(/\s*\([0-9a-fA-F]{4}:[0-9a-fA-F]{4}\)\s*$/, "").trim();
+    }
+
     function populateDeviceSelect(selectEl, savedDeviceName) {
       selectEl.innerHTML = "";
       let matched = false;
       audioDevices.forEach((d) => {
+        const rawLabel = d.label || `Device ${d.deviceId.slice(0, 8)}`;
+        const cleanLabel = cleanDeviceLabel(rawLabel);
         const opt = document.createElement("option");
         opt.value = d.deviceId;
-        opt.textContent = d.label || `Device ${d.deviceId.slice(0, 8)}`;
-        if (d.label === savedDeviceName || d.deviceId === savedDeviceName) {
+        opt.textContent = cleanLabel;
+        if (
+          d.deviceId === savedDeviceName ||
+          rawLabel === savedDeviceName ||
+          cleanLabel === savedDeviceName
+        ) {
           opt.selected = true;
           matched = true;
         }
         selectEl.appendChild(opt);
       });
-      // If no match, try partial match
       if (!matched && savedDeviceName) {
+        const lower = savedDeviceName.toLowerCase();
         for (const opt of selectEl.options) {
-          if (opt.textContent.toLowerCase().includes(savedDeviceName.toLowerCase())) {
+          const device = audioDevices.find(d => d.deviceId === opt.value);
+          const rawLabel = device ? device.label : "";
+          if (
+            opt.textContent.toLowerCase().includes(lower) ||
+            rawLabel.toLowerCase().includes(lower)
+          ) {
             opt.selected = true;
             break;
           }
@@ -667,32 +741,69 @@
       return opt ? opt.textContent : "";
     }
 
-    // ---- Sound loading ----
+    // ---- Sound loading (accordion groups) ----
     async function loadSounds() {
-      sounds = await window.api.getSounds();
+      soundGroups = await window.api.getSounds();
+      sounds = soundGroups.flatMap(g => g.sounds);
       soundCountEl.textContent = sounds.length;
 
+      // Clear previous accordion sections
+      soundGridContainerEl.querySelectorAll(".accordion-section").forEach(el => el.remove());
+
       if (sounds.length === 0) {
-        soundGridEl.style.display = "none";
         emptyStateEl.style.display = "flex";
         return;
       }
 
       emptyStateEl.style.display = "none";
-      soundGridEl.style.display = "grid";
-      soundGridEl.style.setProperty("--columns", settings.columns || 4);
-      soundGridEl.innerHTML = "";
 
-      sounds.forEach((sound, i) => {
-        const btn = document.createElement("button");
-        btn.className = "sound-btn fade-in";
-        btn.textContent = sound.name;
-        btn.style.animationDelay = `${i * 25}ms`;
-        btn.addEventListener("click", () => playSound(sound, btn));
-        soundGridEl.appendChild(btn);
+      let globalIndex = 0;
+
+      soundGroups.forEach((group) => {
+        const section = document.createElement("div");
+        section.className = "accordion-section";
+
+        const header = document.createElement("div");
+        header.className = "accordion-header";
+        header.innerHTML = `
+          <span class="accordion-chevron">&#x25BC;</span>
+          <span class="accordion-folder-name">${escapeHtml(group.folderName)}</span>
+          <span class="accordion-count">${group.sounds.length}</span>
+        `;
+        header.addEventListener("click", () => {
+          section.classList.toggle("collapsed");
+        });
+
+        const body = document.createElement("div");
+        body.className = "accordion-body";
+
+        const grid = document.createElement("div");
+        grid.className = "accordion-grid";
+        grid.style.setProperty("--columns", settings.columns || 4);
+
+        group.sounds.forEach((sound) => {
+          const btn = document.createElement("button");
+          btn.className = "sound-btn fade-in";
+          btn.textContent = sound.name;
+          btn.style.animationDelay = `${globalIndex * 25}ms`;
+          btn.addEventListener("click", () => playSound(sound, btn));
+          grid.appendChild(btn);
+          globalIndex++;
+        });
+
+        body.appendChild(grid);
+        section.appendChild(header);
+        section.appendChild(body);
+        soundGridContainerEl.appendChild(section);
       });
 
       statusEl.textContent = `Loaded ${sounds.length} sounds`;
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
     }
 
     // ---- Audio playback ----
@@ -751,13 +862,11 @@
           source.connect(gainNode);
           gainNode.connect(audioCtx.destination);
 
-          // Route to specific device
           if (audioCtx.setSinkId) {
             await audioCtx.setSinkId(deviceId);
           }
 
           source.onended = () => {
-            // Remove from active sources
             const idx = activeSources.indexOf(sourceEntry);
             if (idx > -1) activeSources.splice(idx, 1);
             audioCtx.close();
@@ -802,11 +911,19 @@
 
       // Browse folder
       $("#btn-browse").addEventListener("click", async () => {
-        const folder = await window.api.pickFolder();
-        if (folder) {
-          settings.soundFolder = folder;
-          folderPathEl.textContent = folder;
+        const result = await window.api.pickFolder();
+        if (result) {
+          // Apply new folder path
+          settings.soundFolder = result.folder;
+          folderPathEl.textContent = result.folder;
           folderPathEl.classList.add("active");
+
+          // Apply per-folder settings from the new folder
+          Object.assign(settings, result.folderSettings);
+
+          // Re-apply all UI state
+          applySettingsToUI();
+
           await loadSounds();
         }
       });
@@ -859,7 +976,9 @@
         settings.columns = cols;
         settings.stopHotkey = hotkey;
         await window.api.saveSettings({ columns: cols, stopHotkey: hotkey });
-        soundGridEl.style.setProperty("--columns", cols);
+        document.querySelectorAll(".accordion-grid").forEach(grid => {
+          grid.style.setProperty("--columns", cols);
+        });
         $("#settings-modal").classList.remove("open");
       });
       // Close modal on overlay click
