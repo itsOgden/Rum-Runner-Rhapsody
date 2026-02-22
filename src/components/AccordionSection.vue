@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import SoundButton from './SoundButton.vue'
 import { useSoundManagement } from '../composables/useSoundManagement.js'
 
@@ -9,7 +9,14 @@ const props = defineProps({
   filter: { type: String, default: '' },
 })
 
-const { renameCategory, deleteCategory, isCollapsedSection, setCollapsedSection } = useSoundManagement()
+const {
+  renameCategory,
+  deleteCategory,
+  isCollapsedSection,
+  setCollapsedSection,
+  restoreSection,
+  pendingRenameId,
+} = useSoundManagement()
 
 // ── Collapse — initialise from persisted settings ──────────────────────────
 
@@ -74,12 +81,26 @@ function cancelRename() {
   isEditing.value = false
 }
 
-// ── Delete custom category ──────────────────────────────────────────────────
+// ── Delete / restore custom / folder sections ───────────────────────────────
 
 function handleDelete() {
   headerMenuOpen.value = false
   deleteCategory(props.section.id)
 }
+
+function handleRestoreSection() {
+  headerMenuOpen.value = false
+  restoreSection(props.section.id)
+}
+
+// ── Fix 6: auto-enter rename mode for newly-created categories ─────────────
+
+onMounted(() => {
+  if (pendingRenameId.value === props.section.id) {
+    pendingRenameId.value = null
+    startRename()
+  }
+})
 
 const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200px')
 </script>
@@ -118,7 +139,7 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
       <!-- ⋯ button -->
       <div class="relative" @click.stop>
         <button
-          class="opacity-0 group-hover/hdr:opacity-100 text-[14px] text-text-dim hover:text-text-primary px-1 leading-none transition-opacity"
+          class="opacity-0 group-hover/hdr:opacity-100 text-[14px] text-text-secondary hover:text-text-primary px-1 leading-none transition-opacity"
           @click="openHeaderMenu"
           title="Section options"
         >⋯</button>
@@ -137,6 +158,13 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
           class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
           @click="startRename"
         >Rename</button>
+        <!-- Restore defaults — original folder sections only -->
+        <button
+          v-if="!section.isCustom"
+          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
+          @click="handleRestoreSection"
+        >Restore defaults</button>
+        <!-- Delete — custom categories only -->
         <button
           v-if="section.isCustom"
           class="w-full text-left px-3 py-1.5 text-[12px] text-danger hover:bg-bg-surface"
@@ -148,7 +176,7 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
     <!-- Body -->
     <div v-show="!isCollapsed" class="pt-2">
       <div
-        class="grid gap-2"
+        class="grid gap-2 items-stretch"
         :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${minCellSize}, 1fr))` }"
       >
         <SoundButton

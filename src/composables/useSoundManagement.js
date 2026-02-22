@@ -1,9 +1,12 @@
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useSettings } from './useSettings.js'
 import { showToast } from '../toastState.js'
 
 // Session-only state — resets on folder change
 const showHidden = ref(false)
+
+// Signals which newly-created category should auto-enter rename mode
+const pendingRenameId = ref(null)
 
 export function useSoundManagement() {
   const { settings, saveSettings, soundGroups } = useSettings()
@@ -12,12 +15,31 @@ export function useSoundManagement() {
     showHidden.value = false
   }
 
+  // ── Key helpers ────────────────────────────────────────────────────────────
+  // Returns the path of a sound relative to the root sound folder.
+  // e.g. "sfx/boom.wav" (subfolder) or "boom.wav" (root-level).
+  // Used as the stable identifier in hiddenSounds, soundCategories, etc.
+
+  function getSoundKey(sound) {
+    const rootFolder = settings.value.soundFolder || ''
+    if (!rootFolder || !sound.path) return sound.filename
+    let rel = sound.path
+    if (rel.startsWith(rootFolder)) {
+      rel = rel.substring(rootFolder.length)
+      if (rel.startsWith('/') || rel.startsWith('\\')) rel = rel.slice(1)
+    }
+    return rel.replace(/\\/g, '/')
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   function getAllSoundsMap() {
     const map = {}
     soundGroups.value.forEach(g =>
-      g.sounds.forEach(s => { map[s.filename] = { ...s, originalFolder: g.folderName } })
+      g.sounds.forEach(s => {
+        const key = getSoundKey(s)
+        map[key] = { ...s, key, originalFolder: g.folderName }
+      })
     )
     return map
   }
@@ -53,14 +75,14 @@ export function useSoundManagement() {
 
   // ── Hidden sounds ──────────────────────────────────────────────────────────
 
-  function hideSound(filename) {
-    const hidden = [...new Set([...(settings.value.hiddenSounds || []), filename])]
+  function hideSound(key) {
+    const hidden = [...new Set([...(settings.value.hiddenSounds || []), key])]
     settings.value.hiddenSounds = hidden
     saveSettings({ hiddenSounds: hidden })
   }
 
-  function restoreSound(filename) {
-    const hidden = (settings.value.hiddenSounds || []).filter(f => f !== filename)
+  function restoreSound(key) {
+    const hidden = (settings.value.hiddenSounds || []).filter(k => k !== key)
     settings.value.hiddenSounds = hidden
     saveSettings({ hiddenSounds: hidden })
   }
@@ -72,6 +94,7 @@ export function useSoundManagement() {
     const cats = [...(settings.value.customCategories || []), { id, name: 'New Category', sounds: [] }]
     settings.value.customCategories = cats
     saveSettings({ customCategories: cats })
+    pendingRenameId.value = id
     return id
   }
 
@@ -92,36 +115,66 @@ export function useSoundManagement() {
 
   // ── Sound categories (move / reset) ────────────────────────────────────────
 
-  function moveSound(filename, targetCategoryId) {
-    const sc = { ...(settings.value.soundCategories || {}), [filename]: targetCategoryId }
+  function moveSound(key, targetCategoryId) {
+    const sc = { ...(settings.value.soundCategories || {}), [key]: targetCategoryId }
     settings.value.soundCategories = sc
     // Keep customCategories.sounds arrays in sync
     const cats = (settings.value.customCategories || []).map(c => ({
       ...c,
       sounds: c.id === targetCategoryId
-        ? [...new Set([...c.sounds, filename])]
-        : c.sounds.filter(f => f !== filename),
+        ? [...new Set([...c.sounds, key])]
+        : c.sounds.filter(k => k !== key),
     }))
     settings.value.customCategories = cats
     saveSettings({ soundCategories: sc, customCategories: cats })
   }
 
-  function resetSound(filename) {
+  function resetSound(key) {
     const sc = { ...(settings.value.soundCategories || {}) }
-    delete sc[filename]
+    delete sc[key]
     const cats = (settings.value.customCategories || []).map(c => ({
       ...c,
-      sounds: c.sounds.filter(f => f !== filename),
+      sounds: c.sounds.filter(k => k !== key),
     }))
-    const hidden = (settings.value.hiddenSounds || []).filter(f => f !== filename)
+    const hidden = (settings.value.hiddenSounds || []).filter(k => k !== key)
     settings.value.soundCategories = sc
     settings.value.customCategories = cats
     settings.value.hiddenSounds = hidden
     saveSettings({ soundCategories: sc, customCategories: cats, hiddenSounds: hidden })
   }
 
-  function getSoundCategory(filename) {
-    return (settings.value.soundCategories || {})[filename] ?? null
+  function getSoundCategory(key) {
+    return (settings.value.soundCategories || {})[key] ?? null
+  }
+
+  // ── Section restore ────────────────────────────────────────────────────────
+  // Resets a folder section to defaults: removes custom display name, unhides
+  // sounds, and returns any moved sounds back to their original section.
+
+  function restoreSection(sectionId) {
+    const group = soundGroups.value.find(g => g.folderName === sectionId)
+    if (!group) return
+
+    const soundKeys = group.sounds.map(s => getSoundKey(s))
+
+    const sc = { ...(settings.value.soundCategories || {}) }
+    soundKeys.forEach(k => delete sc[k])
+
+    const hidden = (settings.value.hiddenSounds || []).filter(k => !soundKeys.includes(k))
+
+    const cats = (settings.value.customCategories || []).map(c => ({
+      ...c,
+      sounds: c.sounds.filter(k => !soundKeys.includes(k)),
+    }))
+
+    const names = { ...(settings.value.categoryNames || {}) }
+    delete names[sectionId]
+
+    settings.value.soundCategories = sc
+    settings.value.hiddenSounds = hidden
+    settings.value.customCategories = cats
+    settings.value.categoryNames = names
+    saveSettings({ soundCategories: sc, hiddenSounds: hidden, customCategories: cats, categoryNames: names })
   }
 
   // ── Collapse state ─────────────────────────────────────────────────────────
@@ -154,14 +207,20 @@ export function useSoundManagement() {
     // Original folder sections (in discovery order)
     for (const group of soundGroups.value) {
       const sounds = group.sounds
-        .filter(s => { const c = sc[s.filename]; return !c || c === group.folderName })
-        .map(s => ({
-          ...s,
-          isHidden: hiddenSet.has(s.filename),
-          isMoved: false,
-          originalFolder: group.folderName,
-        }))
+        .filter(s => { const k = getSoundKey(s); const c = sc[k]; return !c || c === group.folderName })
+        .map(s => {
+          const key = getSoundKey(s)
+          return {
+            ...s,
+            key,
+            isHidden: hiddenSet.has(key),
+            isMoved: false,
+            originalFolder: group.folderName,
+          }
+        })
         .filter(s => showing || !s.isHidden)
+      // Fix 1: hide folder sections with no visible sounds
+      if (sounds.length === 0) continue
       result.push({
         id: group.folderName,
         displayName: catNames[group.folderName] ?? group.folderName,
@@ -172,12 +231,13 @@ export function useSoundManagement() {
     }
 
     // Custom category sections (in creation order)
+    // Always included even when empty — they are user-created and manageable.
     for (const cat of customCats) {
       const sounds = Object.entries(sc)
         .filter(([, catId]) => catId === cat.id)
-        .map(([filename]) => soundMap[filename])
+        .map(([key]) => soundMap[key])
         .filter(Boolean)
-        .map(s => ({ ...s, isHidden: hiddenSet.has(s.filename), isMoved: true }))
+        .map(s => ({ ...s, isHidden: hiddenSet.has(s.key), isMoved: true }))
         .filter(s => showing || !s.isHidden)
       result.push({
         id: cat.id,
@@ -192,6 +252,7 @@ export function useSoundManagement() {
 
   return {
     showHidden,
+    pendingRenameId,
     resetSessionState,
     getAvailableCategories,
     getCategoryDisplayName,
@@ -206,5 +267,6 @@ export function useSoundManagement() {
     isCollapsedSection,
     setCollapsedSection,
     buildSections,
+    restoreSection,
   }
 }

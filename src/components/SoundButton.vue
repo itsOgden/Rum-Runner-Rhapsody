@@ -42,40 +42,40 @@ function openMenu(event) {
 
 function handleHide() {
   menuOpen.value = false
-  hideSound(props.sound.filename)
+  hideSound(props.sound.key)
 }
 
 function handleRestore() {
   menuOpen.value = false
-  restoreSound(props.sound.filename)
+  restoreSound(props.sound.key)
 }
 
 function handleMove(categoryId) {
   menuOpen.value = false
-  moveSound(props.sound.filename, categoryId)
+  moveSound(props.sound.key, categoryId)
 }
 
 function handleReset() {
   menuOpen.value = false
-  resetSound(props.sound.filename)
+  resetSound(props.sound.key)
 }
 
 // isMoved: sound has been explicitly placed into a different category
-const isMoved = computed(() => !!getSoundCategory(props.sound.filename))
+const isMoved = computed(() => !!getSoundCategory(props.sound.key))
 
 // Available targets for "Move to…" — excludes the section the sound is already in
 const availableCategories = computed(() => getAvailableCategories(props.sectionId))
 </script>
 
 <template>
-  <!-- Outer wrapper: provides the hover group and fade-in animation -->
+  <!-- Outer wrapper: provides the hover group, full height, and fade-in animation -->
   <div
-    class="group/btn relative fade-in"
+    class="group/btn relative fade-in h-full"
     :style="{ animationDelay: `${animationDelay}ms` }"
   >
     <!-- Main play button -->
     <button
-      class="relative w-full bg-bg-raised border rounded-md px-3.5 py-4.5 font-sans text-[13px] font-medium cursor-pointer text-center break-words transition-all duration-[120ms] outline-none overflow-hidden hover:-translate-y-px hover:border-accent-dim hover:shadow-md active:translate-y-0 active:bg-bg-surface-active"
+      class="relative w-full h-full bg-bg-raised border rounded-md px-3.5 py-4.5 font-sans text-[13px] font-medium cursor-pointer text-center break-words transition-all duration-[120ms] outline-none overflow-hidden hover:-translate-y-px hover:border-accent-dim hover:shadow-md active:translate-y-0 active:bg-bg-surface-active"
       :class="[
         isPlaying
           ? 'border-accent shadow-[0_0_20px_var(--color-accent-glow)] sound-btn-playing text-text-primary'
@@ -88,7 +88,7 @@ const availableCategories = computed(() => getAvailableCategories(props.sectionI
     <!-- ⋯ trigger — floats in top-right corner, visible on group hover -->
     <div class="absolute top-1 right-1 z-10" @click.stop>
       <button
-        class="opacity-0 group-hover/btn:opacity-100 text-[11px] text-text-dim hover:text-text-primary bg-bg-surface/80 rounded px-1 py-0.5 leading-none transition-opacity"
+        class="opacity-0 group-hover/btn:opacity-100 text-[11px] text-text-secondary hover:text-text-primary bg-bg-surface/80 rounded px-1 py-0.5 leading-none transition-opacity"
         @click="openMenu"
         title="Sound options"
       >⋯</button>
