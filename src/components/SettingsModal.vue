@@ -66,10 +66,16 @@ async function handleSave() {
               :class="{ 'btn-accent': localPlaybackMode === 'restart' }"
               @click="localPlaybackMode = 'restart'"
             >Restart</button>
+            <button
+              class="flex-1 btn"
+              :class="{ 'btn-accent': localPlaybackMode === 'stop' }"
+              @click="localPlaybackMode = 'stop'"
+            >Stop</button>
           </div>
           <p class="text-[11px] text-text-dim mt-1.5 leading-relaxed">
             <template v-if="localPlaybackMode === 'overlap'">Clicking a playing sound adds a new simultaneous instance.</template>
-            <template v-else>Clicking a playing sound stops and restarts it.</template>
+            <template v-else-if="localPlaybackMode === 'restart'">Clicking a playing sound stops and restarts it.</template>
+            <template v-else>Clicking a playing sound stops it. Clicking it again plays it from the start.</template>
           </p>
         </div>
 

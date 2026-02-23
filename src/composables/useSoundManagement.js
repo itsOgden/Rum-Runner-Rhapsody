@@ -73,6 +73,21 @@ export function useSoundManagement() {
     saveSettings({ categoryNames: names })
   }
 
+  // ── Sound display names ────────────────────────────────────────────────────
+
+  function getSoundDisplayName(key, fallback) {
+    return (settings.value.soundNames || {})[key] ?? fallback
+  }
+
+  function renameSound(key, newName) {
+    const trimmed = newName.trim()
+    const names = { ...(settings.value.soundNames || {}), [key]: trimmed || undefined }
+    // Remove entry entirely if name is cleared (revert to filename)
+    if (!trimmed) delete names[key]
+    settings.value.soundNames = names
+    saveSettings({ soundNames: names })
+  }
+
   // ── Hidden sounds ──────────────────────────────────────────────────────────
 
   function hideSound(key) {
@@ -220,6 +235,7 @@ export function useSoundManagement() {
     const hiddenSectionsSet = new Set(settings.value.hiddenSections || [])
     const customCats = settings.value.customCategories || []
     const catNames = settings.value.categoryNames || {}
+    const soundNames = settings.value.soundNames || {}
     const showing = showHidden.value
     const soundMap = getAllSoundsMap()
     const result = []
@@ -235,15 +251,15 @@ export function useSoundManagement() {
         .filter(s => { const k = getSoundKey(s); const c = sc[k]; return !c || c === group.folderName })
         .map(s => {
           const key = getSoundKey(s)
-          return { ...s, key, isHidden: hiddenSet.has(key), isMoved: false, originalFolder: group.folderName }
+          return { ...s, key, name: soundNames[key] ?? s.name, isHidden: hiddenSet.has(key), isMoved: false, originalFolder: group.folderName }
         })
 
-      // Fix 2: sounds from other groups explicitly moved to this folder section
+      // sounds from other groups explicitly moved to this folder section
       const movedInSounds = Object.entries(sc)
         .filter(([key, catId]) => catId === group.folderName && !nativeKeys.has(key))
         .map(([key]) => soundMap[key])
         .filter(Boolean)
-        .map(s => ({ ...s, isHidden: hiddenSet.has(s.key), isMoved: true }))
+        .map(s => ({ ...s, name: soundNames[s.key] ?? s.name, isHidden: hiddenSet.has(s.key), isMoved: true }))
 
       const sounds = [...nativeSounds, ...movedInSounds]
         .filter(s => showing || !s.isHidden)
@@ -267,7 +283,7 @@ export function useSoundManagement() {
         .filter(([, catId]) => catId === cat.id)
         .map(([key]) => soundMap[key])
         .filter(Boolean)
-        .map(s => ({ ...s, isHidden: hiddenSet.has(s.key), isMoved: true }))
+        .map(s => ({ ...s, name: soundNames[s.key] ?? s.name, isHidden: hiddenSet.has(s.key), isMoved: true }))
         .filter(s => showing || !s.isHidden)
       result.push({
         id: cat.id,
@@ -288,6 +304,8 @@ export function useSoundManagement() {
     getAvailableCategories,
     getCategoryDisplayName,
     renameCategory,
+    getSoundDisplayName,
+    renameSound,
     hideSound,
     restoreSound,
     hideSection,

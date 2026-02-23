@@ -13,7 +13,27 @@ export function useAudioPlayer() {
 
   async function playSound(sound) {
     // Read playbackMode directly from the live ref — not a cached snapshot — to avoid stale reads
-    if (settings.value.playbackMode === 'restart' && playingPaths.value.has(sound.path)) {
+    const mode = settings.value.playbackMode
+
+    if (mode === 'stop' && playingPaths.value.has(sound.path)) {
+      // Stop mode: clicking a playing sound stops it without restarting
+      const toStop = activeSources.filter(e => e.path === sound.path)
+      toStop.forEach(e => {
+        e.source.onended = null
+        try { e.source.stop() } catch {}
+        try { e.audioCtx.close() } catch {}
+      })
+      for (let i = activeSources.length - 1; i >= 0; i--) {
+        if (activeSources[i].path === sound.path) activeSources.splice(i, 1)
+      }
+      const next = new Set(playingPaths.value)
+      next.delete(sound.path)
+      playingPaths.value = next
+      if (playingPaths.value.size === 0) statusText.value = 'Ready'
+      return
+    }
+
+    if (mode === 'restart' && playingPaths.value.has(sound.path)) {
       const toStop = activeSources.filter(e => e.path === sound.path)
       toStop.forEach(e => {
         e.source.onended = null  // prevent stale cleanup from removing the path we're about to re-add

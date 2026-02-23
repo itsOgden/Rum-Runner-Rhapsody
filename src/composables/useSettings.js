@@ -21,6 +21,7 @@ const settings = ref({
   customCategories: [],
   soundCategories: {},
   collapsedSections: [],
+  soundNames: {},
 })
 
 const soundGroups = ref([])
@@ -47,8 +48,7 @@ export function useSettings() {
   }
 
   async function saveSettings(partial) {
-    const merged = await window.api.saveSettings(partial)
-    Object.assign(settings.value, merged)
+    await window.api.saveSettings(partial)
   }
 
   async function onFolderChanged(result) {

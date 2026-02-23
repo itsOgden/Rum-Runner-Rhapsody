@@ -2,6 +2,8 @@
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import SoundButton from './SoundButton.vue'
 import { useSoundManagement } from '../composables/useSoundManagement.js'
+import { activeDropdownId } from '../dropdownState.js'
+import { draggingSound } from '../dragState.js'
 
 const props = defineProps({
   section: { type: Object, required: true },
@@ -12,6 +14,7 @@ const props = defineProps({
 const {
   renameCategory,
   deleteCategory,
+  moveSound,
   isCollapsedSection,
   setCollapsedSection,
   restoreSection,
@@ -46,13 +49,20 @@ const visibleSounds = computed(() => {
 
 // ── Header ⋯ menu ───────────────────────────────────────────────────────────
 
+const headerDropdownId = `section-${Math.random().toString(36).slice(2)}`
 const headerMenuOpen = ref(false)
 const headerMenuPos = ref({ x: 0, y: 0 })
+
+// Close when another dropdown opens
+watch(activeDropdownId, (id) => {
+  if (id !== headerDropdownId) headerMenuOpen.value = false
+})
 
 function openHeaderMenu(event) {
   event.stopPropagation()
   const rect = event.currentTarget.getBoundingClientRect()
   headerMenuPos.value = { x: rect.right - 150, y: rect.bottom + 4 }
+  activeDropdownId.value = headerDropdownId
   headerMenuOpen.value = true
   const close = () => {
     headerMenuOpen.value = false
@@ -105,7 +115,35 @@ function handleUnhideSection() {
   unhideSection(props.section.id)
 }
 
-// ── Fix 6: auto-enter rename mode for newly-created categories ─────────────
+// ── Drag and drop target ─────────────────────────────────────────────────────
+
+const isDropTarget = ref(false)
+
+function onDragOver(event) {
+  if (!draggingSound.value) return
+  if (draggingSound.value.fromSectionId === props.section.id) return
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'move'
+  isDropTarget.value = true
+}
+
+function onDragLeave(event) {
+  // Only clear when leaving this element, not just moving to a child element
+  if (!event.currentTarget.contains(event.relatedTarget)) {
+    isDropTarget.value = false
+  }
+}
+
+function onDrop(event) {
+  event.preventDefault()
+  isDropTarget.value = false
+  const sound = draggingSound.value
+  draggingSound.value = null
+  if (!sound || sound.fromSectionId === props.section.id) return
+  moveSound(sound.key, props.section.id)
+}
+
+// ── Auto-enter rename mode for newly-created categories ─────────────────────
 
 onMounted(() => {
   if (pendingRenameId.value === props.section.id) {
@@ -123,11 +161,17 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
     v-if="!filter || visibleSounds.length > 0"
     class="mb-3 transition-opacity"
     :class="{ 'opacity-40': section.isHidden }"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
   >
     <!-- Header -->
     <div
-      class="group/hdr flex items-center gap-2 px-3 py-2 bg-bg-raised border border-border rounded-sm select-none"
-      :class="!filter && 'cursor-pointer transition-colors hover:bg-bg-surface-hover hover:border-border-light'"
+      class="group/hdr flex items-center gap-2 px-3 py-2 bg-bg-raised border border-border rounded-sm select-none transition-colors"
+      :class="[
+        !filter && 'cursor-pointer hover:bg-bg-surface-hover hover:border-border-light',
+        isDropTarget && 'border-accent bg-bg-surface-hover',
+      ]"
       @click="toggleCollapse"
     >
       <!-- Collapse arrow (hidden during filter) -->
@@ -157,7 +201,7 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
         <button
           class="opacity-0 group-hover/hdr:opacity-100 text-[14px] text-text-secondary hover:text-text-primary px-1 leading-none transition-opacity"
           @click="openHeaderMenu"
-          title="Section options"
+          title="Category options"
         >⋯</button>
       </div>
     </div>
@@ -180,12 +224,12 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
           v-if="!section.isHidden"
           class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
           @click="handleHideSection"
-        >Hide section</button>
+        >Hide category</button>
         <button
           v-else
           class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
           @click="handleUnhideSection"
-        >Unhide section</button>
+        >Unhide category</button>
 
         <!-- Restore defaults — original folder sections only -->
         <button
@@ -205,7 +249,8 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
     <!-- Body -->
     <div v-show="!isCollapsed" class="pt-2">
       <div
-        class="grid gap-2 items-stretch"
+        class="grid gap-2 items-stretch rounded-sm transition-colors"
+        :class="isDropTarget && 'outline outline-2 outline-accent outline-offset-2'"
         :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${minCellSize}, 1fr))` }"
       >
         <SoundButton
