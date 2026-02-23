@@ -1,15 +1,16 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import SoundButton from './SoundButton.vue'
-import { useSoundManagement } from '../composables/useSoundManagement.js'
-import { activeDropdownId } from '../dropdownState.js'
-import { draggingSound, draggingSection } from '../dragState.js'
+import { useSoundManagement } from '../composables/useSoundManagement'
+import { activeDropdownId } from '../dropdownState'
+import { draggingSound, draggingSection } from '../dragState'
+import type { SoundSection } from '../types'
 
-const props = defineProps({
-  section: { type: Object, required: true },
-  density: { type: String, default: 'loose' },
-  filter: { type: String, default: '' },
-})
+const props = defineProps<{
+  section: SoundSection
+  density?: string
+  filter?: string
+}>()
 
 const {
   renameCategory,
@@ -33,7 +34,7 @@ watch(() => props.section.id, id => { collapsed.value = isCollapsedSection(id) }
 
 const isCollapsed = computed(() => collapsed.value && !props.filter)
 
-function toggleCollapse() {
+function toggleCollapse(): void {
   if (!props.filter) {
     collapsed.value = !collapsed.value
     setCollapsedSection(props.section.id, collapsed.value)
@@ -59,9 +60,9 @@ watch(activeDropdownId, (id) => {
   if (id !== headerDropdownId) headerMenuOpen.value = false
 })
 
-function openHeaderMenu(event) {
+function openHeaderMenu(event: MouseEvent): void {
   event.stopPropagation()
-  const rect = event.currentTarget.getBoundingClientRect()
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
   headerMenuPos.value = { x: rect.right - 150, y: rect.bottom + 4 }
   activeDropdownId.value = headerDropdownId
   headerMenuOpen.value = true
@@ -76,42 +77,42 @@ function openHeaderMenu(event) {
 
 const isEditing = ref(false)
 const editingName = ref('')
-const renameInputEl = ref(null)
+const renameInputEl = ref<HTMLInputElement | null>(null)
 
-function startRename() {
+function startRename(): void {
   headerMenuOpen.value = false
   editingName.value = props.section.displayName
   isEditing.value = true
   nextTick(() => renameInputEl.value?.select())
 }
 
-function confirmRename() {
+function confirmRename(): void {
   if (editingName.value.trim()) renameCategory(props.section.id, editingName.value)
   isEditing.value = false
 }
 
-function cancelRename() {
+function cancelRename(): void {
   isEditing.value = false
 }
 
 // ── Section actions ─────────────────────────────────────────────────────────
 
-function handleDelete() {
+function handleDelete(): void {
   headerMenuOpen.value = false
   deleteCategory(props.section.id)
 }
 
-function handleRestoreSection() {
+function handleRestoreSection(): void {
   headerMenuOpen.value = false
   restoreSection(props.section.id)
 }
 
-function handleHideSection() {
+function handleHideSection(): void {
   headerMenuOpen.value = false
   hideSection(props.section.id)
 }
 
-function handleUnhideSection() {
+function handleUnhideSection(): void {
   headerMenuOpen.value = false
   unhideSection(props.section.id)
 }
@@ -120,11 +121,11 @@ function handleUnhideSection() {
 
 const isDropTarget = ref(false)
 // Index within visibleSounds the cursor is over during a same-section drag
-const dragOverSoundIndex = ref(null)
+const dragOverSoundIndex = ref<number | null>(null)
 
 // Section-level dragover: handles cross-section sound moves and category reorder.
 // Same-section sound reorders are handled by the per-sound wrapper divs.
-function onDragOver(event) {
+function onDragOver(event: DragEvent): void {
   if (draggingSection.value) {
     // Accept the drag so AccordionSection is a clear drop target; visual feedback
     // is handled by the SoundGrid wrapper outline, not by isDropTarget here.
@@ -134,18 +135,18 @@ function onDragOver(event) {
   if (!draggingSound.value) return
   if (draggingSound.value.fromSectionId === props.section.id) return
   event.preventDefault()
-  event.dataTransfer.dropEffect = 'move'
+  event.dataTransfer!.dropEffect = 'move'
   isDropTarget.value = true
 }
 
-function onDragLeave(event) {
-  if (!event.currentTarget.contains(event.relatedTarget)) {
+function onDragLeave(event: DragEvent): void {
+  if (!(event.currentTarget as Element).contains(event.relatedTarget as Node | null)) {
     isDropTarget.value = false
     dragOverSoundIndex.value = null
   }
 }
 
-function onDrop(event) {
+function onDrop(event: DragEvent): void {
   event.preventDefault()
   // No stopPropagation — section-reorder drops must bubble up to SoundGrid's handler.
   isDropTarget.value = false
@@ -173,7 +174,7 @@ function onDrop(event) {
 }
 
 // Per-sound-wrapper dragover: tracks hover index for same-section reordering.
-function onSoundWrapperDragOver(event, index) {
+function onSoundWrapperDragOver(event: DragEvent, index: number): void {
   if (!draggingSound.value) return
   if (draggingSection.value) return
   if (props.filter) return // No reordering while filtered
@@ -184,13 +185,13 @@ function onSoundWrapperDragOver(event, index) {
 
 // ── Section header drag (for category reorder) ───────────────────────────────
 
-function onHeaderDragStart(event) {
+function onHeaderDragStart(event: DragEvent): void {
   draggingSection.value = { id: props.section.id }
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', props.section.id)
+  event.dataTransfer!.effectAllowed = 'move'
+  event.dataTransfer!.setData('text/plain', props.section.id)
 }
 
-function onHeaderDragEnd() {
+function onHeaderDragEnd(): void {
   draggingSection.value = null
 }
 

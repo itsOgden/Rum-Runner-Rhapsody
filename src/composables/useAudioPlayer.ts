@@ -1,19 +1,26 @@
 import { ref } from 'vue'
-import { useSettings } from './useSettings.js'
-import { useAudioDevices } from './useAudioDevices.js'
-import { showToast } from '../toastState.js'
+import { useSettings } from './useSettings'
+import { useAudioDevices } from './useAudioDevices'
+import { showToast } from '../toastState'
+import type { Sound } from '../types'
 
-const activeSources = []
-const playingPaths = ref(new Set())
+interface ActiveSource {
+  source: AudioBufferSourceNode
+  audioCtx: AudioContext
+  path: string
+}
+
+const activeSources: ActiveSource[] = []
+const playingPaths = ref(new Set<string>())
 const statusText = ref('Ready')
 
 // ── Preview playback (primary device only, isolated from main playback) ───────
 // previewingPath tracks which sound is currently previewing. It is NOT included
 // in playingPaths, so it does not affect the Stop All button or status bar.
 
-const previewingPath = ref(null)
-let _previewSource = null
-let _previewCtx = null
+const previewingPath = ref<string | null>(null)
+let _previewSource: AudioBufferSourceNode | null = null
+let _previewCtx: AudioContext | null = null
 // Incrementing generation counter — lets pending async loads detect cancellation.
 let _previewGeneration = 0
 
@@ -21,7 +28,7 @@ export function useAudioPlayer() {
   const { settings } = useSettings()
   const { findMatchingDeviceId } = useAudioDevices()
 
-  async function playSound(sound) {
+  async function playSound(sound: Sound): Promise<void> {
     // Read playbackMode directly from the live ref — not a cached snapshot — to avoid stale reads
     const mode = settings.value.playbackMode
 
@@ -72,7 +79,7 @@ export function useAudioPlayer() {
     statusText.value = `Playing: ${sound.name}`
     playingPaths.value = new Set([...playingPaths.value, sound.path])
 
-    const promises = []
+    const promises: Promise<void>[] = []
 
     if (s.primaryEnabled && primaryDeviceId) {
       promises.push(playSoundOnDevice(arrayBuffer.slice(0), primaryDeviceId, s.primaryVolume * masterVol, sound.path))
@@ -93,12 +100,12 @@ export function useAudioPlayer() {
         const next = new Set(playingPaths.value)
         next.delete(sound.path)
         playingPaths.value = next
-        statusText.value = `Error: ${e.message}`
+        statusText.value = `Error: ${(e as Error).message}`
         showToast(`Playback failed: ${sound.name}`)
       })
   }
 
-  function playSoundOnDevice(arrayBuffer, deviceId, volume, path) {
+  function playSoundOnDevice(arrayBuffer: ArrayBuffer, deviceId: string, volume: number, path: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
       try {
         const audioCtx = new AudioContext()
@@ -117,7 +124,7 @@ export function useAudioPlayer() {
           await audioCtx.setSinkId(deviceId)
         }
 
-        const sourceEntry = { source, audioCtx, path }
+        const sourceEntry: ActiveSource = { source, audioCtx, path }
         activeSources.push(sourceEntry)
 
         source.onended = () => {
@@ -134,7 +141,7 @@ export function useAudioPlayer() {
     })
   }
 
-  function stopAll() {
+  function stopAll(): void {
     activeSources.forEach(({ source, audioCtx }) => {
       try { source.stop() } catch {}
       try { audioCtx.close() } catch {}
@@ -146,7 +153,7 @@ export function useAudioPlayer() {
 
   // ── Preview ───────────────────────────────────────────────────────────────
 
-  function stopPreview() {
+  function stopPreview(): void {
     _previewGeneration++ // Invalidate any in-flight async load
     if (_previewSource) {
       _previewSource.onended = null
@@ -160,7 +167,7 @@ export function useAudioPlayer() {
     previewingPath.value = null
   }
 
-  async function previewSound(sound) {
+  async function previewSound(sound: Sound): Promise<void> {
     // Toggle off if this sound is already previewing
     if (previewingPath.value === sound.path) {
       stopPreview()

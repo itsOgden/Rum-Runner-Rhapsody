@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useSettings } from '../composables/useSettings.js'
-import { settingsModalOpen } from '../modalState.js'
+import { useSettings } from '../composables/useSettings'
+import { settingsModalOpen } from '../modalState'
 
 const { settings, saveSettings } = useSettings()
 
 const localHotkey = ref('Escape')
-const localPlaybackMode = ref('overlap')
+const localPlaybackMode = ref<'overlap' | 'restart' | 'stop'>('overlap')
 
 // Sync local state when modal opens
 watch(settingsModalOpen, (open) => {

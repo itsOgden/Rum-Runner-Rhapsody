@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue'
-import { useAudioPlayer } from '../composables/useAudioPlayer.js'
-import { useSettings } from '../composables/useSettings.js'
-import { settingsModalOpen } from '../modalState.js'
+import { useAudioPlayer } from '../composables/useAudioPlayer'
+import { useSettings } from '../composables/useSettings'
+import { settingsModalOpen } from '../modalState'
 import appIcon from '../../app-icon.png'
 
 const { stopAll, playingPaths } = useAudioPlayer()

@@ -6,8 +6,9 @@
   "author": "Pdog1",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && electron-builder --win portable",
-    "build:installer": "vite build && electron-builder --win nsis"
+    "typecheck": "vue-tsc --noEmit",
+    "build": "vue-tsc --noEmit && vite build && electron-builder --win portable",
+    "build:installer": "vue-tsc --noEmit && vite build && electron-builder --win nsis"
   },
   "license": "MIT",
   "dependencies": {
@@ -15,12 +16,15 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^25.3.0",
     "@vitejs/plugin-vue": "^5.2.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0",
     "tailwindcss": "^4.0.0",
+    "typescript": "^5.9.3",
     "vite": "^6.0.0",
-    "vite-plugin-electron": "^0.29.0"
+    "vite-plugin-electron": "^0.29.0",
+    "vue-tsc": "^3.2.5"
   },
   "build": {
     "appId": "com.rum-runner-rhapsody.app",
@@ -36,7 +40,9 @@
       "target": [
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "app-icon.png"

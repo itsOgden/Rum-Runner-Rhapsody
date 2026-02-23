@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue'
-import { useSettings } from './composables/useSettings.js'
-import { useAudioDevices } from './composables/useAudioDevices.js'
-import { useAudioPlayer } from './composables/useAudioPlayer.js'
-import { useSoundManagement } from './composables/useSoundManagement.js'
-import { filterQuery } from './filterState.js'
+import { useSettings } from './composables/useSettings'
+import { useAudioDevices } from './composables/useAudioDevices'
+import { useAudioPlayer } from './composables/useAudioPlayer'
+import { useSoundManagement } from './composables/useSoundManagement'
+import { filterQuery } from './filterState'
 import appIcon from '../app-icon.png'
 import TopBar from './components/TopBar.vue'
 import DevicePanel from './components/DevicePanel.vue'
@@ -29,7 +29,7 @@ watch(
   { immediate: true }
 )
 
-function handleKeydown(e) {
+function handleKeydown(e: KeyboardEvent): void {
   if (e.key === (settings.value.stopHotkey || 'Escape')) {
     stopAll()
   }

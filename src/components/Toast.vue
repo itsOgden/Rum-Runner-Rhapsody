@@ -1,5 +1,5 @@
-<script setup>
-import { toast } from '../toastState.js'
+<script setup lang="ts">
+import { toast } from '../toastState'
 </script>
 
 <template>

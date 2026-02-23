@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
+import type { GlobalSettings, SoundGroup, FolderChangeResult } from '../types'
 
-const settings = ref({
+const settings = ref<GlobalSettings>({
   soundFolder: '',
   windowWidth: 960,
   windowHeight: 680,
@@ -26,7 +27,7 @@ const settings = ref({
   categoryOrder: [],
 })
 
-const soundGroups = ref([])
+const soundGroups = ref<SoundGroup[]>([])
 const isLoadingSounds = ref(false)
 
 const soundCount = computed(() =>
@@ -34,13 +35,13 @@ const soundCount = computed(() =>
 )
 
 export function useSettings() {
-  async function loadSettings() {
+  async function loadSettings(): Promise<void> {
     const s = await window.api.getSettings()
     settings.value = s
     await loadSounds()
   }
 
-  async function loadSounds() {
+  async function loadSounds(): Promise<void> {
     isLoadingSounds.value = true
     try {
       soundGroups.value = await window.api.getSounds()
@@ -49,11 +50,11 @@ export function useSettings() {
     }
   }
 
-  async function saveSettings(partial) {
+  async function saveSettings(partial: Partial<GlobalSettings>): Promise<void> {
     await window.api.saveSettings(partial)
   }
 
-  async function onFolderChanged(result) {
+  async function onFolderChanged(result: FolderChangeResult): Promise<void> {
     settings.value.soundFolder = result.folder
     Object.assign(settings.value, result.folderSettings)
     await loadSounds()

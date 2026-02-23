@@ -1,31 +1,32 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useSettings } from '../composables/useSettings.js'
-import { useSoundManagement } from '../composables/useSoundManagement.js'
-import { filterQuery } from '../filterState.js'
-import { draggingSection } from '../dragState.js'
+import { useSettings } from '../composables/useSettings'
+import { useSoundManagement } from '../composables/useSoundManagement'
+import { filterQuery } from '../filterState'
+import { draggingSection } from '../dragState'
 import AccordionSection from './AccordionSection.vue'
+import type { SoundSection } from '../types'
 
 const { settings, soundGroups, soundCount, isLoadingSounds } = useSettings()
 const { buildSections, addCategory, reorderCategories } = useSoundManagement()
 
 // ── Category reorder drag handling ───────────────────────────────────────────
 
-const dragOverSectionId = ref(null)
+const dragOverSectionId = ref<string | null>(null)
 
-function onSectionWrapperDragOver(event, sectionId) {
+function onSectionWrapperDragOver(event: DragEvent, sectionId: string): void {
   if (!draggingSection.value) return
   event.preventDefault()
   dragOverSectionId.value = sectionId
 }
 
-function onSectionWrapperDragLeave(event) {
-  if (!event.currentTarget.contains(event.relatedTarget)) {
+function onSectionWrapperDragLeave(event: DragEvent): void {
+  if (!(event.currentTarget as Element).contains(event.relatedTarget as Node | null)) {
     dragOverSectionId.value = null
   }
 }
 
-function onSectionDrop(sectionId) {
+function onSectionDrop(sectionId: string): void {
   const draggedId = draggingSection.value?.id
   draggingSection.value = null
   dragOverSectionId.value = null
@@ -53,7 +54,7 @@ const filteredSoundCount = computed(() => {
   )
 })
 
-const sections = computed(() => buildSections())
+const sections = computed<SoundSection[]>(() => buildSections())
 </script>
 
 <template>

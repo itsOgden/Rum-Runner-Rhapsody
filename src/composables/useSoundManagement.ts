@@ -1,17 +1,18 @@
 import { ref } from 'vue'
-import { useSettings } from './useSettings.js'
-import { showToast } from '../toastState.js'
+import { useSettings } from './useSettings'
+import { showToast } from '../toastState'
+import type { Sound, SoundSection, RawSound } from '../types'
 
 // Session-only state — resets on folder change
 const showHidden = ref(false)
 
 // Signals which newly-created category should auto-enter rename mode
-const pendingRenameId = ref(null)
+const pendingRenameId = ref<string | null>(null)
 
 export function useSoundManagement() {
   const { settings, saveSettings, soundGroups } = useSettings()
 
-  function resetSessionState() {
+  function resetSessionState(): void {
     showHidden.value = false
   }
 
@@ -20,7 +21,7 @@ export function useSoundManagement() {
   // e.g. "sfx/boom.wav" (subfolder) or "boom.wav" (root-level).
   // Used as the stable identifier in hiddenSounds, soundCategories, etc.
 
-  function getSoundKey(sound) {
+  function getSoundKey(sound: RawSound): string {
     const rootFolder = settings.value.soundFolder || ''
     if (!rootFolder || !sound.path) return sound.filename
     let rel = sound.path
@@ -33,12 +34,12 @@ export function useSoundManagement() {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  function getAllSoundsMap() {
-    const map = {}
+  function getAllSoundsMap(): Record<string, Sound> {
+    const map: Record<string, Sound> = {}
     soundGroups.value.forEach(g =>
       g.sounds.forEach(s => {
         const key = getSoundKey(s)
-        map[key] = { ...s, key, originalFolder: g.folderName }
+        map[key] = { ...s, key, originalFolder: g.folderName, isHidden: false, isMoved: false }
       })
     )
     return map
@@ -46,8 +47,8 @@ export function useSoundManagement() {
 
   // Returns all sections as { id, name } for the "Move to…" picker.
   // Optionally excludes the section the sound currently lives in.
-  function getAvailableCategories(excludeId = null) {
-    const cats = []
+  function getAvailableCategories(excludeId: string | null = null): Array<{ id: string; name: string }> {
+    const cats: Array<{ id: string; name: string }> = []
     soundGroups.value.forEach(g => {
       if (g.folderName !== excludeId)
         cats.push({ id: g.folderName, name: getCategoryDisplayName(g.folderName, g.folderName) })
@@ -61,11 +62,11 @@ export function useSoundManagement() {
 
   // ── Category display names ─────────────────────────────────────────────────
 
-  function getCategoryDisplayName(sectionId, fallback = sectionId) {
+  function getCategoryDisplayName(sectionId: string, fallback = sectionId): string {
     return (settings.value.categoryNames || {})[sectionId] ?? fallback
   }
 
-  function renameCategory(sectionId, newName) {
+  function renameCategory(sectionId: string, newName: string): void {
     const trimmed = newName.trim()
     if (!trimmed) return
     const names = { ...(settings.value.categoryNames || {}), [sectionId]: trimmed }
@@ -75,13 +76,13 @@ export function useSoundManagement() {
 
   // ── Sound display names ────────────────────────────────────────────────────
 
-  function getSoundDisplayName(key, fallback) {
+  function getSoundDisplayName(key: string, fallback: string): string {
     return (settings.value.soundNames || {})[key] ?? fallback
   }
 
-  function renameSound(key, newName) {
+  function renameSound(key: string, newName: string): void {
     const trimmed = newName.trim()
-    const names = { ...(settings.value.soundNames || {}), [key]: trimmed || undefined }
+    const names: Record<string, string> = { ...(settings.value.soundNames || {}), [key]: trimmed }
     // Remove entry entirely if name is cleared (revert to filename)
     if (!trimmed) delete names[key]
     settings.value.soundNames = names
@@ -90,13 +91,13 @@ export function useSoundManagement() {
 
   // ── Hidden sounds ──────────────────────────────────────────────────────────
 
-  function hideSound(key) {
+  function hideSound(key: string): void {
     const hidden = [...new Set([...(settings.value.hiddenSounds || []), key])]
     settings.value.hiddenSounds = hidden
     saveSettings({ hiddenSounds: hidden })
   }
 
-  function restoreSound(key) {
+  function restoreSound(key: string): void {
     const hidden = (settings.value.hiddenSounds || []).filter(k => k !== key)
     settings.value.hiddenSounds = hidden
     saveSettings({ hiddenSounds: hidden })
@@ -104,13 +105,13 @@ export function useSoundManagement() {
 
   // ── Hidden sections ────────────────────────────────────────────────────────
 
-  function hideSection(sectionId) {
+  function hideSection(sectionId: string): void {
     const hidden = [...new Set([...(settings.value.hiddenSections || []), sectionId])]
     settings.value.hiddenSections = hidden
     saveSettings({ hiddenSections: hidden })
   }
 
-  function unhideSection(sectionId) {
+  function unhideSection(sectionId: string): void {
     const hidden = (settings.value.hiddenSections || []).filter(id => id !== sectionId)
     settings.value.hiddenSections = hidden
     saveSettings({ hiddenSections: hidden })
@@ -118,7 +119,7 @@ export function useSoundManagement() {
 
   // ── Custom categories ──────────────────────────────────────────────────────
 
-  function addCategory() {
+  function addCategory(): string {
     const id = `cat_${Date.now()}`
     const cats = [...(settings.value.customCategories || []), { id, name: 'New Category', sounds: [] }]
     settings.value.customCategories = cats
@@ -127,7 +128,7 @@ export function useSoundManagement() {
     return id
   }
 
-  function deleteCategory(categoryId) {
+  function deleteCategory(categoryId: string): boolean {
     const sc = settings.value.soundCategories || {}
     if (Object.values(sc).some(v => v === categoryId)) {
       showToast('Cannot delete a non-empty category. Move or reset its sounds first.')
@@ -146,7 +147,7 @@ export function useSoundManagement() {
 
   // ── Sound categories (move / reset) ────────────────────────────────────────
 
-  function moveSound(key, targetCategoryId) {
+  function moveSound(key: string, targetCategoryId: string): void {
     const sc = { ...(settings.value.soundCategories || {}), [key]: targetCategoryId }
     settings.value.soundCategories = sc
     // Keep customCategories.sounds arrays in sync (only relevant for custom targets)
@@ -160,7 +161,7 @@ export function useSoundManagement() {
     saveSettings({ soundCategories: sc, customCategories: cats })
   }
 
-  function resetSound(key) {
+  function resetSound(key: string): void {
     const sc = { ...(settings.value.soundCategories || {}) }
     delete sc[key]
     const cats = (settings.value.customCategories || []).map(c => ({
@@ -181,7 +182,7 @@ export function useSoundManagement() {
     saveSettings({ soundCategories: sc, customCategories: cats, hiddenSounds: hidden, soundOrder })
   }
 
-  function getSoundCategory(key) {
+  function getSoundCategory(key: string): string | null {
     return (settings.value.soundCategories || {})[key] ?? null
   }
 
@@ -189,7 +190,7 @@ export function useSoundManagement() {
   // Resets a folder section to defaults: removes custom display name, unhides
   // the section, unhides its sounds, and returns any moved sounds back.
 
-  function restoreSection(sectionId) {
+  function restoreSection(sectionId: string): void {
     const group = soundGroups.value.find(g => g.folderName === sectionId)
     if (!group) return
 
@@ -225,11 +226,11 @@ export function useSoundManagement() {
 
   // ── Collapse state ─────────────────────────────────────────────────────────
 
-  function isCollapsedSection(sectionId) {
+  function isCollapsedSection(sectionId: string): boolean {
     return (settings.value.collapsedSections || []).includes(sectionId)
   }
 
-  function setCollapsedSection(sectionId, isCollapsed) {
+  function setCollapsedSection(sectionId: string, isCollapsed: boolean): void {
     const current = settings.value.collapsedSections || []
     const next = isCollapsed
       ? (current.includes(sectionId) ? current : [...current, sectionId])
@@ -242,14 +243,14 @@ export function useSoundManagement() {
 
   // Persists a new manual sort order for sounds within a section.
   // orderedKeys should contain the sound keys in their desired display order.
-  function reorderSoundsInSection(sectionId, orderedKeys) {
+  function reorderSoundsInSection(sectionId: string, orderedKeys: string[]): void {
     const soundOrder = { ...(settings.value.soundOrder || {}), [sectionId]: orderedKeys }
     settings.value.soundOrder = soundOrder
     saveSettings({ soundOrder })
   }
 
   // Persists a new manual sort order for categories (section IDs).
-  function reorderCategories(orderedIds) {
+  function reorderCategories(orderedIds: string[]): void {
     settings.value.categoryOrder = orderedIds
     saveSettings({ categoryOrder: orderedIds })
   }
@@ -259,13 +260,13 @@ export function useSoundManagement() {
 
   // Sorts a sounds array in-place using the saved soundOrder for that section.
   // Keys listed in soundOrder come first (in order); remaining sounds sort alphabetically.
-  function applySoundOrder(sounds, sectionId) {
+  function applySoundOrder(sounds: Sound[], sectionId: string): void {
     const order = (settings.value.soundOrder || {})[sectionId] || []
     if (order.length > 0) {
       const indexMap = new Map(order.map((k, i) => [k, i]))
       sounds.sort((a, b) => {
-        const ia = indexMap.has(a.key) ? indexMap.get(a.key) : Infinity
-        const ib = indexMap.has(b.key) ? indexMap.get(b.key) : Infinity
+        const ia = indexMap.has(a.key) ? indexMap.get(a.key)! : Infinity
+        const ib = indexMap.has(b.key) ? indexMap.get(b.key)! : Infinity
         if (ia !== ib) return ia - ib
         return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
       })
@@ -274,7 +275,7 @@ export function useSoundManagement() {
     }
   }
 
-  function buildSections() {
+  function buildSections(): SoundSection[] {
     const sc = settings.value.soundCategories || {}
     const hiddenSet = new Set(settings.value.hiddenSounds || [])
     const hiddenSectionsSet = new Set(settings.value.hiddenSections || [])
@@ -283,7 +284,7 @@ export function useSoundManagement() {
     const soundNames = settings.value.soundNames || {}
     const showing = showHidden.value
     const soundMap = getAllSoundsMap()
-    const result = []
+    const result: SoundSection[] = []
 
     // Original folder sections (in discovery order)
     for (const group of soundGroups.value) {
@@ -292,7 +293,7 @@ export function useSoundManagement() {
 
       // Sounds originally in this group that haven't been moved away
       const nativeKeys = new Set(group.sounds.map(s => getSoundKey(s)))
-      const nativeSounds = group.sounds
+      const nativeSounds: Sound[] = group.sounds
         .filter(s => { const k = getSoundKey(s); const c = sc[k]; return !c || c === group.folderName })
         .map(s => {
           const key = getSoundKey(s)
@@ -300,10 +301,10 @@ export function useSoundManagement() {
         })
 
       // sounds from other groups explicitly moved to this folder section
-      const movedInSounds = Object.entries(sc)
+      const movedInSounds: Sound[] = Object.entries(sc)
         .filter(([key, catId]) => catId === group.folderName && !nativeKeys.has(key))
         .map(([key]) => soundMap[key])
-        .filter(Boolean)
+        .filter((s): s is Sound => Boolean(s))
         .map(s => ({ ...s, name: soundNames[s.key] ?? s.name, isHidden: hiddenSet.has(s.key), isMoved: true }))
 
       const sounds = [...nativeSounds, ...movedInSounds]
@@ -326,10 +327,10 @@ export function useSoundManagement() {
       const isHidden = hiddenSectionsSet.has(cat.id)
       if (!showing && isHidden) continue
 
-      const sounds = Object.entries(sc)
+      const sounds: Sound[] = Object.entries(sc)
         .filter(([, catId]) => catId === cat.id)
         .map(([key]) => soundMap[key])
-        .filter(Boolean)
+        .filter((s): s is Sound => Boolean(s))
         .map(s => ({ ...s, name: soundNames[s.key] ?? s.name, isHidden: hiddenSet.has(s.key), isMoved: true }))
         .filter(s => showing || !s.isHidden)
 
@@ -350,8 +351,8 @@ export function useSoundManagement() {
     if (categoryOrder.length > 0) {
       const indexMap = new Map(categoryOrder.map((id, i) => [id, i]))
       result.sort((a, b) => {
-        const ia = indexMap.has(a.id) ? indexMap.get(a.id) : Infinity
-        const ib = indexMap.has(b.id) ? indexMap.get(b.id) : Infinity
+        const ia = indexMap.has(a.id) ? indexMap.get(a.id)! : Infinity
+        const ib = indexMap.has(b.id) ? indexMap.get(b.id)! : Infinity
         return ia - ib
         // Sections not in categoryOrder keep their relative position at the end
       })

@@ -1,14 +1,14 @@
 import { ref } from 'vue'
-import { useSettings } from './useSettings.js'
-import { showToast } from '../toastState.js'
+import { useSettings } from './useSettings'
+import { showToast } from '../toastState'
 
-const audioDevices = ref([])
+const audioDevices = ref<MediaDeviceInfo[]>([])
 
 // Returns true for Windows proxy aliases that the Web Audio API cannot route
 // to reliably via setSinkId: the explicit "default" deviceId, any label
 // beginning with "Default", and any label beginning with "Communications".
 // The real hardware device always appears as a separate entry in the list.
-function isDefaultDevice(d) {
+function isDefaultDevice(d: MediaDeviceInfo): boolean {
   if (d.deviceId === 'default') return true
   const lower = d.label.toLowerCase()
   if (lower.startsWith('default')) return true
@@ -20,18 +20,18 @@ function isDefaultDevice(d) {
 // dash) prefix so that a saved name such as
 // "Communications - Headphones (Realtek USB Audio)" can be matched against
 // the real device "Headphones (Realtek USB Audio)".
-function stripDefaultPrefix(str) {
+function stripDefaultPrefix(str: string): string {
   return str.replace(/^(?:default|communications)\s*[-–]\s*/i, '').trim()
 }
 
 export function useAudioDevices() {
-  function cleanDeviceLabel(label) {
+  function cleanDeviceLabel(label: string): string {
     return label.replace(/\s*\([0-9a-fA-F]{4}:[0-9a-fA-F]{4}\)\s*$/, '').trim()
   }
 
   // Returns the first device in `devs` that specifically matches `savedName`,
   // or null if nothing matches.  Does NOT fall back to the first device.
-  function _findSpecificMatch(savedName, devs) {
+  function _findSpecificMatch(savedName: string, devs: MediaDeviceInfo[]): MediaDeviceInfo | null {
     if (!savedName) return null
 
     const stripped = stripDefaultPrefix(savedName)
@@ -64,7 +64,7 @@ export function useAudioDevices() {
     return null
   }
 
-  async function refreshDevices() {
+  async function refreshDevices(): Promise<void> {
     try {
       let devices = await navigator.mediaDevices.enumerateDevices()
       let outputs = devices.filter(d => d.kind === 'audiooutput' && d.deviceId !== '')
@@ -91,8 +91,8 @@ export function useAudioDevices() {
       // saved entry was a "Default - X" alias with no real match remaining.
       const { settings } = useSettings()
       const slots = [
-        { label: settings.value.primaryDevice,   role: 'Monitor' },
-        { label: settings.value.secondaryDevice,  role: 'Output' },
+        { label: settings.value.primaryDevice,  role: 'Monitor' },
+        { label: settings.value.secondaryDevice, role: 'Output' },
       ]
       for (const { label, role } of slots) {
         if (label && !_findSpecificMatch(label, outputs)) {
@@ -109,7 +109,7 @@ export function useAudioDevices() {
   // slots pass 1 so they default to a different device than the primary.
   // If the requested index doesn't exist (only one device available) we fall
   // back to index 0 so the function always returns something usable.
-  function findMatchingDeviceId(savedName, fallbackIndex = 0) {
+  function findMatchingDeviceId(savedName: string, fallbackIndex = 0): string {
     const devs = audioDevices.value
     const fallback = (devs[fallbackIndex] ?? devs[0])?.deviceId ?? ''
     if (!savedName) return fallback
@@ -117,7 +117,7 @@ export function useAudioDevices() {
     return match?.deviceId ?? fallback
   }
 
-  function getDeviceLabel(deviceId) {
+  function getDeviceLabel(deviceId: string): string {
     const d = audioDevices.value.find(dev => dev.deviceId === deviceId)
     return d ? cleanDeviceLabel(d.label || `Device ${deviceId.slice(0, 8)}`) : ''
   }

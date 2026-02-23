@@ -1,15 +1,16 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
-import { useAudioPlayer } from '../composables/useAudioPlayer.js'
-import { useSoundManagement } from '../composables/useSoundManagement.js'
-import { activeDropdownId } from '../dropdownState.js'
-import { draggingSound } from '../dragState.js'
+import { useAudioPlayer } from '../composables/useAudioPlayer'
+import { useSoundManagement } from '../composables/useSoundManagement'
+import { activeDropdownId } from '../dropdownState'
+import { draggingSound } from '../dragState'
+import type { Sound } from '../types'
 
-const props = defineProps({
-  sound: { type: Object, required: true },
-  sectionId: { type: String, default: '' },
-  animationDelay: { type: Number, default: 0 },
-})
+const props = defineProps<{
+  sound: Sound
+  sectionId?: string
+  animationDelay?: number
+}>()
 
 const { playSound, playingPaths, previewSound, stopPreview, previewingPath } = useAudioPlayer()
 const { hideSound, restoreSound, moveSound, resetSound, getSoundCategory, getAvailableCategories, renameSound } = useSoundManagement()
@@ -17,16 +18,16 @@ const { hideSound, restoreSound, moveSound, resetSound, getSoundCategory, getAva
 const isPlaying = computed(() => playingPaths.value.has(props.sound.path))
 const isPreviewing = computed(() => previewingPath.value === props.sound.path)
 
-function handleClick() {
+function handleClick(): void {
   if (!isDragging.value) playSound(props.sound)
 }
 
-function handlePreviewClick(event) {
+function handlePreviewClick(event: MouseEvent): void {
   event.stopPropagation()
   previewSound(props.sound)
 }
 
-function handleMouseLeave() {
+function handleMouseLeave(): void {
   if (isPreviewing.value) stopPreview()
 }
 
@@ -34,14 +35,14 @@ function handleMouseLeave() {
 
 const isDragging = ref(false)
 
-function onDragStart(event) {
+function onDragStart(event: DragEvent): void {
   isDragging.value = true
-  draggingSound.value = { ...props.sound, fromSectionId: props.sectionId }
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', props.sound.key)
+  draggingSound.value = { ...props.sound, fromSectionId: props.sectionId ?? '' }
+  event.dataTransfer!.effectAllowed = 'move'
+  event.dataTransfer!.setData('text/plain', props.sound.key)
 }
 
-function onDragEnd() {
+function onDragEnd(): void {
   isDragging.value = false
   // draggingSound is cleared by the drop target (or here as a fallback)
   draggingSound.value = null
@@ -65,10 +66,10 @@ watch(activeDropdownId, (id) => {
 // Estimated menu height for viewport flip calculation
 const MENU_HEIGHT_ESTIMATE = 220
 
-function openMenu(event) {
+function openMenu(event: MouseEvent): void {
   event.stopPropagation()
   showMoveList.value = false
-  const rect = event.currentTarget.getBoundingClientRect()
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
   let x = rect.right - 180
   let y = rect.bottom + 4
   if (x < 4) x = 4
@@ -88,22 +89,22 @@ function openMenu(event) {
   document.addEventListener('click', close)
 }
 
-function handleHide() {
+function handleHide(): void {
   menuOpen.value = false
   hideSound(props.sound.key)
 }
 
-function handleRestore() {
+function handleRestore(): void {
   menuOpen.value = false
   restoreSound(props.sound.key)
 }
 
-function handleMove(categoryId) {
+function handleMove(categoryId: string): void {
   menuOpen.value = false
   moveSound(props.sound.key, categoryId)
 }
 
-function handleReset() {
+function handleReset(): void {
   menuOpen.value = false
   resetSound(props.sound.key)
 }
@@ -112,29 +113,29 @@ function handleReset() {
 const isMoved = computed(() => !!getSoundCategory(props.sound.key))
 
 // Available targets for "Move to…" — excludes the section the sound is already in
-const availableCategories = computed(() => getAvailableCategories(props.sectionId))
+const availableCategories = computed(() => getAvailableCategories(props.sectionId ?? null))
 
 // ── Inline rename ────────────────────────────────────────────────────────────
 
 const isRenaming = ref(false)
 const renamingValue = ref('')
-const renameInputEl = ref(null)
+const renameInputEl = ref<HTMLInputElement | null>(null)
 
-function startRename() {
+function startRename(): void {
   menuOpen.value = false
   renamingValue.value = props.sound.name
   isRenaming.value = true
   nextTick(() => renameInputEl.value?.select())
 }
 
-function confirmRename() {
+function confirmRename(): void {
   if (isRenaming.value) {
     renameSound(props.sound.key, renamingValue.value)
     isRenaming.value = false
   }
 }
 
-function cancelRename() {
+function cancelRename(): void {
   isRenaming.value = false
 }
 </script>
@@ -143,7 +144,7 @@ function cancelRename() {
   <!-- Outer wrapper: provides the hover group, full height, and fade-in animation -->
   <div
     class="group/btn relative fade-in h-full"
-    :style="{ animationDelay: `${animationDelay}ms` }"
+    :style="{ animationDelay: `${animationDelay ?? 0}ms` }"
     @mouseleave="handleMouseLeave"
   >
     <!-- Inline rename input (replaces button label) -->

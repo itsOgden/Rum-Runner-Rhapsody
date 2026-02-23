@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import DeviceCard from './DeviceCard.vue'
 </script>
 

@@ -1,8 +1,8 @@
-<script setup>
-import { useSettings } from '../composables/useSettings.js'
-import { useAudioDevices } from '../composables/useAudioDevices.js'
-import { useSoundManagement } from '../composables/useSoundManagement.js'
-import { filterQuery } from '../filterState.js'
+<script setup lang="ts">
+import { useSettings } from '../composables/useSettings'
+import { useAudioDevices } from '../composables/useAudioDevices'
+import { useSoundManagement } from '../composables/useSoundManagement'
+import { filterQuery } from '../filterState'
 
 const { settings, onFolderChanged, saveSettings, loadSounds } = useSettings()
 const { refreshDevices } = useAudioDevices()

@@ -1,6 +1,6 @@
-<script setup>
-import { useSettings } from '../composables/useSettings.js'
-import { useAudioPlayer } from '../composables/useAudioPlayer.js'
+<script setup lang="ts">
+import { useSettings } from '../composables/useSettings'
+import { useAudioPlayer } from '../composables/useAudioPlayer'
 
 const { settings, soundCount } = useSettings()
 const { statusText } = useAudioPlayer()

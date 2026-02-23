@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useSettings } from '../composables/useSettings.js'
-import { useAudioDevices } from '../composables/useAudioDevices.js'
-import { showToast } from '../toastState.js'
+import { useSettings } from '../composables/useSettings'
+import { useAudioDevices } from '../composables/useAudioDevices'
+import { showToast } from '../toastState'
 
-const props = defineProps({
-  role: { type: String, required: true },
-})
+const props = defineProps<{
+  role: 'primary' | 'secondary'
+}>()
 
 const { settings, saveSettings } = useSettings()
 const { audioDevices, findMatchingDeviceId, cleanDeviceLabel, getDeviceLabel } = useAudioDevices()
@@ -15,9 +15,15 @@ const label = computed(() =>
   props.role === 'primary' ? 'Monitor' : 'Output'
 )
 
-const deviceKey = computed(() => `${props.role}Device`)
-const volumeKey = computed(() => `${props.role}Volume`)
-const enabledKey = computed(() => `${props.role}Enabled`)
+const deviceKey = computed((): 'primaryDevice' | 'secondaryDevice' =>
+  props.role === 'primary' ? 'primaryDevice' : 'secondaryDevice'
+)
+const volumeKey = computed((): 'primaryVolume' | 'secondaryVolume' =>
+  props.role === 'primary' ? 'primaryVolume' : 'secondaryVolume'
+)
+const enabledKey = computed((): 'primaryEnabled' | 'secondaryEnabled' =>
+  props.role === 'primary' ? 'primaryEnabled' : 'secondaryEnabled'
+)
 const fallbackIndex = computed(() => props.role === 'primary' ? 0 : 1)
 
 const selectedDeviceId = ref('')
@@ -42,9 +48,9 @@ watch(audioDevices, () => {
   selectedDeviceId.value = findMatchingDeviceId(settings.value[deviceKey.value], fallbackIndex.value)
 })
 
-let saveTimeout = null
-function debouncedSave() {
-  clearTimeout(saveTimeout)
+let saveTimeout: ReturnType<typeof setTimeout> | null = null
+function debouncedSave(): void {
+  if (saveTimeout) clearTimeout(saveTimeout)
   saveTimeout = setTimeout(() => {
     saveSettings({
       [deviceKey.value]: getDeviceLabel(selectedDeviceId.value),
@@ -54,12 +60,14 @@ function debouncedSave() {
   }, 200)
 }
 
-function onDeviceChange() {
+function onDeviceChange(): void {
   // Guard: prevent selecting the same device on both slots when alternatives exist.
   if (audioDevices.value.length > 1) {
     const otherRole = props.role === 'primary' ? 'secondary' : 'primary'
     const otherFallback = otherRole === 'primary' ? 0 : 1
-    const otherDeviceId = findMatchingDeviceId(settings.value[`${otherRole}Device`], otherFallback)
+    const otherDeviceKey: 'primaryDevice' | 'secondaryDevice' =
+      otherRole === 'primary' ? 'primaryDevice' : 'secondaryDevice'
+    const otherDeviceId = findMatchingDeviceId(settings.value[otherDeviceKey], otherFallback)
     if (selectedDeviceId.value === otherDeviceId) {
       const otherLabel = otherRole === 'primary' ? 'Monitor' : 'Output'
       showToast(`That device is already selected as the ${otherLabel} output. Choose a different device.`, 'info')
@@ -72,16 +80,16 @@ function onDeviceChange() {
   debouncedSave()
 }
 
-function onVolumeInput() {
+function onVolumeInput(): void {
   settings.value[volumeKey.value] = volumePercent.value / 100
 }
 
-function onVolumeChange() {
+function onVolumeChange(): void {
   settings.value[volumeKey.value] = volumePercent.value / 100
   debouncedSave()
 }
 
-function onEnabledChange() {
+function onEnabledChange(): void {
   settings.value[enabledKey.value] = enabled.value
   debouncedSave()
 }
