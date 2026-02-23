@@ -3,7 +3,7 @@ import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import SoundButton from './SoundButton.vue'
 import { useSoundManagement } from '../composables/useSoundManagement.js'
 import { activeDropdownId } from '../dropdownState.js'
-import { draggingSound } from '../dragState.js'
+import { draggingSound, draggingSection } from '../dragState.js'
 
 const props = defineProps({
   section: { type: Object, required: true },
@@ -21,6 +21,7 @@ const {
   hideSection,
   unhideSection,
   pendingRenameId,
+  reorderSoundsInSection,
 } = useSoundManagement()
 
 // ── Collapse — initialize from persisted settings ──────────────────────────
@@ -115,11 +116,21 @@ function handleUnhideSection() {
   unhideSection(props.section.id)
 }
 
-// ── Drag and drop target ─────────────────────────────────────────────────────
+// ── Drag and drop ────────────────────────────────────────────────────────────
 
 const isDropTarget = ref(false)
+// Index within visibleSounds the cursor is over during a same-section drag
+const dragOverSoundIndex = ref(null)
 
+// Section-level dragover: handles cross-section sound moves and category reorder.
+// Same-section sound reorders are handled by the per-sound wrapper divs.
 function onDragOver(event) {
+  if (draggingSection.value) {
+    // Accept the drag so AccordionSection is a clear drop target; visual feedback
+    // is handled by the SoundGrid wrapper outline, not by isDropTarget here.
+    event.preventDefault()
+    return
+  }
   if (!draggingSound.value) return
   if (draggingSound.value.fromSectionId === props.section.id) return
   event.preventDefault()
@@ -128,19 +139,59 @@ function onDragOver(event) {
 }
 
 function onDragLeave(event) {
-  // Only clear when leaving this element, not just moving to a child element
   if (!event.currentTarget.contains(event.relatedTarget)) {
     isDropTarget.value = false
+    dragOverSoundIndex.value = null
   }
 }
 
 function onDrop(event) {
   event.preventDefault()
+  // No stopPropagation — section-reorder drops must bubble up to SoundGrid's handler.
   isDropTarget.value = false
   const sound = draggingSound.value
   draggingSound.value = null
-  if (!sound || sound.fromSectionId === props.section.id) return
-  moveSound(sound.key, props.section.id)
+  if (!sound) return // Section drag — let the event bubble to SoundGrid's onSectionDrop
+
+  if (sound.fromSectionId === props.section.id) {
+    // Same-section: reorder if a valid target index was tracked
+    const idx = dragOverSoundIndex.value
+    dragOverSoundIndex.value = null
+    if (idx !== null && !props.filter) {
+      const keys = visibleSounds.value.map(s => s.key)
+      const fromIdx = keys.indexOf(sound.key)
+      if (fromIdx !== -1 && fromIdx !== idx) {
+        keys.splice(fromIdx, 1)
+        keys.splice(idx, 0, sound.key)
+        reorderSoundsInSection(props.section.id, keys)
+      }
+    }
+  } else {
+    dragOverSoundIndex.value = null
+    moveSound(sound.key, props.section.id)
+  }
+}
+
+// Per-sound-wrapper dragover: tracks hover index for same-section reordering.
+function onSoundWrapperDragOver(event, index) {
+  if (!draggingSound.value) return
+  if (draggingSection.value) return
+  if (props.filter) return // No reordering while filtered
+  if (draggingSound.value.fromSectionId !== props.section.id) return
+  event.preventDefault()
+  dragOverSoundIndex.value = index
+}
+
+// ── Section header drag (for category reorder) ───────────────────────────────
+
+function onHeaderDragStart(event) {
+  draggingSection.value = { id: props.section.id }
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', props.section.id)
+}
+
+function onHeaderDragEnd() {
+  draggingSection.value = null
 }
 
 // ── Auto-enter rename mode for newly-created categories ─────────────────────
@@ -165,13 +216,16 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
     @dragleave="onDragLeave"
     @drop="onDrop"
   >
-    <!-- Header -->
+    <!-- Header — draggable for category reorder when no filter is active -->
     <div
       class="group/hdr flex items-center gap-2 px-3 py-2 bg-bg-raised border border-border rounded-sm select-none transition-colors"
       :class="[
-        !filter && 'cursor-pointer hover:bg-bg-surface-hover hover:border-border-light',
+        !filter && 'cursor-grab hover:bg-bg-surface-hover hover:border-border-light',
         isDropTarget && 'border-accent bg-bg-surface-hover',
       ]"
+      :draggable="!filter"
+      @dragstart="onHeaderDragStart"
+      @dragend="onHeaderDragEnd"
       @click="toggleCollapse"
     >
       <!-- Collapse arrow (hidden during filter) -->
@@ -191,13 +245,14 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
         @keydown.escape.prevent="cancelRename"
         @blur="confirmRename"
         @click.stop
+        @dragstart.stop
       />
       <span v-else class="font-display text-sm text-accent flex-1">{{ section.displayName }}</span>
 
       <span class="font-mono text-[11px] text-text-dim">{{ visibleSounds.length }}</span>
 
       <!-- ⋯ button -->
-      <div class="relative" @click.stop>
+      <div class="relative" @click.stop @dragstart.stop>
         <button
           class="opacity-0 group-hover/hdr:opacity-100 text-[14px] text-text-secondary hover:text-text-primary px-1 leading-none transition-opacity"
           @click="openHeaderMenu"
@@ -253,13 +308,22 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
         :class="isDropTarget && 'outline outline-2 outline-accent outline-offset-2'"
         :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${minCellSize}, 1fr))` }"
       >
-        <SoundButton
+        <!-- Wrapper div enables per-slot dragover tracking for same-section reorder -->
+        <div
           v-for="(sound, index) in visibleSounds"
           :key="sound.path"
-          :sound="sound"
-          :section-id="section.id"
-          :animation-delay="index * 25"
-        />
+          class="h-full"
+          :class="dragOverSoundIndex === index && draggingSound?.fromSectionId === section.id && !filter
+            ? 'outline outline-2 outline-accent rounded-md'
+            : ''"
+          @dragover="onSoundWrapperDragOver($event, index)"
+        >
+          <SoundButton
+            :sound="sound"
+            :section-id="section.id"
+            :animation-delay="index * 25"
+          />
+        </div>
       </div>
     </div>
   </div>

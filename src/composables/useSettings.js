@@ -22,6 +22,8 @@ const settings = ref({
   soundCategories: {},
   collapsedSections: [],
   soundNames: {},
+  soundOrder: {},
+  categoryOrder: [],
 })
 
 const soundGroups = ref([])

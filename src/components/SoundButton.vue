@@ -11,13 +11,23 @@ const props = defineProps({
   animationDelay: { type: Number, default: 0 },
 })
 
-const { playSound, playingPaths } = useAudioPlayer()
+const { playSound, playingPaths, previewSound, stopPreview, previewingPath } = useAudioPlayer()
 const { hideSound, restoreSound, moveSound, resetSound, getSoundCategory, getAvailableCategories, renameSound } = useSoundManagement()
 
 const isPlaying = computed(() => playingPaths.value.has(props.sound.path))
+const isPreviewing = computed(() => previewingPath.value === props.sound.path)
 
 function handleClick() {
   if (!isDragging.value) playSound(props.sound)
+}
+
+function handlePreviewClick(event) {
+  event.stopPropagation()
+  previewSound(props.sound)
+}
+
+function handleMouseLeave() {
+  if (isPreviewing.value) stopPreview()
 }
 
 // ── Drag source ──────────────────────────────────────────────────────────────
@@ -134,6 +144,7 @@ function cancelRename() {
   <div
     class="group/btn relative fade-in h-full"
     :style="{ animationDelay: `${animationDelay}ms` }"
+    @mouseleave="handleMouseLeave"
   >
     <!-- Inline rename input (replaces button label) -->
     <div
@@ -175,6 +186,25 @@ function cancelRename() {
         @click="openMenu"
         title="Sound options"
       >⋯</button>
+    </div>
+
+    <!-- Preview trigger — floats in bottom-right corner, visible on group hover -->
+    <div v-if="!isRenaming" class="absolute bottom-1 right-1 z-10" @click.stop>
+      <button
+        class="bg-bg-surface/80 rounded px-1 py-0.5 leading-none transition-all"
+        :class="isPreviewing
+          ? 'opacity-100 text-accent'
+          : 'opacity-0 group-hover/btn:opacity-100 text-text-secondary hover:text-text-primary'"
+        @click="handlePreviewClick"
+        title="Preview (monitor output only)"
+      >
+        <!-- Headphones icon -->
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M2 6.5V6a4 4 0 0 1 8 0v.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          <rect x="0" y="5.5" width="2.5" height="4" rx="1"/>
+          <rect x="9.5" y="5.5" width="2.5" height="4" rx="1"/>
+        </svg>
+      </button>
     </div>
 
     <!-- Sound ⋯ menu (teleported to avoid scroll-container clipping) -->

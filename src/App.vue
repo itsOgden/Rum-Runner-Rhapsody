@@ -1,8 +1,11 @@
 <script setup>
-import { onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useSettings } from './composables/useSettings.js'
 import { useAudioDevices } from './composables/useAudioDevices.js'
 import { useAudioPlayer } from './composables/useAudioPlayer.js'
+import { useSoundManagement } from './composables/useSoundManagement.js'
+import { filterQuery } from './filterState.js'
+import appIcon from '../app-icon.png'
 import TopBar from './components/TopBar.vue'
 import DevicePanel from './components/DevicePanel.vue'
 import FolderBar from './components/FolderBar.vue'
@@ -11,9 +14,12 @@ import StatusBar from './components/StatusBar.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import Toast from './components/Toast.vue'
 
-const { settings, loadSettings } = useSettings()
+const { settings, loadSettings, onFolderChanged } = useSettings()
 const { refreshDevices } = useAudioDevices()
 const { stopAll } = useAudioPlayer()
+const { resetSessionState } = useSoundManagement()
+
+const hasSoundFolder = computed(() => !!settings.value.soundFolder)
 
 watch(
   () => settings.value.theme,
@@ -26,6 +32,15 @@ watch(
 function handleKeydown(e) {
   if (e.key === (settings.value.stopHotkey || 'Escape')) {
     stopAll()
+  }
+}
+
+async function handleChooseFolder() {
+  const result = await window.api.pickFolder()
+  if (result) {
+    filterQuery.value = ''
+    resetSessionState()
+    await onFolderChanged(result)
   }
 }
 
@@ -42,11 +57,33 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col h-screen overflow-hidden">
-    <TopBar />
-    <DevicePanel />
-    <FolderBar />
-    <SoundGrid />
-    <StatusBar />
+
+    <!-- ── Welcome screen — no folder selected yet ───────────────────────── -->
+    <template v-if="!hasSoundFolder">
+      <div class="flex-1 flex flex-col items-center justify-center text-center gap-7 px-10">
+        <img :src="appIcon" alt="" aria-hidden="true" class="h-[120px] w-auto opacity-90" />
+        <div class="flex flex-col gap-2">
+          <div class="font-display text-3xl text-accent">Rum-Runner Rhapsody<span class="logo-dot"></span></div>
+          <div class="text-[13px] text-text-dim max-w-sm leading-relaxed">
+            Choose a folder containing your audio files to get started.
+          </div>
+        </div>
+        <button class="btn btn-accent px-6 py-2 text-[13px]" @click="handleChooseFolder">
+          Choose a sounds folder
+        </button>
+      </div>
+    </template>
+
+    <!-- ── Normal app chrome ─────────────────────────────────────────────── -->
+    <template v-else>
+      <TopBar />
+      <DevicePanel />
+      <FolderBar />
+      <SoundGrid />
+      <StatusBar />
+    </template>
+
+    <!-- Overlays always available (toasts, settings) -->
     <SettingsModal />
     <Toast />
   </div>

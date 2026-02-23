@@ -42,6 +42,8 @@ const DEFAULT_FOLDER_SETTINGS = {
   soundCategories: {},
   collapsedSections: [],
   soundNames: {},
+  soundOrder: {},
+  categoryOrder: [],
 };
 
 const GLOBAL_KEYS = new Set(Object.keys(DEFAULT_GLOBAL_SETTINGS));
@@ -262,8 +264,13 @@ ipcMain.handle("pick-folder", async () => {
   globalSettings.soundFolder = newFolder;
   saveGlobalSettings(globalSettings);
 
-  // Load per-folder settings from the new folder
-  folderSettings = loadFolderSettings(newFolder);
+  // Load per-folder settings from the new folder if a file already exists;
+  // otherwise keep the current live folderSettings so device/volume/hotkey
+  // values are inherited rather than reset to hardcoded defaults.
+  if (fs.existsSync(getFolderSettingsPath(newFolder))) {
+    folderSettings = loadFolderSettings(newFolder);
+  }
+  // else: folderSettings already holds the current live state — keep it as-is.
 
   return { folder: newFolder, folderSettings: { ...folderSettings } };
 });

@@ -7,6 +7,16 @@ const activeSources = []
 const playingPaths = ref(new Set())
 const statusText = ref('Ready')
 
+// ── Preview playback (primary device only, isolated from main playback) ───────
+// previewingPath tracks which sound is currently previewing. It is NOT included
+// in playingPaths, so it does not affect the Stop All button or status bar.
+
+const previewingPath = ref(null)
+let _previewSource = null
+let _previewCtx = null
+// Incrementing generation counter — lets pending async loads detect cancellation.
+let _previewGeneration = 0
+
 export function useAudioPlayer() {
   const { settings } = useSettings()
   const { findMatchingDeviceId } = useAudioDevices()
@@ -134,10 +144,86 @@ export function useAudioPlayer() {
     statusText.value = 'Stopped'
   }
 
+  // ── Preview ───────────────────────────────────────────────────────────────
+
+  function stopPreview() {
+    _previewGeneration++ // Invalidate any in-flight async load
+    if (_previewSource) {
+      _previewSource.onended = null
+      try { _previewSource.stop() } catch {}
+      _previewSource = null
+    }
+    if (_previewCtx) {
+      try { _previewCtx.close() } catch {}
+      _previewCtx = null
+    }
+    previewingPath.value = null
+  }
+
+  async function previewSound(sound) {
+    // Toggle off if this sound is already previewing
+    if (previewingPath.value === sound.path) {
+      stopPreview()
+      return
+    }
+
+    stopPreview()
+    const generation = ++_previewGeneration
+
+    const arrayBuffer = await window.api.readSoundFile(sound.path)
+    // Bail if cancelled (cursor left, or another preview was triggered) during load
+    if (!arrayBuffer || generation !== _previewGeneration) return
+
+    const s = settings.value
+    const primaryDeviceId = findMatchingDeviceId(s.primaryDevice)
+    if (!primaryDeviceId) return
+
+    const volume = (s.primaryVolume ?? 1.0) * (s.masterVolume ?? 1.0)
+
+    try {
+      _previewCtx = new AudioContext()
+      const decoded = await _previewCtx.decodeAudioData(arrayBuffer.slice(0))
+      if (generation !== _previewGeneration) {
+        try { _previewCtx.close() } catch {}
+        _previewCtx = null
+        return
+      }
+
+      _previewSource = _previewCtx.createBufferSource()
+      _previewSource.buffer = decoded
+
+      const gain = _previewCtx.createGain()
+      gain.gain.value = volume
+      _previewSource.connect(gain)
+      gain.connect(_previewCtx.destination)
+
+      if (_previewCtx.setSinkId) {
+        await _previewCtx.setSinkId(primaryDeviceId)
+      }
+
+      previewingPath.value = sound.path
+
+      _previewSource.onended = () => {
+        _previewSource = null
+        try { _previewCtx?.close() } catch {}
+        _previewCtx = null
+        previewingPath.value = null
+      }
+
+      _previewSource.start(0)
+    } catch (e) {
+      console.error('Preview error:', e)
+      stopPreview()
+    }
+  }
+
   return {
     playSound,
     stopAll,
     playingPaths,
     statusText,
+    previewSound,
+    stopPreview,
+    previewingPath,
   }
 }

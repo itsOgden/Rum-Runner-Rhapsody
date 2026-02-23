@@ -168,10 +168,17 @@ export function useSoundManagement() {
       sounds: c.sounds.filter(k => k !== key),
     }))
     const hidden = (settings.value.hiddenSounds || []).filter(k => k !== key)
+    // Clear the key from every section's soundOrder so it reverts to alphabetical
+    const soundOrder = { ...(settings.value.soundOrder || {}) }
+    for (const sectionId of Object.keys(soundOrder)) {
+      soundOrder[sectionId] = soundOrder[sectionId].filter(k => k !== key)
+      if (soundOrder[sectionId].length === 0) delete soundOrder[sectionId]
+    }
     settings.value.soundCategories = sc
     settings.value.customCategories = cats
     settings.value.hiddenSounds = hidden
-    saveSettings({ soundCategories: sc, customCategories: cats, hiddenSounds: hidden })
+    settings.value.soundOrder = soundOrder
+    saveSettings({ soundCategories: sc, customCategories: cats, hiddenSounds: hidden, soundOrder })
   }
 
   function getSoundCategory(key) {
@@ -203,12 +210,17 @@ export function useSoundManagement() {
 
     const hiddenSecs = (settings.value.hiddenSections || []).filter(id => id !== sectionId)
 
+    // Clear this section's manual sound order so sounds revert to alphabetical
+    const soundOrder = { ...(settings.value.soundOrder || {}) }
+    delete soundOrder[sectionId]
+
     settings.value.soundCategories = sc
     settings.value.hiddenSounds = hidden
     settings.value.customCategories = cats
     settings.value.categoryNames = names
     settings.value.hiddenSections = hiddenSecs
-    saveSettings({ soundCategories: sc, hiddenSounds: hidden, customCategories: cats, categoryNames: names, hiddenSections: hiddenSecs })
+    settings.value.soundOrder = soundOrder
+    saveSettings({ soundCategories: sc, hiddenSounds: hidden, customCategories: cats, categoryNames: names, hiddenSections: hiddenSecs, soundOrder })
   }
 
   // ── Collapse state ─────────────────────────────────────────────────────────
@@ -226,8 +238,41 @@ export function useSoundManagement() {
     saveSettings({ collapsedSections: next })
   }
 
+  // ── Sound / category ordering ──────────────────────────────────────────────
+
+  // Persists a new manual sort order for sounds within a section.
+  // orderedKeys should contain the sound keys in their desired display order.
+  function reorderSoundsInSection(sectionId, orderedKeys) {
+    const soundOrder = { ...(settings.value.soundOrder || {}), [sectionId]: orderedKeys }
+    settings.value.soundOrder = soundOrder
+    saveSettings({ soundOrder })
+  }
+
+  // Persists a new manual sort order for categories (section IDs).
+  function reorderCategories(orderedIds) {
+    settings.value.categoryOrder = orderedIds
+    saveSettings({ categoryOrder: orderedIds })
+  }
+
   // ── Section building (called inside SoundGrid's computed) ──────────────────
   // Reads reactive state so calling it inside computed() tracks dependencies.
+
+  // Sorts a sounds array in-place using the saved soundOrder for that section.
+  // Keys listed in soundOrder come first (in order); remaining sounds sort alphabetically.
+  function applySoundOrder(sounds, sectionId) {
+    const order = (settings.value.soundOrder || {})[sectionId] || []
+    if (order.length > 0) {
+      const indexMap = new Map(order.map((k, i) => [k, i]))
+      sounds.sort((a, b) => {
+        const ia = indexMap.has(a.key) ? indexMap.get(a.key) : Infinity
+        const ib = indexMap.has(b.key) ? indexMap.get(b.key) : Infinity
+        if (ia !== ib) return ia - ib
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      })
+    } else {
+      sounds.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+    }
+  }
 
   function buildSections() {
     const sc = settings.value.soundCategories || {}
@@ -264,6 +309,8 @@ export function useSoundManagement() {
       const sounds = [...nativeSounds, ...movedInSounds]
         .filter(s => showing || !s.isHidden)
 
+      applySoundOrder(sounds, group.folderName)
+
       result.push({
         id: group.folderName,
         displayName: catNames[group.folderName] ?? group.folderName,
@@ -285,12 +332,28 @@ export function useSoundManagement() {
         .filter(Boolean)
         .map(s => ({ ...s, name: soundNames[s.key] ?? s.name, isHidden: hiddenSet.has(s.key), isMoved: true }))
         .filter(s => showing || !s.isHidden)
+
+      applySoundOrder(sounds, cat.id)
+
       result.push({
         id: cat.id,
         displayName: catNames[cat.id] ?? cat.name,
         isCustom: true,
         isHidden,
         sounds,
+      })
+    }
+
+    // Apply manual category order if set; default is already correct
+    // (folder sections alphabetically, then custom categories in creation order).
+    const categoryOrder = settings.value.categoryOrder || []
+    if (categoryOrder.length > 0) {
+      const indexMap = new Map(categoryOrder.map((id, i) => [id, i]))
+      result.sort((a, b) => {
+        const ia = indexMap.has(a.id) ? indexMap.get(a.id) : Infinity
+        const ib = indexMap.has(b.id) ? indexMap.get(b.id) : Infinity
+        return ia - ib
+        // Sections not in categoryOrder keep their relative position at the end
       })
     }
 
@@ -319,5 +382,7 @@ export function useSoundManagement() {
     setCollapsedSection,
     buildSections,
     restoreSection,
+    reorderSoundsInSection,
+    reorderCategories,
   }
 }

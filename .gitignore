@@ -39,3 +39,7 @@ rrr-settings.json
 
 # Binary design source files
 Logo.afdesign
+
+*.afphoto
+
+*.afphoto~lock~
