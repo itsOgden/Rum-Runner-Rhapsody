@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useSettings } from '../composables/useSettings.js'
 import { useAudioDevices } from '../composables/useAudioDevices.js'
+import { showToast } from '../toastState.js'
 
 const props = defineProps({
   role: { type: String, required: true },
@@ -17,6 +18,7 @@ const label = computed(() =>
 const deviceKey = computed(() => `${props.role}Device`)
 const volumeKey = computed(() => `${props.role}Volume`)
 const enabledKey = computed(() => `${props.role}Enabled`)
+const fallbackIndex = computed(() => props.role === 'primary' ? 0 : 1)
 
 const selectedDeviceId = ref('')
 const volumePercent = ref(100)
@@ -24,7 +26,7 @@ const enabled = ref(true)
 
 // Sync from settings when they change (e.g. folder switch)
 watch(() => settings.value[deviceKey.value], () => {
-  selectedDeviceId.value = findMatchingDeviceId(settings.value[deviceKey.value])
+  selectedDeviceId.value = findMatchingDeviceId(settings.value[deviceKey.value], fallbackIndex.value)
 }, { immediate: true })
 
 watch(() => settings.value[volumeKey.value], (v) => {
@@ -37,7 +39,7 @@ watch(() => settings.value[enabledKey.value], (v) => {
 
 // Also re-match when devices list changes
 watch(audioDevices, () => {
-  selectedDeviceId.value = findMatchingDeviceId(settings.value[deviceKey.value])
+  selectedDeviceId.value = findMatchingDeviceId(settings.value[deviceKey.value], fallbackIndex.value)
 })
 
 let saveTimeout = null
@@ -53,6 +55,19 @@ function debouncedSave() {
 }
 
 function onDeviceChange() {
+  // Guard: prevent selecting the same device on both slots when alternatives exist.
+  if (audioDevices.value.length > 1) {
+    const otherRole = props.role === 'primary' ? 'secondary' : 'primary'
+    const otherFallback = otherRole === 'primary' ? 0 : 1
+    const otherDeviceId = findMatchingDeviceId(settings.value[`${otherRole}Device`], otherFallback)
+    if (selectedDeviceId.value === otherDeviceId) {
+      const otherLabel = otherRole === 'primary' ? 'Monitor' : 'Output'
+      showToast(`That device is already selected as the ${otherLabel} output. Choose a different device.`, 'info')
+      // Revert — settings haven't been updated yet, so this restores the old selection
+      selectedDeviceId.value = findMatchingDeviceId(settings.value[deviceKey.value], fallbackIndex.value)
+      return
+    }
+  }
   settings.value[deviceKey.value] = getDeviceLabel(selectedDeviceId.value)
   debouncedSave()
 }
