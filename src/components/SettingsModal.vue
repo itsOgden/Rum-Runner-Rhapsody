@@ -88,3 +88,18 @@ async function handleSave() {
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+.modal-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+.modal-input:focus { border-color: var(--color-accent); }
+</style>

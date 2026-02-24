@@ -139,3 +139,73 @@ function onEnabledChange(): void {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* ---- Toggle switch ---- */
+.toggle { position: relative; width: 36px; height: 20px; cursor: pointer; }
+.toggle input { display: none; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--color-bg-surface);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-light);
+  transition: all 0.2s;
+}
+.toggle input:checked + .toggle-track {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 14px; height: 14px;
+  background: var(--color-text-secondary);
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+.toggle input:checked ~ .toggle-thumb {
+  left: 19px;
+  background: var(--color-text-on-accent);
+}
+
+/* ---- Select dropdown ---- */
+.device-select {
+  width: 100%;
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238891a8'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+.device-select:focus { border-color: var(--color-accent); }
+.device-select option { background: var(--color-bg-surface); color: var(--color-text-primary); }
+
+/* ---- Volume slider ---- */
+input[type="range"] {
+  -webkit-appearance: none;
+  flex: 1;
+  height: 4px;
+  background: var(--color-bg-surface);
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--color-accent-glow);
+  transition: box-shadow 0.15s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 12px var(--color-accent-glow);
+}
+</style>

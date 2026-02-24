@@ -268,3 +268,31 @@ function cancelRename(): void {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes playing-bar {
+  0% { width: 14px; opacity: 0.6; }
+  100% { width: 28px; opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.25s ease forwards;
+}
+
+.sound-btn-playing::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px; height: 3px;
+  background: var(--color-accent);
+  border-radius: 2px;
+  animation: playing-bar 0.8s ease-in-out infinite alternate;
+}
+</style>

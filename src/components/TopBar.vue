@@ -4,7 +4,7 @@ import { useAudioPlayer } from '../composables/useAudioPlayer'
 import { useSettings } from '../composables/useSettings'
 import { settingsModalOpen } from '../modalState'
 import appIcon from '../../app-icon.png'
-import Icon from '@/components/Icon.vue'
+import SquareButton from '@/components/SquareButton.vue'
 
 const { stopAll, playingPaths } = useAudioPlayer()
 const { settings, saveSettings } = useSettings()
@@ -53,25 +53,61 @@ function onMasterChange() {
     <!-- Controls -->
     <div class="flex gap-2 shrink-0">
       <!-- Stop All — always present to reserve layout space; invisible when idle -->
-      <button
-        class="btn btn-danger p-1.5"
+      <SquareButton
+        icon="stop"
+        variant="danger"
+        title="Stop all sounds"
         :class="{ 'invisible pointer-events-none': playingPaths.size === 0 }"
         @click="stopAll"
-        title="Stop all sounds"
-      >
-        <Icon name="stop" aria-hidden="true" />
-      </button>
-      <button
-        class="btn p-1.5"
-        @click="toggleTheme"
+      />
+      <SquareButton
+        :icon="settings.theme !== 'dark' ? 'sun-bright' : 'moon'"
         :title="settings.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-      >
-        <Icon v-if="settings.theme !== 'dark'" name="sun-bright" aria-hidden="true" />
-        <Icon v-else name="moon" aria-hidden="true" />
-      </button>
-      <button class="btn p-1.5" @click="settingsModalOpen = true" title="Settings">
-        <Icon name="gear" aria-hidden="true" />
-      </button>
+        @click="toggleTheme"
+      />
+      <SquareButton
+        icon="gear"
+        title="Settings"
+        @click="settingsModalOpen = true"
+      />
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--color-accent-glow); }
+  50% { opacity: 0.5; box-shadow: 0 0 4px var(--color-accent-glow); }
+}
+
+.logo-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  margin-left: 4px;
+  box-shadow: 0 0 8px var(--color-accent-glow);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  flex: 1;
+  height: 4px;
+  background: var(--color-bg-surface);
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--color-accent-glow);
+  transition: box-shadow 0.15s;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 12px var(--color-accent-glow);
+}
+</style>

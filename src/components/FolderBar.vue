@@ -3,6 +3,8 @@ import { useSettings } from '../composables/useSettings'
 import { useAudioDevices } from '../composables/useAudioDevices'
 import { useSoundManagement } from '../composables/useSoundManagement'
 import { filterQuery } from '../filterState'
+import SquareButton from '@/components/SquareButton.vue'
+import CircleButton from '@/components/CircleButton.vue'
 import Icon from '@/components/Icon.vue'
 
 const { settings, onFolderChanged, saveSettings, loadSounds } = useSettings()
@@ -52,45 +54,40 @@ function toggleDensity() {
         placeholder="Search"
         class="font-sans text-[12px] bg-bg-surface border border-border rounded-sm pl-2.5 pr-6 py-1 text-text-primary placeholder:text-text-dim outline-none focus:border-accent w-40 transition-colors"
       />
-      <button
+      <CircleButton
         v-if="filterQuery"
-        @click="filterQuery = ''"
-        class="absolute right-2 rounded-full text-[10px] w-4 h-4 flex items-center justify-center shrink-0 border border-accent text-accent hover:bg-accent hover:text-bg-base leading-none cursor-pointer"
+        icon="xmark-solid"
         title="Clear filter"
-      ><Icon name="xmark-solid" aria-hidden="true" /></button>
+        class="absolute right-2"
+        @click="filterQuery = ''"
+      />
     </div>
 
     <!-- Show hidden toggle -->
-    <button
-      class="btn p-1.5 shrink-0"
-      :class="showHidden ? 'btn-accent' : ''"
-      @click="toggleShowHidden"
+    <SquareButton
+      :icon="showHidden ? 'eye' : 'eye-slash'"
       :title="showHidden ? 'Hide hidden sounds' : 'Show hidden sounds'"
-    >
-      <Icon v-if="!showHidden" name="eye-slash" aria-hidden="true" />
-      <Icon v-else name="eye" aria-hidden="true" />
-    </button>
+      :active="showHidden"
+      @click="toggleShowHidden"
+    />
 
     <!-- Density toggle -->
-    <button
-      class="btn p-1.5 shrink-0"
-      @click="toggleDensity"
+    <SquareButton
+      :icon="settings.density === 'loose' ? 'grid-2' : 'grid-4'"
       :title="settings.density === 'loose' ? 'Switch to compact view' : 'Switch to loose view'"
-    >
-      <Icon v-if="settings.density === 'loose'" name="grid-2" aria-hidden="true" />
-      <Icon v-else name="grid-4" aria-hidden="true" />
-    </button>
+      @click="toggleDensity"
+    />
 
-    <button class="btn btn-accent shrink-0 flex items-center gap-1.5" @click="handleBrowse">
+    <button class="btn btn-accent shrink-0 flex items-center gap-1.5 h-9" @click="handleBrowse">
       <Icon name="folder-open" aria-hidden="true" />
       Browse…
     </button>
 
     <!-- Refresh -->
-    <button
-      class="btn p-1.5 shrink-0"
-      @click="handleRefresh"
+    <SquareButton
+      icon="arrow-rotate-right"
       title="Refresh devices and sounds"
-    ><Icon name="arrow-rotate-right" aria-hidden="true" /></button>
+      @click="handleRefresh"
+    />
   </div>
 </template>
