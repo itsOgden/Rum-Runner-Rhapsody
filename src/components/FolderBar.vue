@@ -79,7 +79,7 @@ function toggleDensity() {
     />
 
     <button class="btn btn-accent shrink-0 flex items-center gap-1.5 h-9" @click="handleBrowse">
-      <Icon name="folder-open" aria-hidden="true" />
+      <Icon name="folder-open" />
       Browse…
     </button>
 

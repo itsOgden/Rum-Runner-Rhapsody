@@ -57,20 +57,20 @@ async function handleSave() {
           </label>
           <div class="flex gap-2">
             <button
-              class="flex-1 btn"
-              :class="{ 'btn-accent': localPlaybackMode === 'overlap' }"
-              @click="localPlaybackMode = 'overlap'"
-            >Overlap</button>
+                class="flex-1 btn"
+                :class="{ 'btn-accent': localPlaybackMode === 'stop' }"
+                @click="localPlaybackMode = 'stop'"
+            >Stop</button>
             <button
               class="flex-1 btn"
               :class="{ 'btn-accent': localPlaybackMode === 'restart' }"
               @click="localPlaybackMode = 'restart'"
             >Restart</button>
             <button
-              class="flex-1 btn"
-              :class="{ 'btn-accent': localPlaybackMode === 'stop' }"
-              @click="localPlaybackMode = 'stop'"
-            >Stop</button>
+                class="flex-1 btn"
+                :class="{ 'btn-accent': localPlaybackMode === 'overlap' }"
+                @click="localPlaybackMode = 'overlap'"
+            >Overlap</button>
           </div>
           <p class="text-[11px] text-text-dim mt-1.5 leading-relaxed">
             <template v-if="localPlaybackMode === 'overlap'">Clicking a playing sound adds a new simultaneous instance.</template>

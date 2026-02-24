@@ -6,6 +6,9 @@ import { activeDropdownId } from '../dropdownState'
 import { draggingSound } from '../dragState'
 import Icon from '@/components/Icon.vue'
 import type { Sound } from '../types'
+import {filterQuery} from "@/filterState";
+import CircleButton from "@/components/CircleButton.vue";
+import ToggleCircleButton from "@/components/ToggleCircleButton.vue";
 
 const props = defineProps<{
   sound: Sound
@@ -183,25 +186,21 @@ function cancelRename(): void {
 
     <!-- ⋯ trigger — floats in top-right corner, visible on group hover -->
     <div v-if="!isRenaming" class="absolute top-1 right-1 z-10" @click.stop>
-      <button
-        class="opacity-0 group-hover/btn:opacity-100 text-[11px] text-text-secondary hover:text-text-primary bg-bg-surface/80 rounded px-1 py-0.5 leading-none transition-opacity"
-        @click="openMenu"
-        title="Sound options"
-      ><Icon name="ellipsis-solid" aria-hidden="true" /></button>
+      <ToggleCircleButton
+          icon="ellipsis-solid"
+          title="Sound options"
+          @click="openMenu"
+      />
     </div>
 
     <!-- Preview trigger — floats in bottom-right corner, visible on group hover -->
-    <div v-if="!isRenaming" class="absolute bottom-1 right-1 z-10" @click.stop>
-      <button
-        class="bg-bg-surface/80 rounded px-1 py-0.5 leading-none transition-all"
-        :class="isPreviewing
-          ? 'opacity-100 text-accent'
-          : 'opacity-0 group-hover/btn:opacity-100 text-text-secondary hover:text-text-primary'"
-        @click="handlePreviewClick"
-        title="Preview (monitor output only)"
-      >
-        <Icon name="headphones-simple" aria-hidden="true" />
-      </button>
+    <div v-if="!isRenaming" class="absolute bottom-1.5 right-1 z-10" @click.stop>
+      <ToggleCircleButton
+          icon="headphones-simple-solid"
+          title="Preview (monitor output only)"
+          :enabled="isPreviewing"
+          @click="handlePreviewClick"
+      />
     </div>
 
     <!-- Sound ⋯ menu (teleported to avoid scroll-container clipping) -->
@@ -237,7 +236,7 @@ function cancelRename(): void {
             @click.stop="showMoveList = true"
           >
             <span>Move to…</span>
-            <Icon name="chevron-down-solid" aria-hidden="true" />
+            <Icon name="chevron-down-solid" />
           </button>
         </template>
         <template v-else>

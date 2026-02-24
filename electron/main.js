@@ -20,7 +20,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
   windowHeight: 680,
   theme: "dark",
   masterVolume: 1.0,
-  playbackMode: "restart",
+  playbackMode: "stop",
   density: "loose",
 };
 

@@ -236,7 +236,6 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
         name="chevron-down-light"
         class="text-text-dim transition-transform duration-200 shrink-0"
         :class="{ '-rotate-90': isCollapsed }"
-        aria-hidden="true"
       />
 
       <!-- Title or rename input -->
@@ -244,14 +243,14 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
         v-if="isEditing"
         ref="renameInputEl"
         v-model="editingName"
-        class="flex-1 bg-transparent text-sm text-accent font-display border-b border-accent outline-none"
+        class="flex-1 bg-transparent text-[15px] text-accent font-display border-b border-accent outline-none"
         @keydown.enter.prevent="confirmRename"
         @keydown.escape.prevent="cancelRename"
         @blur="confirmRename"
         @click.stop
         @dragstart.stop
       />
-      <span v-else class="font-display text-sm text-accent flex-1">{{ section.displayName }}</span>
+      <span v-else class="font-display text-[15px] text-accent flex-1">{{ section.displayName }}</span>
 
       <span class="font-mono text-[11px] text-text-dim">{{ visibleSounds.length }}</span>
 
@@ -261,7 +260,7 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
           class="opacity-0 group-hover/hdr:opacity-100 text-text-secondary hover:text-text-primary px-1 leading-none transition-opacity"
           @click="openHeaderMenu"
           title="Category options"
-        ><Icon name="ellipsis-solid" aria-hidden="true" /></button>
+        ><Icon name="ellipsis-solid" /></button>
       </div>
     </div>
 

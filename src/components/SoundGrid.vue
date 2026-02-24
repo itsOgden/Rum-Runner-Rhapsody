@@ -116,7 +116,7 @@ const sections = computed<SoundSection[]>(() => buildSections())
         <button
           class="btn text-[12px] w-full text-text-dim hover:text-text-secondary flex items-center justify-center gap-1.5"
           @click="addCategory"
-        ><Icon name="plus" aria-hidden="true" /> New Category</button>
+        ><Icon name="plus" /> New Category</button>
       </div>
     </template>
   </div>

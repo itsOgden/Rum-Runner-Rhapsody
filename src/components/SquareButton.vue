@@ -27,6 +27,6 @@ withDefaults(defineProps<{
     :title="title"
     :disabled="disabled"
   >
-    <Icon :name="icon" class="text-sm" aria-hidden="true" />
+    <Icon :name="icon" class="text-sm" />
   </button>
 </template>
