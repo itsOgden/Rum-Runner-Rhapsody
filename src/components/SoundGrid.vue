@@ -5,6 +5,7 @@ import { useSoundManagement } from '../composables/useSoundManagement'
 import { filterQuery } from '../filterState'
 import { draggingSection } from '../dragState'
 import AccordionSection from './AccordionSection.vue'
+import Icon from '@/components/Icon.vue'
 import type { SoundSection } from '../types'
 
 const { settings, soundGroups, soundCount, isLoadingSounds } = useSettings()
@@ -113,9 +114,9 @@ const sections = computed<SoundSection[]>(() => buildSections())
       <!-- New Category -->
       <div class="mt-2">
         <button
-          class="btn text-[12px] w-full text-text-dim hover:text-text-secondary"
+          class="btn text-[12px] w-full text-text-dim hover:text-text-secondary flex items-center justify-center gap-1.5"
           @click="addCategory"
-        >+ New Category</button>
+        ><Icon name="plus" aria-hidden="true" /> New Category</button>
       </div>
     </template>
   </div>

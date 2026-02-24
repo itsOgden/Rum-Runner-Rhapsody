@@ -1,0 +1,31 @@
+.icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  vertical-align: middle;
+  height: 1em;
+}
+.icon::after {
+  content: '';
+  display: block;
+  height: 100%;
+  flex-grow: 1;
+}
+.icon.colored::after {
+  background-size: contain;
+  background-position: center;
+  background-color: transparent;
+}
+.icon:not(.colored)::after {
+  mask-size: contain;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-position: center;
+  background-color: currentColor;
+}
+.icon.scale-width {
+  height: 100%;
+}
+.icon.scale-width::after {
+  width: 100%;
+}

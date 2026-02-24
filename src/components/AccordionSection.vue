@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import SoundButton from './SoundButton.vue'
+import Icon from '@/components/Icon.vue'
 import { useSoundManagement } from '../composables/useSoundManagement'
 import { activeDropdownId } from '../dropdownState'
 import { draggingSound, draggingSection } from '../dragState'
@@ -229,12 +230,14 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
       @dragend="onHeaderDragEnd"
       @click="toggleCollapse"
     >
-      <!-- Collapse arrow (hidden during filter) -->
-      <span
+      <!-- Collapse chevron (hidden during filter) -->
+      <Icon
         v-if="!filter"
-        class="text-[10px] text-text-dim transition-transform duration-200"
+        name="chevron-down-light"
+        class="text-text-dim transition-transform duration-200 shrink-0"
         :class="{ '-rotate-90': isCollapsed }"
-      >&#x25BC;</span>
+        aria-hidden="true"
+      />
 
       <!-- Title or rename input -->
       <input
@@ -255,10 +258,10 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
       <!-- ⋯ button -->
       <div class="relative" @click.stop @dragstart.stop>
         <button
-          class="opacity-0 group-hover/hdr:opacity-100 text-[14px] text-text-secondary hover:text-text-primary px-1 leading-none transition-opacity"
+          class="opacity-0 group-hover/hdr:opacity-100 text-text-secondary hover:text-text-primary px-1 leading-none transition-opacity"
           @click="openHeaderMenu"
           title="Category options"
-        >⋯</button>
+        ><Icon name="ellipsis-solid" aria-hidden="true" /></button>
       </div>
     </div>
 

@@ -4,6 +4,7 @@ import { useAudioPlayer } from '../composables/useAudioPlayer'
 import { useSettings } from '../composables/useSettings'
 import { settingsModalOpen } from '../modalState'
 import appIcon from '../../app-icon.png'
+import Icon from '@/components/Icon.vue'
 
 const { stopAll, playingPaths } = useAudioPlayer()
 const { settings, saveSettings } = useSettings()
@@ -58,16 +59,19 @@ function onMasterChange() {
         @click="stopAll"
         title="Stop all sounds"
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-          <rect width="12" height="12" rx="1"/>
-        </svg>
+        <Icon name="stop" aria-hidden="true" />
       </button>
       <button
-        class="btn"
+        class="btn p-1.5"
         @click="toggleTheme"
         :title="settings.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-      >{{ settings.theme === 'dark' ? '☾' : '☀' }}</button>
-      <button class="btn" @click="settingsModalOpen = true">Settings</button>
+      >
+        <Icon v-if="settings.theme !== 'dark'" name="sun-bright" aria-hidden="true" />
+        <Icon v-else name="moon" aria-hidden="true" />
+      </button>
+      <button class="btn p-1.5" @click="settingsModalOpen = true" title="Settings">
+        <Icon name="gear" aria-hidden="true" />
+      </button>
     </div>
   </div>
 </template>

@@ -3,6 +3,7 @@ import { useSettings } from '../composables/useSettings'
 import { useAudioDevices } from '../composables/useAudioDevices'
 import { useSoundManagement } from '../composables/useSoundManagement'
 import { filterQuery } from '../filterState'
+import Icon from '@/components/Icon.vue'
 
 const { settings, onFolderChanged, saveSettings, loadSounds } = useSettings()
 const { refreshDevices } = useAudioDevices()
@@ -56,7 +57,7 @@ function toggleDensity() {
         @click="filterQuery = ''"
         class="absolute right-2 rounded-full text-[10px] w-4 h-4 flex items-center justify-center shrink-0 border border-accent text-accent hover:bg-accent hover:text-bg-base leading-none cursor-pointer"
         title="Clear filter"
-      >✕</button>
+      ><Icon name="xmark-solid" aria-hidden="true" /></button>
     </div>
 
     <!-- Show hidden toggle -->
@@ -66,17 +67,8 @@ function toggleDensity() {
       @click="toggleShowHidden"
       :title="showHidden ? 'Hide hidden sounds' : 'Show hidden sounds'"
     >
-      <!-- Crossed-eye: show hidden is OFF (default) -->
-      <svg v-if="!showHidden" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
-        <path d="M1 8 C3 4.5 5.5 3 8 3 C10.5 3 13 4.5 15 8 C13 11.5 10.5 13 8 13 C5.5 13 3 11.5 1 8Z"/>
-        <circle cx="8" cy="8" r="2.5" fill="currentColor" stroke="none"/>
-        <line x1="2" y1="2" x2="14" y2="14" stroke-width="1.5"/>
-      </svg>
-      <!-- Open eye: show hidden is ON -->
-      <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
-        <path d="M1 8 C3 4.5 5.5 3 8 3 C10.5 3 13 4.5 15 8 C13 11.5 10.5 13 8 13 C5.5 13 3 11.5 1 8Z"/>
-        <circle cx="8" cy="8" r="2.5" fill="currentColor" stroke="none"/>
-      </svg>
+      <Icon v-if="!showHidden" name="eye-slash" aria-hidden="true" />
+      <Icon v-else name="eye" aria-hidden="true" />
     </button>
 
     <!-- Density toggle -->
@@ -85,34 +77,20 @@ function toggleDensity() {
       @click="toggleDensity"
       :title="settings.density === 'loose' ? 'Switch to compact view' : 'Switch to loose view'"
     >
-      <!-- Loose grid icon — shown in compact mode, clicking → loose -->
-      <svg v-if="settings.density === 'loose'" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <rect x="0" y="0" width="6" height="6"/>
-        <rect x="10" y="0" width="6" height="6"/>
-        <rect x="0" y="10" width="6" height="6"/>
-        <rect x="10" y="10" width="6" height="6"/>
-      </svg>
-      <!-- Dense grid icon — shown in loose mode, clicking → compact -->
-      <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <rect x="0" y="0" width="4" height="4"/>
-        <rect x="6" y="0" width="4" height="4"/>
-        <rect x="12" y="0" width="4" height="4"/>
-        <rect x="0" y="6" width="4" height="4"/>
-        <rect x="6" y="6" width="4" height="4"/>
-        <rect x="12" y="6" width="4" height="4"/>
-        <rect x="0" y="12" width="4" height="4"/>
-        <rect x="6" y="12" width="4" height="4"/>
-        <rect x="12" y="12" width="4" height="4"/>
-      </svg>
+      <Icon v-if="settings.density === 'loose'" name="grid-2" aria-hidden="true" />
+      <Icon v-else name="grid-4" aria-hidden="true" />
     </button>
 
-    <button class="btn btn-accent shrink-0" @click="handleBrowse">Browse…</button>
+    <button class="btn btn-accent shrink-0 flex items-center gap-1.5" @click="handleBrowse">
+      <Icon name="folder-open" aria-hidden="true" />
+      Browse…
+    </button>
 
     <!-- Refresh -->
     <button
-      class="btn p-1.5 shrink-0 text-[15px] leading-none"
+      class="btn p-1.5 shrink-0"
       @click="handleRefresh"
       title="Refresh devices and sounds"
-    >↻</button>
+    ><Icon name="arrow-rotate-right" aria-hidden="true" /></button>
   </div>
 </template>

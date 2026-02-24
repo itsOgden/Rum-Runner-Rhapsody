@@ -4,6 +4,7 @@ import { useAudioPlayer } from '../composables/useAudioPlayer'
 import { useSoundManagement } from '../composables/useSoundManagement'
 import { activeDropdownId } from '../dropdownState'
 import { draggingSound } from '../dragState'
+import Icon from '@/components/Icon.vue'
 import type { Sound } from '../types'
 
 const props = defineProps<{
@@ -186,7 +187,7 @@ function cancelRename(): void {
         class="opacity-0 group-hover/btn:opacity-100 text-[11px] text-text-secondary hover:text-text-primary bg-bg-surface/80 rounded px-1 py-0.5 leading-none transition-opacity"
         @click="openMenu"
         title="Sound options"
-      >⋯</button>
+      ><Icon name="ellipsis-solid" aria-hidden="true" /></button>
     </div>
 
     <!-- Preview trigger — floats in bottom-right corner, visible on group hover -->
@@ -199,12 +200,7 @@ function cancelRename(): void {
         @click="handlePreviewClick"
         title="Preview (monitor output only)"
       >
-        <!-- Headphones icon -->
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M2 6.5V6a4 4 0 0 1 8 0v.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-          <rect x="0" y="5.5" width="2.5" height="4" rx="1"/>
-          <rect x="9.5" y="5.5" width="2.5" height="4" rx="1"/>
-        </svg>
+        <Icon name="headphones-simple" aria-hidden="true" />
       </button>
     </div>
 
@@ -241,7 +237,7 @@ function cancelRename(): void {
             @click.stop="showMoveList = true"
           >
             <span>Move to…</span>
-            <span class="text-text-dim text-[10px]">›</span>
+            <Icon name="chevron-right" aria-hidden="true" />
           </button>
         </template>
         <template v-else>
