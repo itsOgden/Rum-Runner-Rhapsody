@@ -237,7 +237,7 @@ function cancelRename(): void {
             @click.stop="showMoveList = true"
           >
             <span>Move to…</span>
-            <Icon name="chevron-right" aria-hidden="true" />
+            <Icon name="chevron-down-solid" aria-hidden="true" />
           </button>
         </template>
         <template v-else>
