@@ -425,7 +425,7 @@
                     btn.title = s.displayName;
                     btn.dataset.key = s.key;
                     btn.dataset.name = s.displayName;
-                    btn.addEventListener("click", () => selectSound(s.key, s.displayName));
+                    btn.addEventListener("click", () => selectSound(s.key, s.displayName, s.category));
                     row.appendChild(btn);
                 }
 
@@ -433,13 +433,13 @@
             }
         }
 
-        function selectSound(soundKey, soundName) {
+        function selectSound(soundKey, soundName, soundCategory) {
             // Update highlight
             document.querySelectorAll(".sound-btn").forEach(btn => {
                 btn.classList.toggle("selected", btn.dataset.key === soundKey);
             });
             // Save settings
-            const newSettings = { ..._currentSettings, soundKey, soundName };
+            const newSettings = { ..._currentSettings, soundKey, soundName, soundCategory };
             setSettings(newSettings);
             _currentSettings = newSettings;
         }

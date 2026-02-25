@@ -4,6 +4,7 @@ import { rrrClient } from "../rrr-client";
 type PlaySoundSettings = {
 	soundKey?: string;
 	soundName?: string;
+	soundCategory?: string;
 };
 
 type SoundItem = {
@@ -54,49 +55,69 @@ rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelec
 	}
 });
 
-function formatTitle(name: string, maxChars: number = 20): string {
-	if (!name) return "";
+const TITLE_MAX = 12;
 
-	// Truncate: find last word-break boundary before maxChars
-	function truncateTitle(s: string, max: number): string {
-		if (s.length <= max) return s;
-		const slice = s.slice(0, max);
-		const breakAt = slice.search(/[ \-.,!?][^ \-.,!?]*$/);
-		const cut = breakAt > 0 ? slice.slice(0, breakAt) : slice;
-		return cut.replace(/[ \-.,!?]+$/, "");
-	}
+// Clip a string at the last word-break boundary before `max` characters.
+function truncate(s: string, max: number = TITLE_MAX): string {
+	if (s.length <= max) return s;
+	const slice = s.slice(0, max);
+	const breakAt = slice.search(/[ \-.,!?][^ \-.,!?]*$/);
+	const cut = breakAt > 0 ? slice.slice(0, breakAt) : slice;
+	return cut.replace(/[ \-.,!?]+$/, "");
+}
 
-	const truncated = truncateTitle(name, maxChars);
-
-	// Split into two lines at the space closest to the middle
-	if (truncated.length > 10) {
-		const mid = Math.floor(truncated.length / 2);
-		let bestIdx = -1;
-		let bestDist = Infinity;
-		for (let i = 0; i < truncated.length; i++) {
-			if (truncated[i] === " ") {
-				const dist = Math.abs(i - mid);
-				if (dist < bestDist) { bestDist = dist; bestIdx = i; }
-			}
-		}
-		if (bestIdx !== -1) {
-			return truncated.slice(0, bestIdx) + "\n" + truncated.slice(bestIdx + 1);
+// Find the index of the space in `s` closest to `target`, optionally skipping one index.
+function nearestSpace(s: string, target: number, skip = -1): number {
+	let best = -1;
+	let bestDist = Infinity;
+	for (let i = 0; i < s.length; i++) {
+		if (s[i] === " " && i !== skip) {
+			const dist = Math.abs(i - target);
+			if (dist < bestDist) { bestDist = dist; best = i; }
 		}
 	}
+	return best;
+}
 
-	return truncated;
+// Format a button title: category on line 1, sound name split across up to 3 more lines.
+function formatTitle(category: string, name: string): string {
+	const catLine = truncate(category);
+
+	// Name fits on one line — no splitting needed
+	if (!name || name.length <= TITLE_MAX) {
+		return [catLine, name].filter(Boolean).join("\n");
+	}
+
+	// Find split points nearest to 1/3 and 2/3 of the name string
+	const split1 = nearestSpace(name, Math.floor(name.length / 3));
+	const split2 = nearestSpace(name, Math.floor(2 * name.length / 3), split1);
+
+	let nameLines: string[];
+	if (split1 === -1) {
+		// No spaces — hard truncate to one line
+		nameLines = [truncate(name)];
+	} else if (split2 === -1) {
+		// Only one split point
+		nameLines = [name.slice(0, split1), name.slice(split1 + 1)].map(c => truncate(c));
+	} else {
+		// Two split points — sort so chunks are in order
+		const [s1, s2] = [split1, split2].sort((a, b) => a - b);
+		nameLines = [name.slice(0, s1), name.slice(s1 + 1, s2), name.slice(s2 + 1)].map(c => truncate(c));
+	}
+
+	return [catLine, ...nameLines].filter(Boolean).join("\n");
 }
 
 @action({ UUID: "com.pdog1.rum-runner-rhapsody.playsound" })
 export class PlaySound extends SingletonAction<PlaySoundSettings> {
 	override async onWillAppear(ev: WillAppearEvent<PlaySoundSettings>): Promise<void> {
-		const { soundName, soundKey } = ev.payload.settings;
-		await ev.action.setTitle(formatTitle(soundName || soundKey || ""));
+		const { soundName, soundKey, soundCategory } = ev.payload.settings;
+		await ev.action.setTitle(formatTitle(soundCategory || "", soundName || soundKey || ""));
 	}
 
 	override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<PlaySoundSettings>): Promise<void> {
-		const { soundName, soundKey } = ev.payload.settings;
-		await ev.action.setTitle(formatTitle(soundName || soundKey || ""));
+		const { soundName, soundKey, soundCategory } = ev.payload.settings;
+		await ev.action.setTitle(formatTitle(soundCategory || "", soundName || soundKey || ""));
 	}
 
 	override onKeyDown(ev: KeyDownEvent<PlaySoundSettings>): void {
@@ -115,7 +136,7 @@ export class PlaySound extends SingletonAction<PlaySoundSettings> {
 			pushState();
 			const settings = await ev.action.getSettings();
 			const name = settings.soundName || settings.soundKey || "";
-			if (name) await ev.action.setTitle(formatTitle(name));
+			if (name) await ev.action.setTitle(formatTitle(settings.soundCategory || "", name));
 		}
 	}
 }
