@@ -2,8 +2,8 @@ import { EventEmitter } from "events";
 import WebSocket from "ws";
 
 const WS_URL = "ws://localhost:57432";
-const MAX_RETRIES = 10;
 const BASE_DELAY_MS = 500;
+const MAX_DELAY_MS = 5000;
 
 class RRRClient extends EventEmitter {
 	private ws: WebSocket | null = null;
@@ -42,8 +42,7 @@ class RRRClient extends EventEmitter {
 	}
 
 	private scheduleReconnect(): void {
-		if (this.retryCount >= MAX_RETRIES) return;
-		const delay = BASE_DELAY_MS * Math.pow(2, this.retryCount);
+		const delay = Math.min(BASE_DELAY_MS * Math.pow(2, this.retryCount), MAX_DELAY_MS);
 		this.retryCount++;
 		setTimeout(() => this.connect(), delay);
 	}
