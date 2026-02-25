@@ -1,13 +1,17 @@
 import streamDeck from "@elgato/streamdeck";
 
 import { IncrementCounter } from "./actions/increment-counter";
+import { PlaySound } from "./actions/play-sound";
+import { StopAll } from "./actions/stop-all";
 import { rrrClient } from "./rrr-client";
 
 // We can enable "trace" logging so that all messages between the Stream Deck, and the plugin are recorded. When storing sensitive information
 streamDeck.logger.setLevel("trace");
 
-// Register the increment action.
+// Register actions.
 streamDeck.actions.registerAction(new IncrementCounter());
+streamDeck.actions.registerAction(new PlaySound());
+streamDeck.actions.registerAction(new StopAll());
 
 // Finally, connect to the Stream Deck.
 streamDeck.connect();

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+
+<head lang="en">
+    <title>Play Sound Settings</title>
+    <meta charset="utf-8" />
+    <script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+</head>
+
+<body>
+    <div id="state-connecting">
+        <sdpi-item label="Status">
+            <span class="sdpi-item-value">Connecting to RRR...</span>
+        </sdpi-item>
+    </div>
+
+    <div id="state-no-folder" hidden>
+        <sdpi-item label="Status">
+            <span class="sdpi-item-value">No folder selected in RRR.</span>
+        </sdpi-item>
+    </div>
+
+    <div id="state-ready" hidden>
+        <sdpi-item label="Sound">
+            <select class="sdpi-item-value select" id="sound-select">
+                <option value="">-- Select a sound --</option>
+            </select>
+        </sdpi-item>
+    </div>
+
+    <script>
+        let _ws = null;
+        let _uuid = null;
+        let _action = null;
+        let _currentSettings = {};
+
+        // Override sdpi-components' connectElgatoStreamDeckSocket so we fully
+        // control the websocket and can send/receive custom messages.
+        window.connectElgatoStreamDeckSocket = function (port, uuid, registerEvent, _info, actionInfo) {
+            _uuid = uuid;
+            _action = JSON.parse(actionInfo).action;
+
+            _ws = new WebSocket("ws://127.0.0.1:" + port);
+
+            _ws.onopen = () => {
+                // Register this property inspector with Stream Deck.
+                _ws.send(JSON.stringify({ event: registerEvent, uuid }));
+                // Request current settings so we can restore the saved selection.
+                _ws.send(JSON.stringify({ event: "getSettings", context: uuid }));
+                // Ask the plugin for the current sounds list right away.
+                sendToPlugin({ type: "requestSounds" });
+            };
+
+            _ws.onmessage = ({ data }) => {
+                const msg = JSON.parse(data);
+                if (msg.event === "sendToPropertyInspector") {
+                    handlePluginMessage(msg.payload);
+                } else if (msg.event === "didReceiveSettings") {
+                    _currentSettings = msg.payload?.settings ?? {};
+                }
+            };
+        };
+
+        function sendToPlugin(payload) {
+            if (_ws?.readyState === WebSocket.OPEN) {
+                _ws.send(JSON.stringify({
+                    action: _action,
+                    event: "sendToPlugin",
+                    context: _uuid,
+                    payload,
+                }));
+            }
+        }
+
+        function setSettings(settings) {
+            if (_ws?.readyState === WebSocket.OPEN) {
+                _ws.send(JSON.stringify({ event: "setSettings", context: _uuid, payload: settings }));
+            }
+        }
+
+        function setState(state) {
+            document.getElementById("state-connecting").hidden = state !== "connecting";
+            document.getElementById("state-no-folder").hidden = state !== "no-folder";
+            document.getElementById("state-ready").hidden = state !== "ready";
+        }
+
+        function populateSounds(sounds) {
+            if (!sounds || sounds.length === 0) {
+                setState("no-folder");
+                return;
+            }
+            setState("ready");
+
+            const select = document.getElementById("sound-select");
+            const saved = _currentSettings.soundKey ?? "";
+
+            // Group sounds by category.
+            const groups = {};
+            for (const s of sounds) {
+                const cat = s.category || "";
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push(s);
+            }
+
+            const cats = Object.keys(groups);
+            const useGroups = cats.length > 1 || (cats.length === 1 && cats[0] !== "");
+
+            select.innerHTML = '<option value="">-- Select a sound --</option>';
+            for (const [cat, items] of Object.entries(groups)) {
+                if (useGroups) {
+                    const grp = document.createElement("optgroup");
+                    grp.label = cat || "Uncategorized";
+                    for (const s of items) {
+                        grp.appendChild(makeOption(s, saved));
+                    }
+                    select.appendChild(grp);
+                } else {
+                    for (const s of items) {
+                        select.appendChild(makeOption(s, saved));
+                    }
+                }
+            }
+        }
+
+        function makeOption(sound, savedKey) {
+            const opt = document.createElement("option");
+            opt.value = sound.key;
+            opt.textContent = sound.displayName;
+            if (sound.key === savedKey) opt.selected = true;
+            return opt;
+        }
+
+        function handlePluginMessage(payload) {
+            if (!payload) return;
+            if (payload.type === "soundsList") {
+                if (payload.folderSelected === false) {
+                    setState("no-folder");
+                } else {
+                    populateSounds(payload.sounds);
+                }
+            }
+        }
+
+        document.getElementById("sound-select").addEventListener("change", (e) => {
+            const soundKey = e.target.value;
+            const opt = e.target.options[e.target.selectedIndex];
+            const soundName = opt?.textContent ?? "";
+            const newSettings = { ..._currentSettings, soundKey, soundName };
+            setSettings(newSettings);
+            _currentSettings = newSettings;
+        });
+    </script>
+</body>
+
+</html>
