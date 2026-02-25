@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { WebSocketServer } = require("ws");
 
 // ---------------------------------------------------------------------------
 // Settings management — global + per-folder
@@ -183,6 +184,82 @@ function discoverSounds(folder) {
 let mainWindow;
 let globalSettings = loadGlobalSettings();
 let folderSettings = loadFolderSettings(globalSettings.soundFolder);
+let wss = null;
+
+// ---------------------------------------------------------------------------
+// WebSocket server
+// ---------------------------------------------------------------------------
+function buildWsSoundList() {
+  const folder = globalSettings.soundFolder;
+  if (!folder) return [];
+
+  const groups = discoverSounds(folder);
+  const hiddenSounds = new Set(folderSettings.hiddenSounds || []);
+  const soundNames = folderSettings.soundNames || {};
+  const soundCategories = folderSettings.soundCategories || {};
+
+  const result = [];
+  for (const group of groups) {
+    const relFolder = path.relative(folder, group.folderPath).replace(/\\/g, "/");
+    for (const sound of group.sounds) {
+      const key = relFolder ? relFolder + "/" + sound.filename : sound.filename;
+      if (hiddenSounds.has(key)) continue;
+      result.push({
+        key,
+        displayName: soundNames[key] || sound.name,
+        category: soundCategories[key] || relFolder,
+      });
+    }
+  }
+  return result;
+}
+
+function broadcastToClients(payload) {
+  if (!wss) return;
+  const msg = JSON.stringify(payload);
+  for (const client of wss.clients) {
+    if (client.readyState === 1 /* OPEN */) client.send(msg);
+  }
+}
+
+function startWebSocketServer() {
+  wss = new WebSocketServer({ host: "0.0.0.0", port: 57432 });
+
+  wss.on("listening", () => {
+    console.log("[WS] WebSocket server listening on port 57432");
+  });
+
+  wss.on("error", (err) => {
+    console.error("[WS] WebSocket server error: " + err);
+  });
+
+  wss.on("connection", (ws) => {
+    const folder = globalSettings.soundFolder;
+    if (folder) {
+      ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true }));
+    } else {
+      ws.send(JSON.stringify({ type: "folder-status", folderSelected: false }));
+    }
+
+    ws.on("message", (raw) => {
+      let msg;
+      try { msg = JSON.parse(raw.toString()); } catch { return; }
+
+      if (msg.type === "get-sounds") {
+        const folder = globalSettings.soundFolder;
+        if (folder) {
+          ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true }));
+        } else {
+          ws.send(JSON.stringify({ type: "folder-status", folderSelected: false }));
+        }
+      } else if (msg.type === "play-sound" && msg.key) {
+        mainWindow?.webContents.send("ws-play-sound", { key: msg.key });
+      } else if (msg.type === "stop-all") {
+        mainWindow?.webContents.send("ws-stop-all");
+      }
+    });
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -223,8 +300,12 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  startWebSocketServer();
+});
 app.on("window-all-closed", () => app.quit());
+app.on("before-quit", () => wss && wss.close());
 
 // ---------------------------------------------------------------------------
 // IPC handlers
@@ -234,15 +315,20 @@ ipcMain.handle("get-settings", () => {
 });
 
 ipcMain.handle("save-settings", (_event, newSettings) => {
+  let hasFolderKeys = false;
   for (const [k, v] of Object.entries(newSettings)) {
     if (GLOBAL_KEYS.has(k)) {
       globalSettings[k] = v;
     } else {
       folderSettings[k] = v;
+      hasFolderKeys = true;
     }
   }
   saveGlobalSettings(globalSettings);
   saveFolderSettings(globalSettings.soundFolder, folderSettings);
+  if (hasFolderKeys) {
+    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList() });
+  }
   return { ...globalSettings, ...folderSettings };
 });
 
