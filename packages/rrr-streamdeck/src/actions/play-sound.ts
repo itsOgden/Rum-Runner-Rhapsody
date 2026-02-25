@@ -19,6 +19,12 @@ rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelec
 	if (data.type === "sounds-list" || data.type === "sounds-updated") {
 		currentSounds = data.sounds ?? [];
 		folderSelected = data.folderSelected !== false;
+		// Push fresh sounds to any open PI immediately (covers reconnect after sleep).
+		streamDeck.ui.sendToPropertyInspector({
+			type: "soundsList",
+			sounds: currentSounds,
+			folderSelected,
+		});
 	}
 });
 
@@ -58,12 +64,7 @@ export class PlaySound extends SingletonAction<PlaySoundSettings> {
 			});
 			const settings = await ev.action.getSettings();
 			const title = settings.soundName || settings.soundKey || "";
-			if (title) {
-				await ev.action.setTitle(title);
-				await ev.action.setSettings({
-
-				})
-			}
+			if (title) await ev.action.setTitle(title);
 		}
 	}
 }

@@ -5,12 +5,28 @@
     <title>Play Sound Settings</title>
     <meta charset="utf-8" />
     <script src="https://sdpi-components.dev/releases/v4/sdpi-components.js"></script>
+    <style>
+        .ellipsis::after {
+            display: inline-block;
+            content: '';
+            animation: ellipsis-dots 1.5s steps(4, end) infinite;
+            width: 1.2em;
+            text-align: left;
+        }
+
+        @keyframes ellipsis-dots {
+            0%   { content: ''; }
+            25%  { content: '.'; }
+            50%  { content: '..'; }
+            75%  { content: '...'; }
+        }
+    </style>
 </head>
 
 <body>
     <div id="state-connecting">
         <sdpi-item label="Status">
-            <span class="sdpi-item-value">Connecting to RRR...</span>
+            <span class="sdpi-item-value ellipsis">Connecting to RRR</span>
         </sdpi-item>
     </div>
 
@@ -33,6 +49,7 @@
         let _uuid = null;
         let _action = null;
         let _currentSettings = {};
+        let _retryInterval = null;
 
         // Override sdpi-components' connectElgatoStreamDeckSocket so we fully
         // control the websocket and can send/receive custom messages.
@@ -47,8 +64,10 @@
                 _ws.send(JSON.stringify({ event: registerEvent, uuid }));
                 // Request current settings so we can restore the saved selection.
                 _ws.send(JSON.stringify({ event: "getSettings", context: uuid }));
-                // Ask the plugin for the current sounds list right away.
+                // Ask the plugin for the current sounds list and start retrying
+                // every 3 seconds until the plugin responds (handles sleep/wake).
                 sendToPlugin({ type: "requestSounds" });
+                startRetrying();
             };
 
             _ws.onmessage = ({ data }) => {
@@ -60,6 +79,20 @@
                 }
             };
         };
+
+        function startRetrying() {
+            if (_retryInterval) return;
+            _retryInterval = setInterval(() => {
+                sendToPlugin({ type: "requestSounds" });
+            }, 3000);
+        }
+
+        function stopRetrying() {
+            if (_retryInterval) {
+                clearInterval(_retryInterval);
+                _retryInterval = null;
+            }
+        }
 
         function sendToPlugin(payload) {
             if (_ws?.readyState === WebSocket.OPEN) {
@@ -133,6 +166,7 @@
         function handlePluginMessage(payload) {
             if (!payload) return;
             if (payload.type === "soundsList") {
+                stopRetrying();
                 if (payload.folderSelected === false) {
                     setState("no-folder");
                 } else {

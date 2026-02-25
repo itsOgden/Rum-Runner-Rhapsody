@@ -9,7 +9,9 @@
       "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\" && pnpm vite build 2>&1)",
       "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\" && pnpm add -D chalk 2>&1)",
       "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\" && pnpm exec vue-tsc --noEmit 2>&1)",
-      "Bash(cd \"N:/Repositories/Personal/Rum-Runner Rhapsody\" && pnpm vue-tsc --noEmit 2>&1)"
+      "Bash(cd \"N:/Repositories/Personal/Rum-Runner Rhapsody\" && pnpm vue-tsc --noEmit 2>&1)",
+      "Bash(cd \"N:/Repositories/Personal/Rum-Runner Rhapsody/packages/rrr-streamdeck\" && node_modules/.bin/rollup -c 2>&1)",
+      "Bash(streamdeck restart:*)"
     ]
   },
   "model": "sonnet"
