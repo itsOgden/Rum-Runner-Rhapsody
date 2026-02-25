@@ -256,7 +256,7 @@
 
     <!-- State 3b: Ready — button grid mode -->
     <div id="state-ready-buttons" class="state" hidden>
-        <div id="show-category-row" style="display:flex; align-items:center; gap:10px; margin-bottom: 16px">
+        <div id="show-category-row" style="display:flex; align-items:center; gap:10px; margin-bottom: 16px; cursor:pointer;">
             <div id="category-toggle" style="position:relative; width:36px; height:20px; cursor:pointer; flex-shrink:0;">
                 <input type="checkbox" id="showCategory" style="opacity:0; width:0; height:0; position:absolute;" />
                 <span id="category-toggle-track" style="position:absolute; inset:0; border-radius:10px; background:#3a3a3a; transition: background 0.2s;"></span>
@@ -504,7 +504,7 @@
             document.getElementById('category-toggle-thumb').style.transform = checked ? 'translateX(16px)' : 'translateX(0)';
         }
 
-        document.getElementById('category-toggle').addEventListener('click', () => {
+        document.getElementById('show-category-row').addEventListener('click', () => {
             const cb = document.getElementById('showCategory');
             cb.checked = !cb.checked;
             updateToggleVisual(cb.checked);

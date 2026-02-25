@@ -67,69 +67,37 @@ function truncate(s: string, max: number = TITLE_MAX): string {
 	return cut.replace(/[ \-.,!?]+$/, "");
 }
 
-// Find the index of the space in `s` closest to `target`, optionally skipping one index.
-function nearestSpace(s: string, target: number, skip = -1): number {
-	let best = -1;
-	let bestDist = Infinity;
-	for (let i = 0; i < s.length; i++) {
-		if (s[i] === " " && i !== skip) {
-			const dist = Math.abs(i - target);
-			if (dist < bestDist) { bestDist = dist; best = i; }
+const LINE_WIDTH = 10;
+
+// Greedily pack words into lines, each at most LINE_WIDTH chars wide.
+// A single word longer than LINE_WIDTH is hard-truncated.
+function fillLines(name: string, maxLines: number): string[] {
+	const words = name.split(/\s+/).filter(Boolean);
+	const lines: string[] = [];
+	let current = "";
+	for (const word of words) {
+		const w = word.length > LINE_WIDTH ? word.slice(0, LINE_WIDTH) : word;
+		if (!current) {
+			current = w;
+		} else if ((current + " " + w).length <= LINE_WIDTH) {
+			current += " " + w;
+		} else {
+			lines.push(current);
+			if (lines.length >= maxLines) return lines;
+			current = w;
 		}
 	}
-	return best;
+	if (current && lines.length < maxLines) lines.push(current);
+	return lines;
 }
 
 // Format a button title.
-// showCategory=true:  category on line 1, name split across up to 3 more lines.
-// showCategory=false: no category, name split across up to 4 lines.
+// showCategory=true:  category on line 1, name greedy-filled across up to 3 more lines.
+// showCategory=false: no category, name greedy-filled across up to 4 lines.
 function formatTitle(category: string, name: string, showCategory: boolean = false): string {
 	const catLine = showCategory ? truncate(category) : "";
-
 	if (!name) return catLine;
-
-	// Name fits on one line — no splitting needed
-	if (name.length <= TITLE_MAX) {
-		return [catLine, name].filter(Boolean).join("\n");
-	}
-
-	let nameLines: string[];
-
-	if (showCategory) {
-		// Up to 3 name lines — split points at 1/3 and 2/3
-		const split1 = nearestSpace(name, Math.floor(name.length / 3));
-		const split2 = nearestSpace(name, Math.floor(2 * name.length / 3), split1);
-		if (split1 === -1) {
-			nameLines = [truncate(name)];
-		} else if (split2 === -1) {
-			nameLines = [name.slice(0, split1), name.slice(split1 + 1)].map(c => truncate(c));
-		} else {
-			const [s1, s2] = [split1, split2].sort((a, b) => a - b);
-			nameLines = [name.slice(0, s1), name.slice(s1 + 1, s2), name.slice(s2 + 1)].map(c => truncate(c));
-		}
-	} else {
-		// Up to 4 name lines — split points at 1/4, 2/4, 3/4
-		const split1 = nearestSpace(name, Math.floor(name.length / 4));
-		const split2 = nearestSpace(name, Math.floor(name.length / 2), split1);
-		const split3 = nearestSpace(name, Math.floor(3 * name.length / 4), split2);
-		if (split1 === -1) {
-			nameLines = [truncate(name)];
-		} else if (split2 === -1) {
-			nameLines = [name.slice(0, split1), name.slice(split1 + 1)].map(c => truncate(c));
-		} else if (split3 === -1) {
-			const [s1, s2] = [split1, split2].sort((a, b) => a - b);
-			nameLines = [name.slice(0, s1), name.slice(s1 + 1, s2), name.slice(s2 + 1)].map(c => truncate(c));
-		} else {
-			const [s1, s2, s3] = [split1, split2, split3].sort((a, b) => a - b);
-			nameLines = [
-				name.slice(0, s1),
-				name.slice(s1 + 1, s2),
-				name.slice(s2 + 1, s3),
-				name.slice(s3 + 1),
-			].map(c => truncate(c));
-		}
-	}
-
+	const nameLines = fillLines(name, showCategory ? 3 : 4);
 	return [catLine, ...nameLines].filter(Boolean).join("\n");
 }
 

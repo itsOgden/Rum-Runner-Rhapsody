@@ -1,7 +1,8 @@
 {
+    "name": "@rrr/streamdeck",
     "scripts": {
-        "build": "rum-runner-rhapsody/node_modules/.bin/rollup -c",
-        "watch": "rum-runner-rhapsody/node_modules/.bin/rollup -c -w --watch.onEnd=\"streamdeck restart com.pdog1.rum-runner-rhapsody\""
+        "build": "rollup -c rollup.config.mjs",
+        "watch": "rollup -c rollup.config.mjs -w --watch.onEnd=\"streamdeck restart com.pdog1.rum-runner-rhapsody\""
     },
     "type": "module",
     "devDependencies": {
