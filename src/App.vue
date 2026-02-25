@@ -16,7 +16,7 @@ import Toast from './components/Toast.vue'
 
 const { settings, loadSettings, onFolderChanged } = useSettings()
 const { refreshDevices } = useAudioDevices()
-const { stopAll } = useAudioPlayer()
+const { playSound, stopAll } = useAudioPlayer()
 const { resetSessionState } = useSoundManagement()
 
 const hasSoundFolder = computed(() => !!settings.value.soundFolder)
@@ -48,6 +48,19 @@ onMounted(async () => {
   await loadSettings()
   await refreshDevices()
   document.addEventListener('keydown', handleKeydown)
+
+  window.api.onWsPlaySound(async ({ key }) => {
+    const soundFolder = settings.value.soundFolder
+    if (!soundFolder || !key) return
+    const absPath = soundFolder.replace(/[/\\]+$/, '') + '\\' + key.replace(/\//g, '\\')
+    const filename = key.split('/').pop() ?? key
+    const name = (settings.value.soundNames ?? {})[key] ?? filename.replace(/\.[^.]+$/, '')
+    await playSound({ path: absPath, filename, name, key, originalFolder: '', isHidden: false, isMoved: false })
+  })
+
+  window.api.onWsStopAll(() => {
+    stopAll()
+  })
 })
 
 onUnmounted(() => {

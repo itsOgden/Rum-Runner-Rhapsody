@@ -245,6 +245,8 @@ function startWebSocketServer() {
       let msg;
       try { msg = JSON.parse(raw.toString()); } catch { return; }
 
+      console.log("[WS] Received message:", JSON.stringify(msg));
+
       if (msg.type === "get-sounds") {
         const folder = globalSettings.soundFolder;
         if (folder) {
@@ -253,8 +255,10 @@ function startWebSocketServer() {
           ws.send(JSON.stringify({ type: "folder-status", folderSelected: false }));
         }
       } else if (msg.type === "play-sound" && msg.key) {
+        console.log("[WS] Forwarding ws-play-sound to renderer:", msg.key);
         mainWindow?.webContents.send("ws-play-sound", { key: msg.key });
       } else if (msg.type === "stop-all") {
+        console.log("[WS] Forwarding ws-stop-all to renderer");
         mainWindow?.webContents.send("ws-stop-all");
       }
     });

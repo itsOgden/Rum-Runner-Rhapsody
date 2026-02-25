@@ -88,6 +88,8 @@ export interface WindowApi {
   getSounds(): Promise<SoundGroup[]>
   pickFolder(): Promise<FolderChangeResult | null>
   readSoundFile(filePath: string): Promise<ArrayBuffer | null>
+  onWsPlaySound(callback: (data: { key: string }) => void): void
+  onWsStopAll(callback: () => void): void
 }
 
 declare global {

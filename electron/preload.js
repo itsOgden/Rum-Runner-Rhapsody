@@ -6,4 +6,6 @@ contextBridge.exposeInMainWorld("api", {
   getSounds: () => ipcRenderer.invoke("get-sounds"),
   pickFolder: () => ipcRenderer.invoke("pick-folder"),
   readSoundFile: (filePath) => ipcRenderer.invoke("read-sound-file", filePath),
+  onWsPlaySound: (callback) => ipcRenderer.on("ws-play-sound", (_event, data) => callback(data)),
+  onWsStopAll: (callback) => ipcRenderer.on("ws-stop-all", () => callback()),
 });

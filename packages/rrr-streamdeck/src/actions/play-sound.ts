@@ -1,5 +1,5 @@
 import streamDeck, { action, KeyDownEvent, PropertyInspectorDidAppearEvent, SendToPluginEvent, SingletonAction } from "@elgato/streamdeck";
-import { rrrClient } from "../rrr-client";
+import { log, rrrClient } from "../rrr-client";
 
 type PlaySoundSettings = {
 	soundKey?: string;
@@ -26,8 +26,11 @@ rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelec
 export class PlaySound extends SingletonAction<PlaySoundSettings> {
 	override onKeyDown(ev: KeyDownEvent<PlaySoundSettings>): void {
 		const { soundKey } = ev.payload.settings;
+		log("[PlaySound] keyDown, soundKey: " + soundKey);
 		if (soundKey) {
-			rrrClient.send({ type: "play-sound", key: soundKey });
+			const msg = { type: "play-sound", key: soundKey };
+			log("[PlaySound] sending to RRR: " + JSON.stringify(msg));
+			rrrClient.send(msg);
 		}
 	}
 

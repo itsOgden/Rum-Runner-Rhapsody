@@ -6,7 +6,7 @@ import WebSocket from "ws";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const logPath = path.join(__dirname, "../rrr-debug.log");
-const log = (msg: string) => fs.appendFileSync(logPath, new Date().toISOString() + " " + msg + "\n");
+export const log = (msg: string) => fs.appendFileSync(logPath, new Date().toISOString() + " " + msg + "\n");
 
 const WS_URL = "ws://localhost:57432";
 const MAX_RETRIES = 10;
