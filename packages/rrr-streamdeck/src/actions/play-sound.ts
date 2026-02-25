@@ -12,16 +12,29 @@ type SoundItem = {
 	category: string;
 };
 
+let rrrConnected = false;
 let currentSounds: SoundItem[] = [];
 let folderSelected = false;
+
+rrrClient.on("connected", () => {
+	rrrConnected = true;
+});
+
+rrrClient.on("disconnected", () => {
+	rrrConnected = false;
+	currentSounds = [];
+	folderSelected = false;
+	// Notify any open PI that RRR is no longer reachable.
+	streamDeck.ui.sendToPropertyInspector({ type: "soundsList", connected: false, folderSelected: false });
+});
 
 rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean }) => {
 	if (data.type === "sounds-list" || data.type === "sounds-updated") {
 		currentSounds = data.sounds ?? [];
 		folderSelected = data.folderSelected !== false;
-		// Push fresh sounds to any open PI immediately (covers reconnect after sleep).
 		streamDeck.ui.sendToPropertyInspector({
 			type: "soundsList",
+			connected: rrrConnected,
 			sounds: currentSounds,
 			folderSelected,
 		});
@@ -50,6 +63,7 @@ export class PlaySound extends SingletonAction<PlaySoundSettings> {
 	override onPropertyInspectorDidAppear(_ev: PropertyInspectorDidAppearEvent<PlaySoundSettings>): void {
 		streamDeck.ui.sendToPropertyInspector({
 			type: "soundsList",
+			connected: rrrConnected,
 			sounds: currentSounds,
 			folderSelected,
 		});
@@ -59,6 +73,7 @@ export class PlaySound extends SingletonAction<PlaySoundSettings> {
 		if (ev.payload.type === "requestSounds") {
 			await streamDeck.ui.sendToPropertyInspector({
 				type: "soundsList",
+				connected: rrrConnected,
 				sounds: currentSounds,
 				folderSelected,
 			});
