@@ -359,6 +359,9 @@ ipcMain.handle("pick-folder", async () => {
   // Device, hotkey, and playback settings are global and unaffected by folder changes.
   folderSettings = loadFolderSettings(newFolder);
 
+  // Notify connected Stream Deck clients that the folder and sounds have changed.
+  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true });
+
   return { folder: newFolder, folderSettings: { ...folderSettings } };
 });
 
