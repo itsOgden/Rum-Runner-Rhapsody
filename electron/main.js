@@ -194,20 +194,118 @@ function buildWsSoundList() {
   if (!folder) return [];
 
   const groups = discoverSounds(folder);
-  const hiddenSounds = new Set(folderSettings.hiddenSounds || []);
+  const sc = folderSettings.soundCategories || {};
+  const hiddenSet = new Set(folderSettings.hiddenSounds || []);
+  const hiddenCategoriesSet = new Set(folderSettings.hiddenCategories || []);
+  const customCats = folderSettings.customCategories || [];
+  const catNames = folderSettings.categoryNames || {};
   const soundNames = folderSettings.soundNames || {};
-  const soundCategories = folderSettings.soundCategories || {};
+  const soundOrder = folderSettings.soundOrder || {};
+  const categoryOrder = folderSettings.categoryOrder || [];
 
-  const result = [];
+  // Build a key -> { name, path } map for all sounds (needed for moved sounds)
+  const soundMap = {};
   for (const group of groups) {
     const relFolder = path.relative(folder, group.folderPath).replace(/\\/g, "/");
     for (const sound of group.sounds) {
       const key = relFolder ? relFolder + "/" + sound.filename : sound.filename;
-      if (hiddenSounds.has(key)) continue;
+      soundMap[key] = { key, name: sound.name, originalFolder: group.folderName };
+    }
+  }
+
+  function applySoundOrder(sounds, sectionId) {
+    const order = soundOrder[sectionId] || [];
+    if (order.length > 0) {
+      const indexMap = new Map(order.map((k, i) => [k, i]));
+      sounds.sort((a, b) => {
+        const ia = indexMap.has(a.key) ? indexMap.get(a.key) : Infinity;
+        const ib = indexMap.has(b.key) ? indexMap.get(b.key) : Infinity;
+        if (ia !== ib) return ia - ib;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      });
+    } else {
+      sounds.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    }
+  }
+
+  const sections = [];
+
+  // Folder sections
+  for (const group of groups) {
+    if (hiddenCategoriesSet.has(group.folderName)) continue;
+
+    const relFolder = path.relative(folder, group.folderPath).replace(/\\/g, "/");
+    const nativeKeys = new Set();
+    for (const sound of group.sounds) {
+      const key = relFolder ? relFolder + "/" + sound.filename : sound.filename;
+      nativeKeys.add(key);
+    }
+
+    // Native sounds not moved away
+    const nativeSounds = group.sounds
+      .map(s => {
+        const key = relFolder ? relFolder + "/" + s.filename : s.filename;
+        const movedTo = sc[key];
+        if (movedTo && movedTo !== group.folderName) return null;
+        if (hiddenSet.has(key)) return null;
+        return { key, name: soundNames[key] ?? s.name };
+      })
+      .filter(Boolean);
+
+    // Sounds from other groups moved into this folder section
+    const movedIn = Object.entries(sc)
+      .filter(([key, catId]) => catId === group.folderName && !nativeKeys.has(key))
+      .map(([key]) => soundMap[key])
+      .filter(s => s && !hiddenSet.has(s.key))
+      .map(s => ({ key: s.key, name: soundNames[s.key] ?? s.name }));
+
+    const sounds = [...nativeSounds, ...movedIn];
+    applySoundOrder(sounds, group.folderName);
+
+    sections.push({
+      id: group.folderName,
+      displayName: catNames[group.folderName] ?? group.folderName,
+      sounds,
+    });
+  }
+
+  // Custom category sections
+  for (const cat of customCats) {
+    if (hiddenCategoriesSet.has(cat.id)) continue;
+
+    const sounds = Object.entries(sc)
+      .filter(([, catId]) => catId === cat.id)
+      .map(([key]) => soundMap[key])
+      .filter(s => s && !hiddenSet.has(s.key))
+      .map(s => ({ key: s.key, name: soundNames[s.key] ?? s.name }));
+
+    applySoundOrder(sounds, cat.id);
+
+    sections.push({
+      id: cat.id,
+      displayName: catNames[cat.id] ?? cat.id,
+      sounds,
+    });
+  }
+
+  // Apply manual category order
+  if (categoryOrder.length > 0) {
+    const indexMap = new Map(categoryOrder.map((id, i) => [id, i]));
+    sections.sort((a, b) => {
+      const ia = indexMap.has(a.id) ? indexMap.get(a.id) : Infinity;
+      const ib = indexMap.has(b.id) ? indexMap.get(b.id) : Infinity;
+      return ia - ib;
+    });
+  }
+
+  // Flatten to the { key, displayName, category } shape expected by the PI
+  const result = [];
+  for (const section of sections) {
+    for (const sound of section.sounds) {
       result.push({
-        key,
-        displayName: soundNames[key] || sound.name,
-        category: soundCategories[key] || relFolder,
+        key: sound.key,
+        displayName: sound.name,
+        category: section.displayName,
       });
     }
   }

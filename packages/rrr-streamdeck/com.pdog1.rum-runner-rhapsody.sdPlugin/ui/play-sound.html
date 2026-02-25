@@ -13,7 +13,7 @@
             font-family: "Segoe UI", system-ui, sans-serif;
             font-size: 12px;
             padding: 12px;
-            min-height: 100vh;
+            overflow: hidden;
         }
 
         /* ── State visibility ───────────────────────────────────────── */
@@ -94,7 +94,7 @@
             line-height: 1.4;
         }
 
-        /* ── State 3 — Ready ────────────────────────────────────────── */
+        /* ── State 3a — Ready (dropdown) ────────────────────────────── */
 
         #state-ready {
             gap: 6px;
@@ -144,6 +144,78 @@
             text-transform: none;
             letter-spacing: normal;
         }
+
+        /* ── State 3b — Ready (button grid) ─────────────────────────── */
+
+        #state-ready-buttons {
+            padding: 4px 0;
+            overflow-y: auto;
+            max-height: calc(100vh - 24px);
+        }
+
+        #state-ready-buttons::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #state-ready-buttons::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #state-ready-buttons::-webkit-scrollbar-thumb {
+            background: #3a3a3a;
+            border-radius: 3px;
+        }
+
+        #state-ready-buttons::-webkit-scrollbar-thumb:hover {
+            background: #4a4a4a;
+        }
+
+        .btn-category-heading {
+            color: #F5A800;
+            font-size: 10px;
+            font-family: serif;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 10px;
+            margin-bottom: 4px;
+        }
+
+        .btn-category-heading:first-child {
+            margin-top: 0;
+        }
+
+        .btn-category-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .sound-btn {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            color: #f0ede6;
+            font-size: 11px;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            padding: 5px 8px;
+            cursor: pointer;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+        }
+
+        .sound-btn:hover {
+            background: #333333;
+            border-color: #F5A800;
+        }
+
+        .sound-btn.selected {
+            background: rgba(245, 168, 0, 0.15);
+            border-color: #F5A800;
+            color: #F5A800;
+        }
     </style>
 </head>
 
@@ -164,7 +236,7 @@
         </div>
     </div>
 
-    <!-- State 3: Ready -->
+    <!-- State 3a: Ready — dropdown mode -->
     <div id="state-ready" class="state" hidden>
         <span class="select-label">Sound Clip</span>
         <select id="sound-select">
@@ -172,7 +244,13 @@
         </select>
     </div>
 
+    <!-- State 3b: Ready — button grid mode -->
+    <div id="state-ready-buttons" class="state" hidden>
+    </div>
+
     <script>
+        const BUTTON_MODE = true;
+
         let _ws = null;
         let _uuid = null;
         let _action = null;
@@ -244,9 +322,18 @@
             document.getElementById("state-connecting").hidden = state !== "connecting";
             document.getElementById("state-no-folder").hidden = state !== "no-folder";
             document.getElementById("state-ready").hidden = state !== "ready";
+            document.getElementById("state-ready-buttons").hidden = state !== "ready-buttons";
         }
 
         function populateSounds(sounds) {
+            if (BUTTON_MODE) {
+                populateSoundsButtons(sounds);
+            } else {
+                populateSoundsDropdown(sounds);
+            }
+        }
+
+        function populateSoundsDropdown(sounds) {
             setState("ready");
 
             const select = document.getElementById("sound-select");
@@ -286,6 +373,69 @@
             opt.textContent = sound.displayName;
             if (sound.key === savedKey) opt.selected = true;
             return opt;
+        }
+
+        function populateSoundsButtons(sounds) {
+            setState("ready-buttons");
+
+            const container = document.getElementById("state-ready-buttons");
+            container.innerHTML = "";
+
+            if (!sounds || sounds.length === 0) {
+                const msg = document.createElement("span");
+                msg.style.cssText = "color: #a09a8f; font-size: 11px;";
+                msg.textContent = "No sounds found in folder";
+                container.appendChild(msg);
+                return;
+            }
+
+            const saved = _currentSettings.soundKey ?? "";
+
+            const groups = {};
+            for (const s of sounds) {
+                const cat = s.category || "";
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push(s);
+            }
+
+            const cats = Object.keys(groups);
+            const useHeadings = cats.length > 1 || (cats.length === 1 && cats[0] !== "");
+
+            for (const [cat, items] of Object.entries(groups)) {
+                if (useHeadings) {
+                    const heading = document.createElement("div");
+                    heading.className = "btn-category-heading";
+                    heading.textContent = cat || "Uncategorized";
+                    container.appendChild(heading);
+                }
+
+                const row = document.createElement("div");
+                row.className = "btn-category-row";
+
+                for (const s of items) {
+                    const btn = document.createElement("button");
+                    btn.className = "sound-btn" + (s.key === saved ? " selected" : "");
+                    btn.textContent = s.displayName;
+                    btn.title = s.displayName;
+                    btn.dataset.key = s.key;
+                    btn.dataset.name = s.displayName;
+                    btn.addEventListener("click", () => selectSound(s.key, s.displayName));
+                    row.appendChild(btn);
+                }
+
+                container.appendChild(row);
+            }
+        }
+
+        function selectSound(soundKey, soundName) {
+            // Update highlight
+            document.querySelectorAll(".sound-btn").forEach(btn => {
+                btn.classList.toggle("selected", btn.dataset.key === soundKey);
+            });
+            // Save settings
+            const newSettings = { ..._currentSettings, soundKey, soundName };
+            setSettings(newSettings);
+            _currentSettings = newSettings;
         }
 
         function handlePluginMessage(payload) {
