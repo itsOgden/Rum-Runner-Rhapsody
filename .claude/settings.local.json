@@ -19,7 +19,8 @@
       "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\packages\\\\rrr-streamdeck\" && node build.js && rollup -c 2>&1)",
       "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\packages\\\\rrr-streamdeck\" && pnpm run build 2>&1)",
       "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\" && node_modules/.bin/rollup -c packages/rrr-streamdeck/rollup.config.mjs 2>&1)",
-      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\packages\\\\rrr-streamdeck\" && \"../../node_modules/.bin/rollup\" -c 2>&1)"
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\packages\\\\rrr-streamdeck\" && \"../../node_modules/.bin/rollup\" -c 2>&1)",
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\packages\\\\rrr-streamdeck\" && \"../../node_modules/.bin/rollup\" -c 2>&1 && streamdeck restart com.pdog1.rum-runner-rhapsody 2>&1)"
     ]
   },
   "model": "sonnet"
