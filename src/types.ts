@@ -90,6 +90,7 @@ export interface WindowApi {
   readSoundFile(filePath: string): Promise<ArrayBuffer | null>
   onWsPlaySound(callback: (data: { key: string }) => void): void
   onWsStopAll(callback: () => void): void
+  updatePlayingStatus(keys: string[]): void
 }
 
 declare global {

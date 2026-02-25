@@ -66,6 +66,17 @@ watch(
   { deep: true }
 )
 
+// Notify the Stream Deck plugin whenever the set of playing sounds changes.
+// Converts full file paths to sound keys (relative forward-slash paths).
+watch(playingPaths, (newPaths) => {
+  const folder = settings.value.soundFolder
+  const keys = Array.from(newPaths).map(p => {
+    const rel = folder && p.startsWith(folder) ? p.slice(folder.length + 1) : p
+    return rel.replace(/\\/g, '/')
+  })
+  window.api.updatePlayingStatus(keys)
+}, { deep: true })
+
 export function useAudioPlayer() {
   async function playSound(sound: Sound): Promise<void> {
     // Read playbackMode directly from the live ref — not a cached snapshot — to avoid stale reads

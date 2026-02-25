@@ -1,4 +1,4 @@
-import streamDeck, { action, DidReceiveSettingsEvent, KeyDownEvent, PropertyInspectorDidAppearEvent, SendToPluginEvent, SingletonAction, WillAppearEvent } from "@elgato/streamdeck";
+import streamDeck, { action, DidReceiveSettingsEvent, KeyAction, KeyDownEvent, PropertyInspectorDidAppearEvent, SendToPluginEvent, SingletonAction, WillAppearEvent, WillDisappearEvent } from "@elgato/streamdeck";
 import { rrrClient } from "../rrr-client";
 
 type PlaySoundSettings = {
@@ -21,6 +21,11 @@ let stateReady = false;
 let currentSounds: SoundItem[] = [];
 let folderSelected = false;
 
+// Playing state tracking — used to flip button images via setState()
+const currentlyPlaying = new Set<string>();
+type ActionEntry = { action: KeyAction<PlaySoundSettings>; soundKey: string };
+const activeActions = new Map<string, ActionEntry>();
+
 function pushState(): void {
 	streamDeck.ui.sendToPropertyInspector({
 		type: "soundsList",
@@ -42,7 +47,7 @@ rrrClient.on("disconnected", () => {
 	pushState();
 });
 
-rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean }) => {
+rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean; playingKeys?: string[] }) => {
 	if (data.type === "sounds-list" || data.type === "sounds-updated") {
 		currentSounds = data.sounds ?? [];
 		folderSelected = data.folderSelected !== false;
@@ -53,6 +58,12 @@ rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelec
 		folderSelected = false;
 		stateReady = true;
 		pushState();
+	} else if (data.type === "playing-status") {
+		currentlyPlaying.clear();
+		for (const key of (data.playingKeys ?? [])) currentlyPlaying.add(key);
+		for (const { action, soundKey } of activeActions.values()) {
+			action.setState(soundKey && currentlyPlaying.has(soundKey) ? 1 : 0).catch(() => {});
+		}
 	}
 });
 
@@ -105,11 +116,20 @@ function formatTitle(category: string, name: string, showCategory: boolean = fal
 export class PlaySound extends SingletonAction<PlaySoundSettings> {
 	override async onWillAppear(ev: WillAppearEvent<PlaySoundSettings>): Promise<void> {
 		const { soundName, soundKey, soundCategory, showCategory } = ev.payload.settings;
+		const keyAction = ev.action as KeyAction<PlaySoundSettings>;
+		activeActions.set(ev.action.id, { action: keyAction, soundKey: soundKey ?? "" });
+		await keyAction.setState(soundKey && currentlyPlaying.has(soundKey) ? 1 : 0);
 		await ev.action.setTitle(formatTitle(soundCategory || "", soundName || soundKey || "", showCategory ?? false));
+	}
+
+	override onWillDisappear(ev: WillDisappearEvent<PlaySoundSettings>): void {
+		activeActions.delete(ev.action.id);
 	}
 
 	override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<PlaySoundSettings>): Promise<void> {
 		const { soundName, soundKey, soundCategory, showCategory } = ev.payload.settings;
+		const entry = activeActions.get(ev.action.id);
+		if (entry) entry.soundKey = soundKey ?? "";
 		await ev.action.setTitle(formatTitle(soundCategory || "", soundName || soundKey || "", showCategory ?? false));
 	}
 

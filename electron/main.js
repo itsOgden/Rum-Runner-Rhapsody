@@ -463,6 +463,10 @@ ipcMain.handle("pick-folder", async () => {
   return { folder: newFolder, folderSettings: { ...folderSettings } };
 });
 
+ipcMain.on("ws-playing-status", (_event, playingKeys) => {
+  broadcastToClients({ type: "playing-status", playingKeys });
+});
+
 ipcMain.handle("read-sound-file", (_event, filePath) => {
   try {
     const buffer = fs.readFileSync(filePath);

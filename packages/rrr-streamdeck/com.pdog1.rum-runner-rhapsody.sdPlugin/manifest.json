@@ -16,6 +16,10 @@
 				{
 					"Image": "imgs/actions/play-sound/key",
 					"TitleAlignment": "middle"
+				},
+				{
+					"Image": "imgs/actions/play-sound/playing",
+					"TitleAlignment": "middle"
 				}
 			]
 		},
