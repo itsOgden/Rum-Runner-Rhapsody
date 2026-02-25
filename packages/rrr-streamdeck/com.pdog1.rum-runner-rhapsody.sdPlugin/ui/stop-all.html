@@ -219,6 +219,8 @@
 
         function handlePluginMessage(payload) {
             if (!payload || payload.type !== "soundsList") return;
+            // Ignore partial messages that are missing required fields.
+            if (typeof payload.connected === "undefined" || typeof payload.folderSelected === "undefined") return;
 
             // connected: false → reset to connecting and keep retrying
             if (payload.connected === false) {
@@ -227,7 +229,8 @@
                 return;
             }
 
-            // connected: true → stop retrying, determine sub-state
+            // connected: true, folderSelected: false → no folder selected
+            // connected: true, folderSelected: true → ready
             stopRetrying();
 
             if (payload.folderSelected === false) {

@@ -327,7 +327,7 @@ ipcMain.handle("save-settings", (_event, newSettings) => {
   saveGlobalSettings(globalSettings);
   saveFolderSettings(globalSettings.soundFolder, folderSettings);
   if (hasFolderKeys) {
-    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList() });
+    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true });
   }
   return { ...globalSettings, ...folderSettings };
 });

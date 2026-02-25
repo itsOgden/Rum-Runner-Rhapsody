@@ -247,14 +247,15 @@
         }
 
         function populateSounds(sounds) {
-            if (!sounds || sounds.length === 0) {
-                setState("no-folder");
-                return;
-            }
             setState("ready");
 
             const select = document.getElementById("sound-select");
             const saved = _currentSettings.soundKey ?? "";
+
+            if (!sounds || sounds.length === 0) {
+                select.innerHTML = '<option disabled>No sounds found in folder</option>';
+                return;
+            }
 
             const groups = {};
             for (const s of sounds) {
@@ -289,6 +290,8 @@
 
         function handlePluginMessage(payload) {
             if (!payload || payload.type !== "soundsList") return;
+            // Ignore partial messages that are missing required fields.
+            if (typeof payload.connected === "undefined" || typeof payload.folderSelected === "undefined") return;
 
             // connected: false → reset to connecting and keep retrying
             if (payload.connected === false) {
@@ -297,7 +300,8 @@
                 return;
             }
 
-            // connected: true → stop retrying, determine sub-state
+            // connected: true, folderSelected: false → no folder selected
+            // connected: true, folderSelected: true → ready
             stopRetrying();
 
             if (payload.folderSelected === false) {

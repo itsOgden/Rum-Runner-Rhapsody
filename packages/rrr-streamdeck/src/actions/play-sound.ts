@@ -12,32 +12,45 @@ type SoundItem = {
 	category: string;
 };
 
-let rrrConnected = false;
+// stateReady is only true after we've received a sounds-list from RRR.
+// This prevents the PI from briefly seeing "no folder" during the window
+// between rrrClient connecting and the sounds-list response arriving.
+let stateReady = false;
 let currentSounds: SoundItem[] = [];
 let folderSelected = false;
 
+function pushState(): void {
+	streamDeck.ui.sendToPropertyInspector({
+		type: "soundsList",
+		connected: stateReady,
+		folderSelected,
+		sounds: currentSounds,
+	});
+}
+
 rrrClient.on("connected", () => {
-	rrrConnected = true;
+	// Don't mark state as ready yet — wait for sounds-list to arrive.
+	stateReady = false;
 });
 
 rrrClient.on("disconnected", () => {
-	rrrConnected = false;
+	stateReady = false;
 	currentSounds = [];
 	folderSelected = false;
-	// Notify any open PI that RRR is no longer reachable.
-	streamDeck.ui.sendToPropertyInspector({ type: "soundsList", connected: false, folderSelected: false });
+	pushState();
 });
 
 rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean }) => {
 	if (data.type === "sounds-list" || data.type === "sounds-updated") {
 		currentSounds = data.sounds ?? [];
 		folderSelected = data.folderSelected !== false;
-		streamDeck.ui.sendToPropertyInspector({
-			type: "soundsList",
-			connected: rrrConnected,
-			sounds: currentSounds,
-			folderSelected,
-		});
+		stateReady = true;
+		pushState();
+	} else if (data.type === "folder-status") {
+		currentSounds = [];
+		folderSelected = false;
+		stateReady = true;
+		pushState();
 	}
 });
 
@@ -61,22 +74,12 @@ export class PlaySound extends SingletonAction<PlaySoundSettings> {
 	}
 
 	override onPropertyInspectorDidAppear(_ev: PropertyInspectorDidAppearEvent<PlaySoundSettings>): void {
-		streamDeck.ui.sendToPropertyInspector({
-			type: "soundsList",
-			connected: rrrConnected,
-			sounds: currentSounds,
-			folderSelected,
-		});
+		pushState();
 	}
 
 	override async onSendToPlugin(ev: SendToPluginEvent<{ type: string }, PlaySoundSettings>): Promise<void> {
 		if (ev.payload.type === "requestSounds") {
-			await streamDeck.ui.sendToPropertyInspector({
-				type: "soundsList",
-				connected: rrrConnected,
-				sounds: currentSounds,
-				folderSelected,
-			});
+			pushState();
 			const settings = await ev.action.getSettings();
 			const title = settings.soundName || settings.soundKey || "";
 			if (title) await ev.action.setTitle(title);
