@@ -20,27 +20,25 @@ const DEFAULT_GLOBAL_SETTINGS = {
   windowHeight: 680,
   theme: "dark",
   masterVolume: 1.0,
-  playbackMode: "stop",
   density: "loose",
+  devices: [
+    { id: "", label: "", volume: 1.0, enabled: true },
+    { id: "", label: "", volume: 1.0, enabled: true },
+  ],
+  hotkeys: { stop: "Escape" },
+  playbackMode: "stop",
 };
 
 // Per-folder settings file — stored inside each sound folder
-const FOLDER_SETTINGS_FILENAME = "rrr-settings.json";
+const FOLDER_SETTINGS_FILENAME = "rrr-soundboard.json";
 
 const DEFAULT_FOLDER_SETTINGS = {
-  primaryDevice: "",
-  secondaryDevice: "",
-  primaryVolume: 1.0,
-  secondaryVolume: 1.0,
-  primaryEnabled: true,
-  secondaryEnabled: true,
-  stopHotkey: "Escape",
   hiddenSounds: [],
-  hiddenSections: [],
+  hiddenCategories: [],
   categoryNames: {},
   customCategories: [],
   soundCategories: {},
-  collapsedSections: [],
+  collapsedCategories: [],
   soundNames: {},
   soundOrder: {},
   categoryOrder: [],
@@ -81,7 +79,13 @@ function loadFolderSettings(folder) {
     const filePath = getFolderSettingsPath(folder);
     if (fs.existsSync(filePath)) {
       const raw = fs.readFileSync(filePath, "utf-8");
-      return { ...DEFAULT_FOLDER_SETTINGS, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      // Only keep folder-specific keys — ignores any stray global fields.
+      const folderOnly = {};
+      for (const k of Object.keys(DEFAULT_FOLDER_SETTINGS)) {
+        if (k in parsed) folderOnly[k] = parsed[k];
+      }
+      return { ...DEFAULT_FOLDER_SETTINGS, ...folderOnly };
     }
   } catch (e) {
     console.warn("Could not load folder settings:", e.message);
@@ -264,13 +268,9 @@ ipcMain.handle("pick-folder", async () => {
   globalSettings.soundFolder = newFolder;
   saveGlobalSettings(globalSettings);
 
-  // Load per-folder settings from the new folder if a file already exists;
-  // otherwise keep the current live folderSettings so device/volume/hotkey
-  // values are inherited rather than reset to hardcoded defaults.
-  if (fs.existsSync(getFolderSettingsPath(newFolder))) {
-    folderSettings = loadFolderSettings(newFolder);
-  }
-  // else: folderSettings already holds the current live state — keep it as-is.
+  // Load per-folder soundboard settings from the new folder (or defaults if none saved yet).
+  // Device, hotkey, and playback settings are global and unaffected by folder changes.
+  folderSettings = loadFolderSettings(newFolder);
 
   return { folder: newFolder, folderSettings: { ...folderSettings } };
 });

@@ -55,7 +55,7 @@ export function useSoundManagement() {
     })
     ;(settings.value.customCategories || []).forEach(c => {
       if (c.id !== excludeId)
-        cats.push({ id: c.id, name: getCategoryDisplayName(c.id, c.name) })
+        cats.push({ id: c.id, name: getCategoryDisplayName(c.id) })
     })
     return cats
   }
@@ -103,27 +103,29 @@ export function useSoundManagement() {
     saveSettings({ hiddenSounds: hidden })
   }
 
-  // ── Hidden sections ────────────────────────────────────────────────────────
+  // ── Hidden categories ──────────────────────────────────────────────────────
 
   function hideSection(sectionId: string): void {
-    const hidden = [...new Set([...(settings.value.hiddenSections || []), sectionId])]
-    settings.value.hiddenSections = hidden
-    saveSettings({ hiddenSections: hidden })
+    const hidden = [...new Set([...(settings.value.hiddenCategories || []), sectionId])]
+    settings.value.hiddenCategories = hidden
+    saveSettings({ hiddenCategories: hidden })
   }
 
   function unhideSection(sectionId: string): void {
-    const hidden = (settings.value.hiddenSections || []).filter(id => id !== sectionId)
-    settings.value.hiddenSections = hidden
-    saveSettings({ hiddenSections: hidden })
+    const hidden = (settings.value.hiddenCategories || []).filter(id => id !== sectionId)
+    settings.value.hiddenCategories = hidden
+    saveSettings({ hiddenCategories: hidden })
   }
 
   // ── Custom categories ──────────────────────────────────────────────────────
 
   function addCategory(): string {
     const id = `cat_${Date.now()}`
-    const cats = [...(settings.value.customCategories || []), { id, name: 'New Category', sounds: [] }]
+    const cats = [...(settings.value.customCategories || []), { id, sounds: [] }]
+    const names = { ...(settings.value.categoryNames || {}), [id]: 'New Category' }
     settings.value.customCategories = cats
-    saveSettings({ customCategories: cats })
+    settings.value.categoryNames = names
+    saveSettings({ customCategories: cats, categoryNames: names })
     pendingRenameId.value = id
     return id
   }
@@ -137,11 +139,11 @@ export function useSoundManagement() {
     const cats = (settings.value.customCategories || []).filter(c => c.id !== categoryId)
     const names = { ...(settings.value.categoryNames || {}) }
     delete names[categoryId]
-    const hiddenSecs = (settings.value.hiddenSections || []).filter(id => id !== categoryId)
+    const hiddenCats = (settings.value.hiddenCategories || []).filter(id => id !== categoryId)
     settings.value.customCategories = cats
     settings.value.categoryNames = names
-    settings.value.hiddenSections = hiddenSecs
-    saveSettings({ customCategories: cats, categoryNames: names, hiddenSections: hiddenSecs })
+    settings.value.hiddenCategories = hiddenCats
+    saveSettings({ customCategories: cats, categoryNames: names, hiddenCategories: hiddenCats })
     return true
   }
 
@@ -209,7 +211,7 @@ export function useSoundManagement() {
     const names = { ...(settings.value.categoryNames || {}) }
     delete names[sectionId]
 
-    const hiddenSecs = (settings.value.hiddenSections || []).filter(id => id !== sectionId)
+    const hiddenCats = (settings.value.hiddenCategories || []).filter(id => id !== sectionId)
 
     // Clear this section's manual sound order so sounds revert to alphabetical
     const soundOrder = { ...(settings.value.soundOrder || {}) }
@@ -219,24 +221,24 @@ export function useSoundManagement() {
     settings.value.hiddenSounds = hidden
     settings.value.customCategories = cats
     settings.value.categoryNames = names
-    settings.value.hiddenSections = hiddenSecs
+    settings.value.hiddenCategories = hiddenCats
     settings.value.soundOrder = soundOrder
-    saveSettings({ soundCategories: sc, hiddenSounds: hidden, customCategories: cats, categoryNames: names, hiddenSections: hiddenSecs, soundOrder })
+    saveSettings({ soundCategories: sc, hiddenSounds: hidden, customCategories: cats, categoryNames: names, hiddenCategories: hiddenCats, soundOrder })
   }
 
   // ── Collapse state ─────────────────────────────────────────────────────────
 
   function isCollapsedSection(sectionId: string): boolean {
-    return (settings.value.collapsedSections || []).includes(sectionId)
+    return (settings.value.collapsedCategories || []).includes(sectionId)
   }
 
   function setCollapsedSection(sectionId: string, isCollapsed: boolean): void {
-    const current = settings.value.collapsedSections || []
+    const current = settings.value.collapsedCategories || []
     const next = isCollapsed
       ? (current.includes(sectionId) ? current : [...current, sectionId])
       : current.filter(id => id !== sectionId)
-    settings.value.collapsedSections = next
-    saveSettings({ collapsedSections: next })
+    settings.value.collapsedCategories = next
+    saveSettings({ collapsedCategories: next })
   }
 
   // ── Sound / category ordering ──────────────────────────────────────────────
@@ -244,7 +246,17 @@ export function useSoundManagement() {
   // Persists a new manual sort order for sounds within a section.
   // orderedKeys should contain the sound keys in their desired display order.
   function reorderSoundsInSection(sectionId: string, orderedKeys: string[]): void {
-    const soundOrder = { ...(settings.value.soundOrder || {}), [sectionId]: orderedKeys }
+    // Build a plain object with plain arrays. After a previous save, existing entries
+    // in settings.value.soundOrder are reactive Array Proxies (Vue re-wraps on every
+    // assignment). The Electron IPC structured-clone serializer cannot serialize Proxies,
+    // so the second+ section always fails. Spreading each value with [...v] converts
+    // reactive Array Proxies back to plain arrays before the IPC call.
+    const existing = settings.value.soundOrder || {}
+    const soundOrder: Record<string, string[]> = {}
+    for (const k of Object.keys(existing)) {
+      soundOrder[k] = [...existing[k]]
+    }
+    soundOrder[sectionId] = orderedKeys
     settings.value.soundOrder = soundOrder
     saveSettings({ soundOrder })
   }
@@ -278,7 +290,7 @@ export function useSoundManagement() {
   function buildSections(): SoundSection[] {
     const sc = settings.value.soundCategories || {}
     const hiddenSet = new Set(settings.value.hiddenSounds || [])
-    const hiddenSectionsSet = new Set(settings.value.hiddenSections || [])
+    const hiddenCategoriesSet = new Set(settings.value.hiddenCategories || [])
     const customCats = settings.value.customCategories || []
     const catNames = settings.value.categoryNames || {}
     const soundNames = settings.value.soundNames || {}
@@ -288,7 +300,7 @@ export function useSoundManagement() {
 
     // Original folder sections (in discovery order)
     for (const group of soundGroups.value) {
-      const isHidden = hiddenSectionsSet.has(group.folderName)
+      const isHidden = hiddenCategoriesSet.has(group.folderName)
       if (!showing && isHidden) continue
 
       // Sounds originally in this group that haven't been moved away
@@ -324,7 +336,7 @@ export function useSoundManagement() {
 
     // Custom category sections (in creation order)
     for (const cat of customCats) {
-      const isHidden = hiddenSectionsSet.has(cat.id)
+      const isHidden = hiddenCategoriesSet.has(cat.id)
       if (!showing && isHidden) continue
 
       const sounds: Sound[] = Object.entries(sc)
@@ -338,7 +350,7 @@ export function useSoundManagement() {
 
       result.push({
         id: cat.id,
-        displayName: catNames[cat.id] ?? cat.name,
+        displayName: catNames[cat.id] ?? cat.id,
         isCustom: true,
         isHidden,
         sounds,

@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useSettings } from './useSettings'
 import { useAudioDevices } from './useAudioDevices'
 import { showToast } from '../toastState'
@@ -8,6 +8,8 @@ interface ActiveSource {
   source: AudioBufferSourceNode
   audioCtx: AudioContext
   path: string
+  gainNode: GainNode
+  deviceIndex: number
 }
 
 const activeSources: ActiveSource[] = []
@@ -21,13 +23,33 @@ const statusText = ref('Ready')
 const previewingPath = ref<string | null>(null)
 let _previewSource: AudioBufferSourceNode | null = null
 let _previewCtx: AudioContext | null = null
+let _previewGain: GainNode | null = null
 // Incrementing generation counter — lets pending async loads detect cancellation.
 let _previewGeneration = 0
 
-export function useAudioPlayer() {
-  const { settings } = useSettings()
-  const { findMatchingDeviceId } = useAudioDevices()
+// Module-level singletons — shared across all useAudioPlayer() calls
+const { settings } = useSettings()
+const { findMatchingDeviceId } = useAudioDevices()
 
+// Live volume update — fires when masterVolume or any device volume/enabled changes
+watch(
+  () => [settings.value.masterVolume, settings.value.devices],
+  () => {
+    const s = settings.value
+    const masterVol = s.masterVolume ?? 1.0
+    for (const active of activeSources) {
+      const devVol = s.devices[active.deviceIndex]?.volume ?? 1.0
+      active.gainNode.gain.setTargetAtTime(devVol * masterVol, active.audioCtx.currentTime, 0.01)
+    }
+    if (_previewGain && _previewCtx) {
+      const devVol = s.devices[0]?.volume ?? 1.0
+      _previewGain.gain.setTargetAtTime(devVol * masterVol, _previewCtx.currentTime, 0.01)
+    }
+  },
+  { deep: true }
+)
+
+export function useAudioPlayer() {
   async function playSound(sound: Sound): Promise<void> {
     // Read playbackMode directly from the live ref — not a cached snapshot — to avoid stale reads
     const mode = settings.value.playbackMode
@@ -72,8 +94,8 @@ export function useAudioPlayer() {
 
     // Read settings fresh after the async IPC call
     const s = settings.value
-    const primaryDeviceId = findMatchingDeviceId(s.primaryDevice)
-    const secondaryDeviceId = findMatchingDeviceId(s.secondaryDevice)
+    const primaryDeviceId = findMatchingDeviceId(s.devices[0]?.label ?? '', 0)
+    const secondaryDeviceId = findMatchingDeviceId(s.devices[1]?.label ?? '', 1)
     const masterVol = s.masterVolume ?? 1.0
 
     statusText.value = `Playing: ${sound.name}`
@@ -81,11 +103,11 @@ export function useAudioPlayer() {
 
     const promises: Promise<void>[] = []
 
-    if (s.primaryEnabled && primaryDeviceId) {
-      promises.push(playSoundOnDevice(arrayBuffer.slice(0), primaryDeviceId, s.primaryVolume * masterVol, sound.path))
+    if ((s.devices[0]?.enabled ?? true) && primaryDeviceId) {
+      promises.push(playSoundOnDevice(arrayBuffer.slice(0), primaryDeviceId, (s.devices[0]?.volume ?? 1.0) * masterVol, sound.path, 0))
     }
-    if (s.secondaryEnabled && secondaryDeviceId) {
-      promises.push(playSoundOnDevice(arrayBuffer.slice(0), secondaryDeviceId, s.secondaryVolume * masterVol, sound.path))
+    if ((s.devices[1]?.enabled ?? true) && secondaryDeviceId) {
+      promises.push(playSoundOnDevice(arrayBuffer.slice(0), secondaryDeviceId, (s.devices[1]?.volume ?? 1.0) * masterVol, sound.path, 1))
     }
 
     Promise.all(promises)
@@ -105,7 +127,7 @@ export function useAudioPlayer() {
       })
   }
 
-  function playSoundOnDevice(arrayBuffer: ArrayBuffer, deviceId: string, volume: number, path: string): Promise<void> {
+  function playSoundOnDevice(arrayBuffer: ArrayBuffer, deviceId: string, volume: number, path: string, deviceIndex: number): Promise<void> {
     return new Promise(async (resolve, reject) => {
       try {
         const audioCtx = new AudioContext()
@@ -124,7 +146,7 @@ export function useAudioPlayer() {
           await audioCtx.setSinkId(deviceId)
         }
 
-        const sourceEntry: ActiveSource = { source, audioCtx, path }
+        const sourceEntry: ActiveSource = { source, audioCtx, path, gainNode, deviceIndex }
         activeSources.push(sourceEntry)
 
         source.onended = () => {
@@ -164,6 +186,7 @@ export function useAudioPlayer() {
       try { _previewCtx.close() } catch {}
       _previewCtx = null
     }
+    _previewGain = null
     previewingPath.value = null
   }
 
@@ -182,10 +205,10 @@ export function useAudioPlayer() {
     if (!arrayBuffer || generation !== _previewGeneration) return
 
     const s = settings.value
-    const primaryDeviceId = findMatchingDeviceId(s.primaryDevice)
+    const primaryDeviceId = findMatchingDeviceId(s.devices[0]?.label ?? '', 0)
     if (!primaryDeviceId) return
 
-    const volume = (s.primaryVolume ?? 1.0) * (s.masterVolume ?? 1.0)
+    const volume = (s.devices[0]?.volume ?? 1.0) * (s.masterVolume ?? 1.0)
 
     try {
       _previewCtx = new AudioContext()
@@ -203,6 +226,7 @@ export function useAudioPlayer() {
       gain.gain.value = volume
       _previewSource.connect(gain)
       gain.connect(_previewCtx.destination)
+      _previewGain = gain
 
       if (_previewCtx.setSinkId) {
         await _previewCtx.setSinkId(primaryDeviceId)
@@ -212,6 +236,7 @@ export function useAudioPlayer() {
 
       _previewSource.onended = () => {
         _previewSource = null
+        _previewGain = null
         try { _previewCtx?.close() } catch {}
         _previewCtx = null
         previewingPath.value = null

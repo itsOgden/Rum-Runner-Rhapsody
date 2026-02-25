@@ -5,93 +5,105 @@ import { useAudioDevices } from '../composables/useAudioDevices'
 import { showToast } from '../toastState'
 
 const props = defineProps<{
-  role: 'primary' | 'secondary'
+  index: 0 | 1
 }>()
 
 const { settings, saveSettings } = useSettings()
 const { audioDevices, findMatchingDeviceId, cleanDeviceLabel, getDeviceLabel } = useAudioDevices()
 
 const label = computed(() =>
-  props.role === 'primary' ? 'Monitor' : 'Output'
+  props.index === 0 ? 'Monitor' : 'Output'
 )
-
-const deviceKey = computed((): 'primaryDevice' | 'secondaryDevice' =>
-  props.role === 'primary' ? 'primaryDevice' : 'secondaryDevice'
-)
-const volumeKey = computed((): 'primaryVolume' | 'secondaryVolume' =>
-  props.role === 'primary' ? 'primaryVolume' : 'secondaryVolume'
-)
-const enabledKey = computed((): 'primaryEnabled' | 'secondaryEnabled' =>
-  props.role === 'primary' ? 'primaryEnabled' : 'secondaryEnabled'
-)
-const fallbackIndex = computed(() => props.role === 'primary' ? 0 : 1)
 
 const selectedDeviceId = ref('')
 const volumePercent = ref(100)
 const enabled = ref(true)
 
-// Sync from settings when they change (e.g. folder switch)
-watch(() => settings.value[deviceKey.value], () => {
-  selectedDeviceId.value = findMatchingDeviceId(settings.value[deviceKey.value], fallbackIndex.value)
+// Sync from settings when device label changes (e.g. folder switch, on load)
+watch(() => settings.value.devices[props.index]?.label, () => {
+  selectedDeviceId.value = findMatchingDeviceId(settings.value.devices[props.index]?.label ?? '', props.index)
 }, { immediate: true })
 
-watch(() => settings.value[volumeKey.value], (v) => {
-  volumePercent.value = Math.round(v * 100)
+watch(() => settings.value.devices[props.index]?.volume, (v) => {
+  volumePercent.value = Math.round((v ?? 1.0) * 100)
 }, { immediate: true })
 
-watch(() => settings.value[enabledKey.value], (v) => {
-  enabled.value = v
+watch(() => settings.value.devices[props.index]?.enabled, (v) => {
+  enabled.value = v ?? true
 }, { immediate: true })
 
-// Also re-match when devices list changes
+// Re-match when device list changes (device hotplug / refresh)
 watch(audioDevices, () => {
-  selectedDeviceId.value = findMatchingDeviceId(settings.value[deviceKey.value], fallbackIndex.value)
+  selectedDeviceId.value = findMatchingDeviceId(settings.value.devices[props.index]?.label ?? '', props.index)
 })
 
+// Strips reactive Proxy wrappers by enumerating only the 4 plain fields.
+// Vue re-wraps every assigned object as a reactive Proxy, so spreading { ...d }
+// and passing d directly both produce Proxy objects that the Electron IPC
+// structured-clone serializer cannot serialize.
+function plainDevice(d: { id: string; label: string; volume: number; enabled: boolean }) {
+  return { id: d.id, label: d.label, volume: d.volume, enabled: d.enabled }
+}
+
+// Debounce only for the volume slider (fires on every pixel of movement).
+// Reads fresh settings.value.devices at fire time to avoid stale snapshots.
 let saveTimeout: ReturnType<typeof setTimeout> | null = null
 function debouncedSave(): void {
   if (saveTimeout) clearTimeout(saveTimeout)
   saveTimeout = setTimeout(() => {
-    saveSettings({
-      [deviceKey.value]: getDeviceLabel(selectedDeviceId.value),
-      [volumeKey.value]: volumePercent.value / 100,
-      [enabledKey.value]: enabled.value,
-    })
+    const devices = settings.value.devices.map(plainDevice)
+    saveSettings({ devices })
   }, 200)
 }
 
 function onDeviceChange(): void {
   // Guard: prevent selecting the same device on both slots when alternatives exist.
   if (audioDevices.value.length > 1) {
-    const otherRole = props.role === 'primary' ? 'secondary' : 'primary'
-    const otherFallback = otherRole === 'primary' ? 0 : 1
-    const otherDeviceKey: 'primaryDevice' | 'secondaryDevice' =
-      otherRole === 'primary' ? 'primaryDevice' : 'secondaryDevice'
-    const otherDeviceId = findMatchingDeviceId(settings.value[otherDeviceKey], otherFallback)
+    const otherIndex = props.index === 0 ? 1 : 0
+    const otherDeviceId = findMatchingDeviceId(settings.value.devices[otherIndex]?.label ?? '', otherIndex)
     if (selectedDeviceId.value === otherDeviceId) {
-      const otherLabel = otherRole === 'primary' ? 'Monitor' : 'Output'
+      const otherLabel = otherIndex === 0 ? 'Monitor' : 'Output'
       showToast(`That device is already selected as the ${otherLabel} output. Choose a different device.`, 'info')
-      // Revert — settings haven't been updated yet, so this restores the old selection
-      selectedDeviceId.value = findMatchingDeviceId(settings.value[deviceKey.value], fallbackIndex.value)
+      // Revert
+      selectedDeviceId.value = findMatchingDeviceId(settings.value.devices[props.index]?.label ?? '', props.index)
       return
     }
   }
-  settings.value[deviceKey.value] = getDeviceLabel(selectedDeviceId.value)
-  debouncedSave()
+  const newLabel = getDeviceLabel(selectedDeviceId.value)
+  const updated = settings.value.devices.map((d, i) =>
+    i === props.index
+      ? { id: selectedDeviceId.value, label: newLabel, volume: d.volume, enabled: d.enabled }
+      : plainDevice(d)
+  )
+  settings.value.devices = updated
+  saveSettings({ devices: updated })
 }
 
 function onVolumeInput(): void {
-  settings.value[volumeKey.value] = volumePercent.value / 100
+  settings.value.devices = settings.value.devices.map((d, i) =>
+    i === props.index
+      ? { id: d.id, label: d.label, volume: volumePercent.value / 100, enabled: d.enabled }
+      : plainDevice(d)
+  )
 }
 
 function onVolumeChange(): void {
-  settings.value[volumeKey.value] = volumePercent.value / 100
+  settings.value.devices = settings.value.devices.map((d, i) =>
+    i === props.index
+      ? { id: d.id, label: d.label, volume: volumePercent.value / 100, enabled: d.enabled }
+      : plainDevice(d)
+  )
   debouncedSave()
 }
 
 function onEnabledChange(): void {
-  settings.value[enabledKey.value] = enabled.value
-  debouncedSave()
+  const updated = settings.value.devices.map((d, i) =>
+    i === props.index
+      ? { id: d.id, label: d.label, volume: d.volume, enabled: enabled.value }
+      : plainDevice(d)
+  )
+  settings.value.devices = updated
+  saveSettings({ devices: updated })
 }
 </script>
 

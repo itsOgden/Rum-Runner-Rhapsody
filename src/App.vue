@@ -30,7 +30,7 @@ watch(
 )
 
 function handleKeydown(e: KeyboardEvent): void {
-  if (e.key === (settings.value.stopHotkey || 'Escape')) {
+  if (e.key === (settings.value.hotkeys?.stop || 'Escape')) {
     stopAll()
   }
 }
@@ -88,3 +88,21 @@ onUnmounted(() => {
     <Toast />
   </div>
 </template>
+
+<style scoped>
+/* logo-dot is also used in TopBar.vue — duplicated here for the welcome screen */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--color-accent-glow); }
+  50% { opacity: 0.5; box-shadow: 0 0 4px var(--color-accent-glow); }
+}
+
+.logo-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  margin-left: 4px;
+  box-shadow: 0 0 8px var(--color-accent-glow);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+</style>

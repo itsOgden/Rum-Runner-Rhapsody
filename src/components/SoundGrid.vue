@@ -50,7 +50,9 @@ const filteredSoundCount = computed(() => {
   if (!filterQuery.value) return soundCount.value
   const q = filterQuery.value.toLowerCase()
   return soundGroups.value.reduce(
-    (sum, g) => sum + g.sounds.filter(s => s.name.toLowerCase().includes(q)).length,
+    (sum, g) => sum + g.sounds.filter(s =>
+      s.name.toLowerCase().includes(q) || s.filename.toLowerCase().includes(q)
+    ).length,
     0
   )
 })

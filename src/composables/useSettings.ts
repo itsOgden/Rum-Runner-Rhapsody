@@ -7,21 +7,19 @@ const settings = ref<GlobalSettings>({
   windowHeight: 680,
   theme: 'dark',
   masterVolume: 1.0,
-  playbackMode: 'restart',
   density: 'loose',
-  primaryDevice: '',
-  secondaryDevice: '',
-  primaryVolume: 1.0,
-  secondaryVolume: 1.0,
-  primaryEnabled: true,
-  secondaryEnabled: true,
-  stopHotkey: 'Escape',
+  devices: [
+    { id: '', label: '', volume: 1.0, enabled: true },
+    { id: '', label: '', volume: 1.0, enabled: true },
+  ],
+  hotkeys: { stop: 'Escape' },
+  playbackMode: 'stop',
   hiddenSounds: [],
-  hiddenSections: [],
+  hiddenCategories: [],
   categoryNames: {},
   customCategories: [],
   soundCategories: {},
-  collapsedSections: [],
+  collapsedCategories: [],
   soundNames: {},
   soundOrder: {},
   categoryOrder: [],
@@ -36,8 +34,8 @@ const soundCount = computed(() =>
 
 export function useSettings() {
   async function loadSettings(): Promise<void> {
-    const s = await window.api.getSettings()
-    settings.value = s
+    const raw = await window.api.getSettings()
+    settings.value = raw
     await loadSounds()
   }
 

@@ -11,16 +11,17 @@ const localPlaybackMode = ref<'overlap' | 'restart' | 'stop'>('overlap')
 // Sync local state when modal opens
 watch(settingsModalOpen, (open) => {
   if (open) {
-    localHotkey.value = settings.value.stopHotkey || 'Escape'
-    localPlaybackMode.value = settings.value.playbackMode || 'overlap'
+    localHotkey.value = settings.value.hotkeys?.stop || 'Escape'
+    localPlaybackMode.value = settings.value.playbackMode || 'stop'
   }
 })
 
 async function handleSave() {
-  settings.value.stopHotkey = localHotkey.value
+  const hotkeys = { ...settings.value.hotkeys, stop: localHotkey.value }
+  settings.value.hotkeys = hotkeys
   settings.value.playbackMode = localPlaybackMode.value
   await saveSettings({
-    stopHotkey: localHotkey.value,
+    hotkeys,
     playbackMode: localPlaybackMode.value,
   })
   settingsModalOpen.value = false

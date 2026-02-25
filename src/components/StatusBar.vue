@@ -12,7 +12,7 @@ const { statusText } = useAudioPlayer()
     <span class="font-mono text-[11px] text-text-dim">
       <span class="text-accent">{{ soundCount }}</span>
       sounds &middot; Press
-      <span class="text-accent">{{ settings.stopHotkey || 'Esc' }}</span>
+      <span class="text-accent">{{ settings.hotkeys?.stop || 'Esc' }}</span>
       to stop
     </span>
   </div>

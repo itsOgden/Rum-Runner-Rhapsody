@@ -35,35 +35,41 @@ export interface SoundSection {
   folderPath?: string
 }
 
+// ── Device settings ────────────────────────────────────────────────────────
+
+export interface DeviceSettings {
+  id: string       // device ID used by setSinkId()
+  label: string    // human-readable name, used for cross-session matching
+  volume: number   // 0–1
+  enabled: boolean
+}
+
 // ── Settings ───────────────────────────────────────────────────────────────
 
+// Per-folder soundboard settings — stored in rrr-soundboard.json inside the sounds folder
 export interface FolderSettings {
-  primaryDevice: string
-  secondaryDevice: string
-  primaryVolume: number
-  secondaryVolume: number
-  primaryEnabled: boolean
-  secondaryEnabled: boolean
-  stopHotkey: string
   hiddenSounds: string[]
-  hiddenSections: string[]
+  hiddenCategories: string[]
   categoryNames: Record<string, string>
-  customCategories: Array<{ id: string; name: string; sounds: string[] }>
+  customCategories: Array<{ id: string; sounds: string[] }>
   soundCategories: Record<string, string>
   soundNames: Record<string, string>
   soundOrder: Record<string, string[]>
   categoryOrder: string[]
-  collapsedSections: string[]
-  playbackMode: 'overlap' | 'restart' | 'stop'
-  density: 'loose' | 'compact'
-  theme: 'dark' | 'light'
+  collapsedCategories: string[]
 }
 
+// Global app settings — stored in rrr-settings.json next to the executable
 export interface GlobalSettings extends FolderSettings {
   soundFolder: string
-  masterVolume: number
   windowWidth: number
   windowHeight: number
+  masterVolume: number
+  theme: 'dark' | 'light'
+  density: 'loose' | 'compact'
+  devices: DeviceSettings[]
+  hotkeys: { stop: string }
+  playbackMode: 'overlap' | 'restart' | 'stop'
 }
 
 // ── Folder-change IPC result ───────────────────────────────────────────────

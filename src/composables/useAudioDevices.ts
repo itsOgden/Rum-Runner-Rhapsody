@@ -91,8 +91,8 @@ export function useAudioDevices() {
       // saved entry was a "Default - X" alias with no real match remaining.
       const { settings } = useSettings()
       const slots = [
-        { label: settings.value.primaryDevice,  role: 'Monitor' },
-        { label: settings.value.secondaryDevice, role: 'Output' },
+        { label: settings.value.devices[0]?.label ?? '', role: 'Monitor' },
+        { label: settings.value.devices[1]?.label ?? '', role: 'Output' },
       ]
       for (const { label, role } of slots) {
         if (label && !_findSpecificMatch(label, outputs)) {

@@ -47,7 +47,9 @@ function toggleCollapse(): void {
 const visibleSounds = computed(() => {
   if (!props.filter) return props.section.sounds
   const q = props.filter.toLowerCase()
-  return props.section.sounds.filter(s => s.name.toLowerCase().includes(q))
+  return props.section.sounds.filter(s =>
+    s.name.toLowerCase().includes(q) || s.filename.toLowerCase().includes(q)
+  )
 })
 
 // ── Header ⋯ menu ───────────────────────────────────────────────────────────
@@ -124,8 +126,9 @@ const isDropTarget = ref(false)
 // Index within visibleSounds the cursor is over during a same-section drag
 const dragOverSoundIndex = ref<number | null>(null)
 
-// Section-level dragover: handles cross-section sound moves and category reorder.
-// Same-section sound reorders are handled by the per-sound wrapper divs.
+// Section-level dragover: handles cross-section sound moves, category reorder,
+// and acts as the fallback drop-acceptor for same-section reorders (so that
+// dropping on the section header, gaps, or empty grid space still works).
 function onDragOver(event: DragEvent): void {
   if (draggingSection.value) {
     // Accept the drag so AccordionSection is a clear drop target; visual feedback
@@ -134,10 +137,14 @@ function onDragOver(event: DragEvent): void {
     return
   }
   if (!draggingSound.value) return
-  if (draggingSound.value.fromSectionId === props.section.id) return
+  // Accept same-section drags too — the per-sound wrappers are the primary
+  // acceptors, but this fallback ensures drops on the header, body gaps, or
+  // empty grid space don't get rejected and lose dragOverSoundIndex.
   event.preventDefault()
-  event.dataTransfer!.dropEffect = 'move'
-  isDropTarget.value = true
+  if (draggingSound.value.fromSectionId !== props.section.id) {
+    event.dataTransfer!.dropEffect = 'move'
+    isDropTarget.value = true
+  }
 }
 
 function onDragLeave(event: DragEvent): void {
