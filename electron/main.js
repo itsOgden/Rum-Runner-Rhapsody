@@ -27,6 +27,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
   ],
   hotkeys: { stop: "Escape" },
   playbackMode: "stop",
+  normalize: false,
 };
 
 // Per-folder settings file — stored inside each sound folder

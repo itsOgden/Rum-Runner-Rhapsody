@@ -10,6 +10,7 @@ interface ActiveSource {
   path: string
   gainNode: GainNode
   deviceIndex: number
+  normGain: number
 }
 
 const activeSources: ActiveSource[] = []
@@ -24,12 +25,28 @@ const previewingPath = ref<string | null>(null)
 let _previewSource: AudioBufferSourceNode | null = null
 let _previewCtx: AudioContext | null = null
 let _previewGain: GainNode | null = null
+let _previewNormGain = 1.0
 // Incrementing generation counter — lets pending async loads detect cancellation.
 let _previewGeneration = 0
 
 // Module-level singletons — shared across all useAudioPlayer() calls
 const { settings } = useSettings()
 const { findMatchingDeviceId } = useAudioDevices()
+
+// Scans all channels and returns a gain factor that brings peak amplitude to 0.9.
+// Returns 1.0 (no adjustment) when normalization is disabled or the buffer is silent.
+function computeNormGain(buffer: AudioBuffer): number {
+  if (!settings.value.normalize) return 1.0
+  let peak = 0
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const data = buffer.getChannelData(c)
+    for (let i = 0; i < data.length; i++) {
+      const abs = Math.abs(data[i])
+      if (abs > peak) peak = abs
+    }
+  }
+  return peak >= 0.001 ? 0.9 / peak : 1.0
+}
 
 // Live volume update — fires when masterVolume or any device volume/enabled changes
 watch(
@@ -39,11 +56,11 @@ watch(
     const masterVol = s.masterVolume ?? 1.0
     for (const active of activeSources) {
       const devVol = s.devices[active.deviceIndex]?.volume ?? 1.0
-      active.gainNode.gain.setTargetAtTime(devVol * masterVol, active.audioCtx.currentTime, 0.01)
+      active.gainNode.gain.setTargetAtTime(devVol * masterVol * active.normGain, active.audioCtx.currentTime, 0.01)
     }
     if (_previewGain && _previewCtx) {
       const devVol = s.devices[0]?.volume ?? 1.0
-      _previewGain.gain.setTargetAtTime(devVol * masterVol, _previewCtx.currentTime, 0.01)
+      _previewGain.gain.setTargetAtTime(devVol * masterVol * _previewNormGain, _previewCtx.currentTime, 0.01)
     }
   },
   { deep: true }
@@ -104,10 +121,10 @@ export function useAudioPlayer() {
     const promises: Promise<void>[] = []
 
     if ((s.devices[0]?.enabled ?? true) && primaryDeviceId) {
-      promises.push(playSoundOnDevice(arrayBuffer.slice(0), primaryDeviceId, (s.devices[0]?.volume ?? 1.0) * masterVol, sound.path, 0))
+      promises.push(playSoundOnDevice(arrayBuffer.slice(0), primaryDeviceId, (s.devices[0]?.volume ?? 1.0) * masterVol, sound.path, 0, sound.name))
     }
     if ((s.devices[1]?.enabled ?? true) && secondaryDeviceId) {
-      promises.push(playSoundOnDevice(arrayBuffer.slice(0), secondaryDeviceId, (s.devices[1]?.volume ?? 1.0) * masterVol, sound.path, 1))
+      promises.push(playSoundOnDevice(arrayBuffer.slice(0), secondaryDeviceId, (s.devices[1]?.volume ?? 1.0) * masterVol, sound.path, 1, sound.name))
     }
 
     Promise.all(promises)
@@ -127,17 +144,19 @@ export function useAudioPlayer() {
       })
   }
 
-  function playSoundOnDevice(arrayBuffer: ArrayBuffer, deviceId: string, volume: number, path: string, deviceIndex: number): Promise<void> {
+  function playSoundOnDevice(arrayBuffer: ArrayBuffer, deviceId: string, volume: number, path: string, deviceIndex: number, soundName: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
       try {
         const audioCtx = new AudioContext()
         const decodedData = await audioCtx.decodeAudioData(arrayBuffer)
 
+        const normGain = computeNormGain(decodedData)
+
         const source = audioCtx.createBufferSource()
         source.buffer = decodedData
 
         const gainNode = audioCtx.createGain()
-        gainNode.gain.value = volume
+        gainNode.gain.value = volume * normGain
 
         source.connect(gainNode)
         gainNode.connect(audioCtx.destination)
@@ -146,7 +165,7 @@ export function useAudioPlayer() {
           await audioCtx.setSinkId(deviceId)
         }
 
-        const sourceEntry: ActiveSource = { source, audioCtx, path, gainNode, deviceIndex }
+        const sourceEntry: ActiveSource = { source, audioCtx, path, gainNode, deviceIndex, normGain }
         activeSources.push(sourceEntry)
 
         source.onended = () => {
@@ -157,6 +176,12 @@ export function useAudioPlayer() {
         }
 
         source.start(0)
+
+        // Update status bar with normalization info (primary device only)
+        if (deviceIndex === 0 && settings.value.normalize && normGain !== 1.0) {
+          const dB = 20 * Math.log10(normGain)
+          statusText.value = `Playing: ${soundName}  (${dB >= 0 ? '+' : ''}${dB.toFixed(1)} dB)`
+        }
       } catch (e) {
         reject(e)
       }
@@ -187,6 +212,7 @@ export function useAudioPlayer() {
       _previewCtx = null
     }
     _previewGain = null
+    _previewNormGain = 1.0
     previewingPath.value = null
   }
 
@@ -219,11 +245,13 @@ export function useAudioPlayer() {
         return
       }
 
+      _previewNormGain = computeNormGain(decoded)
+
       _previewSource = _previewCtx.createBufferSource()
       _previewSource.buffer = decoded
 
       const gain = _previewCtx.createGain()
-      gain.gain.value = volume
+      gain.gain.value = volume * _previewNormGain
       _previewSource.connect(gain)
       gain.connect(_previewCtx.destination)
       _previewGain = gain

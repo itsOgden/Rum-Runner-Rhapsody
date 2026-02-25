@@ -70,6 +70,7 @@ export interface GlobalSettings extends FolderSettings {
   devices: DeviceSettings[]
   hotkeys: { stop: string }
   playbackMode: 'overlap' | 'restart' | 'stop'
+  normalize: boolean
 }
 
 // ── Folder-change IPC result ───────────────────────────────────────────────

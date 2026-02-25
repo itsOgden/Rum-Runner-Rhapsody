@@ -14,6 +14,7 @@ const settings = ref<GlobalSettings>({
   ],
   hotkeys: { stop: 'Escape' },
   playbackMode: 'stop',
+  normalize: false,
   hiddenSounds: [],
   hiddenCategories: [],
   categoryNames: {},

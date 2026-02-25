@@ -7,12 +7,14 @@ const { settings, saveSettings } = useSettings()
 
 const localHotkey = ref('Escape')
 const localPlaybackMode = ref<'overlap' | 'restart' | 'stop'>('overlap')
+const localNormalize = ref(false)
 
 // Sync local state when modal opens
 watch(settingsModalOpen, (open) => {
   if (open) {
     localHotkey.value = settings.value.hotkeys?.stop || 'Escape'
     localPlaybackMode.value = settings.value.playbackMode || 'stop'
+    localNormalize.value = settings.value.normalize ?? false
   }
 })
 
@@ -20,9 +22,11 @@ async function handleSave() {
   const hotkeys = { ...settings.value.hotkeys, stop: localHotkey.value }
   settings.value.hotkeys = hotkeys
   settings.value.playbackMode = localPlaybackMode.value
+  settings.value.normalize = localNormalize.value
   await saveSettings({
     hotkeys,
     playbackMode: localPlaybackMode.value,
+    normalize: localNormalize.value,
   })
   settingsModalOpen.value = false
 }
@@ -80,6 +84,23 @@ async function handleSave() {
           </p>
         </div>
 
+        <!-- Normalize Volumes -->
+        <div class="mb-4">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-semibold uppercase tracking-wider text-text-dim">
+              Normalize Volumes
+            </label>
+            <label class="toggle">
+              <input type="checkbox" v-model="localNormalize" />
+              <span class="toggle-track"></span>
+              <span class="toggle-thumb"></span>
+            </label>
+          </div>
+          <p class="text-[11px] text-text-dim mt-1.5 leading-relaxed">
+            Automatically balance loud and quiet sounds to a consistent level
+          </p>
+        </div>
+
         <!-- Actions -->
         <div class="flex justify-end gap-2 mt-6">
           <button class="btn" @click="settingsModalOpen = false">Cancel</button>
@@ -91,6 +112,32 @@ async function handleSave() {
 </template>
 
 <style scoped>
+/* ---- Toggle switch ---- */
+.toggle { position: relative; width: 36px; height: 20px; cursor: pointer; display: inline-block; }
+.toggle input { display: none; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--color-bg-surface);
+  border-radius: 10px;
+  border: 1px solid var(--color-border-light);
+  transition: all 0.2s;
+}
+.toggle input:checked + .toggle-track {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.toggle-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 14px; height: 14px;
+  background: var(--color-text-secondary);
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+.toggle input:checked ~ .toggle-thumb {
+  left: 19px;
+  background: var(--color-text-on-accent);
+}
+
 .modal-input {
   width: 100%;
   padding: 8px 12px;
