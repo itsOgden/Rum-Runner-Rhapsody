@@ -54,16 +54,49 @@ rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelec
 	}
 });
 
+function formatTitle(name: string, maxChars: number = 20): string {
+	if (!name) return "";
+
+	// Truncate: find last word-break boundary before maxChars
+	function truncateTitle(s: string, max: number): string {
+		if (s.length <= max) return s;
+		const slice = s.slice(0, max);
+		const breakAt = slice.search(/[ \-.,!?][^ \-.,!?]*$/);
+		const cut = breakAt > 0 ? slice.slice(0, breakAt) : slice;
+		return cut.replace(/[ \-.,!?]+$/, "");
+	}
+
+	const truncated = truncateTitle(name, maxChars);
+
+	// Split into two lines at the space closest to the middle
+	if (truncated.length > 10) {
+		const mid = Math.floor(truncated.length / 2);
+		let bestIdx = -1;
+		let bestDist = Infinity;
+		for (let i = 0; i < truncated.length; i++) {
+			if (truncated[i] === " ") {
+				const dist = Math.abs(i - mid);
+				if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+			}
+		}
+		if (bestIdx !== -1) {
+			return truncated.slice(0, bestIdx) + "\n" + truncated.slice(bestIdx + 1);
+		}
+	}
+
+	return truncated;
+}
+
 @action({ UUID: "com.pdog1.rum-runner-rhapsody.playsound" })
 export class PlaySound extends SingletonAction<PlaySoundSettings> {
 	override async onWillAppear(ev: WillAppearEvent<PlaySoundSettings>): Promise<void> {
 		const { soundName, soundKey } = ev.payload.settings;
-		await ev.action.setTitle(soundName || soundKey || "");
+		await ev.action.setTitle(formatTitle(soundName || soundKey || ""));
 	}
 
 	override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<PlaySoundSettings>): Promise<void> {
 		const { soundName, soundKey } = ev.payload.settings;
-		await ev.action.setTitle(soundName || soundKey || "");
+		await ev.action.setTitle(formatTitle(soundName || soundKey || ""));
 	}
 
 	override onKeyDown(ev: KeyDownEvent<PlaySoundSettings>): void {
@@ -81,8 +114,8 @@ export class PlaySound extends SingletonAction<PlaySoundSettings> {
 		if (ev.payload.type === "requestSounds") {
 			pushState();
 			const settings = await ev.action.getSettings();
-			const title = settings.soundName || settings.soundKey || "";
-			if (title) await ev.action.setTitle(title);
+			const name = settings.soundName || settings.soundKey || "";
+			if (name) await ev.action.setTitle(formatTitle(name));
 		}
 	}
 }
