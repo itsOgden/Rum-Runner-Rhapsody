@@ -275,7 +275,7 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
     <Teleport to="body">
       <div
         v-if="headerMenuOpen"
-        class="fixed bg-bg-raised border border-border rounded-md shadow-lg z-[500] py-1 min-w-[140px]"
+        class="fixed bg-bg-raised border border-border rounded-md shadow-lg z-500 py-1 min-w-35"
         :style="{ left: headerMenuPos.x + 'px', top: headerMenuPos.y + 'px' }"
         @click.stop
       >
@@ -315,7 +315,7 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
     <div v-show="!isCollapsed" class="pt-2">
       <div
         class="grid gap-2 items-stretch rounded-sm transition-colors"
-        :class="isDropTarget && 'outline outline-2 outline-accent outline-offset-2'"
+        :class="isDropTarget && 'outline-2 outline-accent outline-offset-2'"
         :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${minCellSize}, 1fr))` }"
       >
         <!-- Wrapper div enables per-slot dragover tracking for same-section reorder -->
@@ -324,7 +324,7 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
           :key="sound.path"
           class="h-full"
           :class="dragOverSoundIndex === index && draggingSound?.fromSectionId === section.id && !filter
-            ? 'outline outline-2 outline-accent rounded-md'
+            ? 'outline-2 outline-accent rounded-md'
             : ''"
           @dragover="onSoundWrapperDragOver($event, index)"
         >

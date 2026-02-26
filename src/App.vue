@@ -76,7 +76,7 @@ onUnmounted(() => {
       <div class="flex-1 flex flex-col items-center justify-center text-center gap-7 px-10">
         <img :src="appIcon" alt="" aria-hidden="true" class="h-[120px] w-auto opacity-90" />
         <div class="flex flex-col gap-2">
-          <div class="font-display text-3xl text-accent">Rum-Runner Rhapsody<span class="logo-dot"></span></div>
+          <div class="font-display text-3xl text-accent">Rum-Runner Rhapsody</div>
           <div class="text-[13px] text-text-dim max-w-sm leading-relaxed">
             Choose a folder containing your audio files to get started.
           </div>
@@ -103,19 +103,4 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* logo-dot is also used in TopBar.vue — duplicated here for the welcome screen */
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--color-accent-glow); }
-  50% { opacity: 0.5; box-shadow: 0 0 4px var(--color-accent-glow); }
-}
-
-.logo-dot {
-  display: inline-block;
-  width: 8px; height: 8px;
-  background: var(--color-accent);
-  border-radius: 50%;
-  margin-left: 4px;
-  box-shadow: 0 0 8px var(--color-accent-glow);
-  animation: pulse-dot 2s ease-in-out infinite;
-}
 </style>

@@ -207,7 +207,7 @@ function cancelRename(): void {
     <Teleport to="body">
       <div
         v-if="menuOpen"
-        class="fixed bg-bg-raised border border-border rounded-md shadow-lg z-[500] py-1 min-w-[180px]"
+        class="fixed menu-parent bg-bg-raised border border-border rounded-md shadow-lg z-500 py-1 min-w-45"
         :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }"
         @click.stop
       >
@@ -251,9 +251,9 @@ function cancelRename(): void {
               >{{ cat.name }}</button>
             </div>
             <button
-              class="w-full text-left px-3 py-1 text-[11px] text-text-dim hover:bg-bg-surface border-t border-border"
+              class="w-full flex items-center gap-1 text-left px-3 py-1 text-[11px] cursor-pointer hover:bg-bg-surface border-t border-border"
               @click.stop="showMoveList = false"
-            >← Back</button>
+            ><Icon name="chevron-down-solid" class="rotate-90 text-[9px]" /> Back</button>
           </div>
         </template>
 
@@ -262,7 +262,7 @@ function cancelRename(): void {
           v-if="isMoved"
           class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary border-t border-border"
           @click="handleReset"
-        >Reset to original</button>
+        >Reset</button>
       </div>
     </Teleport>
   </div>
@@ -282,7 +282,9 @@ function cancelRename(): void {
 .fade-in {
   animation: fadeIn 0.25s ease forwards;
 }
-
+.menu-parent button{
+  cursor: pointer;
+}
 .sound-btn-playing::after {
   content: '';
   position: absolute;

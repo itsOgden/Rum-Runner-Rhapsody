@@ -40,87 +40,71 @@ async function handleSave() {
   <Teleport to="body">
     <div
       v-if="settingsModalOpen"
-      class="fixed inset-0 bg-black/60 backdrop-blur-xs z-[100] flex justify-center items-center"
+      class="fixed inset-0 bg-black/60 backdrop-blur-xs z-100 flex justify-center items-center"
       @click.self="settingsModalOpen = false"
     >
-      <div class="bg-bg-raised border border-border rounded-lg p-7 w-[420px] shadow-lg">
-        <div class="text-lg font-bold mb-5 text-text-primary">Settings</div>
+      <div class="bg-bg-raised border border-border rounded-lg p-7 w-105 shadow-lg">
+        <div class="text-lg font-bold mb-2 text-text-primary">Settings</div>
 
-        <!-- Stop-All Hotkey -->
-        <div class="mb-4">
-          <label class="block text-xs font-semibold uppercase tracking-wider text-text-dim mb-1.5">
-            Stop-All Hotkey
-          </label>
-          <input
-            type="text"
-            class="modal-input"
-            placeholder="e.g. Escape, F1"
-            v-model="localHotkey"
-          />
+        <!-- ── KEYBINDS ──────────────────────────────────────── -->
+        <div class="settings-section">
+          <h3 class="settings-section-header">Keybinds</h3>
+          <div class="settings-row">
+            <div class="settings-row-label">Stop All</div>
+            <div class="settings-row-control">
+              <input
+                type="text"
+                class="modal-input"
+                placeholder="Escape"
+                v-model="localHotkey"
+              />
+            </div>
+          </div>
         </div>
 
-        <!-- Playback Mode -->
-        <div class="mb-4">
-          <label class="block text-xs font-semibold uppercase tracking-wider text-text-dim mb-1.5">
-            Playback Mode
-          </label>
+        <!-- ── PLAYBACK ──────────────────────────────────────── -->
+        <div class="settings-section">
+          <h3 class="settings-section-header">Playback</h3>
+
+          <div class="settings-row-label mb-2">Playback mode</div>
           <div class="flex gap-2">
-            <button
-                class="flex-1 btn"
-                :class="{ 'btn-accent': localPlaybackMode === 'stop' }"
-                @click="localPlaybackMode = 'stop'"
-            >Stop</button>
-            <button
-              class="flex-1 btn"
-              :class="{ 'btn-accent': localPlaybackMode === 'restart' }"
-              @click="localPlaybackMode = 'restart'"
-            >Restart</button>
-            <button
-                class="flex-1 btn"
-                :class="{ 'btn-accent': localPlaybackMode === 'overlap' }"
-                @click="localPlaybackMode = 'overlap'"
-            >Overlap</button>
+            <button class="flex-1 btn" :class="{ 'btn-accent': localPlaybackMode === 'stop' }" @click="localPlaybackMode = 'stop'">Stop</button>
+            <button class="flex-1 btn" :class="{ 'btn-accent': localPlaybackMode === 'restart' }" @click="localPlaybackMode = 'restart'">Restart</button>
+            <button class="flex-1 btn" :class="{ 'btn-accent': localPlaybackMode === 'overlap' }" @click="localPlaybackMode = 'overlap'">Overlap</button>
           </div>
-          <p class="text-[11px] text-text-dim mt-1.5 leading-relaxed">
+          <p class="settings-description mt-1">
             <template v-if="localPlaybackMode === 'overlap'">Clicking a playing sound adds a new simultaneous instance.</template>
             <template v-else-if="localPlaybackMode === 'restart'">Clicking a playing sound stops and restarts it.</template>
             <template v-else>Clicking a playing sound stops it. Clicking it again plays it from the start.</template>
           </p>
+
+          <div class="settings-row mt-4">
+            <div class="settings-row-label">Normalize volumes</div>
+            <div class="settings-row-control">
+              <label class="toggle">
+                <input type="checkbox" v-model="localNormalize" />
+                <span class="toggle-track"></span>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
+          </div>
+          <p class="settings-description">Automatically balance loud and quiet sounds to a consistent level</p>
         </div>
 
-        <!-- Normalize Volumes -->
-        <div class="mb-4">
-          <div class="flex items-center justify-between">
-            <label class="text-xs font-semibold uppercase tracking-wider text-text-dim">
-              Normalize Volumes
-            </label>
-            <label class="toggle">
-              <input type="checkbox" v-model="localNormalize" />
-              <span class="toggle-track"></span>
-              <span class="toggle-thumb"></span>
-            </label>
+        <!-- ── STREAM DECK ───────────────────────────────────── -->
+        <div class="settings-section">
+          <h3 class="settings-section-header">Stream Deck</h3>
+          <div class="settings-row">
+            <div class="settings-row-label">Button grid mode</div>
+            <div class="settings-row-control">
+              <label class="toggle">
+                <input type="checkbox" v-model="localStreamDeckButtonMode" />
+                <span class="toggle-track"></span>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
           </div>
-          <p class="text-[11px] text-text-dim mt-1.5 leading-relaxed">
-            Automatically balance loud and quiet sounds to a consistent level
-          </p>
-        </div>
-
-        <!-- Stream Deck -->
-        <div class="mb-4">
-          <label class="block text-xs font-semibold uppercase tracking-wider text-text-dim mb-1.5">
-            Stream Deck
-          </label>
-          <div class="flex items-center justify-between">
-            <span class="text-sm text-text-primary">Button grid mode</span>
-            <label class="toggle">
-              <input type="checkbox" v-model="localStreamDeckButtonMode" />
-              <span class="toggle-track"></span>
-              <span class="toggle-thumb"></span>
-            </label>
-          </div>
-          <p class="text-[11px] text-text-dim mt-1.5 leading-relaxed">
-            Show sounds as a button grid in the Stream Deck PI instead of a dropdown
-          </p>
+          <p class="settings-description">Show sounds as a grid in the Stream Deck Plugin</p>
         </div>
 
         <!-- Actions -->
@@ -134,6 +118,43 @@ async function handleSave() {
 </template>
 
 <style scoped>
+/* ---- Section layout ---- */
+.settings-section + .settings-section {
+  margin-top: 1.5rem;
+}
+
+.settings-section-header {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-dim);
+  margin-bottom: 0.75rem;
+  margin-top: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.settings-row-label {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  font-weight: 400;
+}
+
+.settings-row-control { flex-shrink: 0; }
+
+.settings-description {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  line-height: 1.5;
+}
+
 /* ---- Toggle switch ---- */
 .toggle { position: relative; width: 36px; height: 20px; cursor: pointer; display: inline-block; }
 .toggle input { display: none; }
@@ -160,16 +181,18 @@ async function handleSave() {
   background: var(--color-text-on-accent);
 }
 
+/* ---- Inputs ---- */
 .modal-input {
-  width: 100%;
-  padding: 8px 12px;
+  width: 100px;
+  padding: 6px 10px 6px 8px;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 12px;
   background: var(--color-bg-surface);
   color: var(--color-text-primary);
   border: 1px solid var(--color-border-light);
   border-radius: var(--radius-sm);
   outline: none;
+  text-align: center;
 }
 .modal-input:focus { border-color: var(--color-accent); }
 </style>
