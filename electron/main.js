@@ -29,6 +29,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
   hotkeys: { stop: "Escape" },
   playbackMode: "stop",
   normalize: false,
+  streamDeckButtonMode: true,
 };
 
 // Per-folder settings file — stored inside each sound folder
@@ -334,7 +335,7 @@ function startWebSocketServer() {
   wss.on("connection", (ws) => {
     const folder = globalSettings.soundFolder;
     if (folder) {
-      ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true }));
+      ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode }));
     } else {
       ws.send(JSON.stringify({ type: "folder-status", folderSelected: false }));
     }
@@ -346,7 +347,7 @@ function startWebSocketServer() {
       if (msg.type === "get-sounds") {
         const folder = globalSettings.soundFolder;
         if (folder) {
-          ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true }));
+          ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode }));
         } else {
           ws.send(JSON.stringify({ type: "folder-status", folderSelected: false }));
         }
@@ -424,8 +425,8 @@ ipcMain.handle("save-settings", (_event, newSettings) => {
   }
   saveGlobalSettings(globalSettings);
   saveFolderSettings(globalSettings.soundFolder, folderSettings);
-  if (hasFolderKeys) {
-    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true });
+  if (hasFolderKeys || "streamDeckButtonMode" in newSettings) {
+    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode });
   }
   return { ...globalSettings, ...folderSettings };
 });
@@ -458,7 +459,7 @@ ipcMain.handle("pick-folder", async () => {
   folderSettings = loadFolderSettings(newFolder);
 
   // Notify connected Stream Deck clients that the folder and sounds have changed.
-  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true });
+  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode });
 
   return { folder: newFolder, folderSettings: { ...folderSettings } };
 });

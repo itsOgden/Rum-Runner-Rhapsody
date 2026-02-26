@@ -15,6 +15,7 @@ const settings = ref<GlobalSettings>({
   hotkeys: { stop: 'Escape' },
   playbackMode: 'stop',
   normalize: false,
+  streamDeckButtonMode: true,
   hiddenSounds: [],
   hiddenCategories: [],
   categoryNames: {},

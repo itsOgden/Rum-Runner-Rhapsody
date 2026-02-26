@@ -71,6 +71,7 @@ export interface GlobalSettings extends FolderSettings {
   hotkeys: { stop: string }
   playbackMode: 'overlap' | 'restart' | 'stop'
   normalize: boolean
+  streamDeckButtonMode: boolean
 }
 
 // ── Folder-change IPC result ───────────────────────────────────────────────

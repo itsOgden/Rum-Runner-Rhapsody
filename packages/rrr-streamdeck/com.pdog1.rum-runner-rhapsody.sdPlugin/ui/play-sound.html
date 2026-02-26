@@ -270,7 +270,7 @@
     </div>
 
     <script>
-        const BUTTON_MODE = true;
+        let _buttonMode = true;
 
         let _ws = null;
         let _uuid = null;
@@ -351,7 +351,7 @@
         }
 
         function populateSounds(sounds) {
-            if (BUTTON_MODE) {
+            if (_buttonMode) {
                 populateSoundsButtons(sounds);
             } else {
                 populateSoundsDropdown(sounds);
@@ -473,6 +473,11 @@
                 setState("connecting");
                 startRetrying();
                 return;
+            }
+
+            // Update button mode before rendering so populateSounds picks up the new value.
+            if (typeof payload.buttonMode !== "undefined") {
+                _buttonMode = payload.buttonMode;
             }
 
             // connected: true, folderSelected: false → no folder selected

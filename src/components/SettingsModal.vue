@@ -8,6 +8,7 @@ const { settings, saveSettings } = useSettings()
 const localHotkey = ref('Escape')
 const localPlaybackMode = ref<'overlap' | 'restart' | 'stop'>('overlap')
 const localNormalize = ref(false)
+const localStreamDeckButtonMode = ref(true)
 
 // Sync local state when modal opens
 watch(settingsModalOpen, (open) => {
@@ -15,6 +16,7 @@ watch(settingsModalOpen, (open) => {
     localHotkey.value = settings.value.hotkeys?.stop || 'Escape'
     localPlaybackMode.value = settings.value.playbackMode || 'stop'
     localNormalize.value = settings.value.normalize ?? false
+    localStreamDeckButtonMode.value = settings.value.streamDeckButtonMode ?? true
   }
 })
 
@@ -23,10 +25,12 @@ async function handleSave() {
   settings.value.hotkeys = hotkeys
   settings.value.playbackMode = localPlaybackMode.value
   settings.value.normalize = localNormalize.value
+  settings.value.streamDeckButtonMode = localStreamDeckButtonMode.value
   await saveSettings({
     hotkeys,
     playbackMode: localPlaybackMode.value,
     normalize: localNormalize.value,
+    streamDeckButtonMode: localStreamDeckButtonMode.value,
   })
   settingsModalOpen.value = false
 }
@@ -98,6 +102,24 @@ async function handleSave() {
           </div>
           <p class="text-[11px] text-text-dim mt-1.5 leading-relaxed">
             Automatically balance loud and quiet sounds to a consistent level
+          </p>
+        </div>
+
+        <!-- Stream Deck -->
+        <div class="mb-4">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-text-dim mb-1.5">
+            Stream Deck
+          </label>
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-text-primary">Button grid mode</span>
+            <label class="toggle">
+              <input type="checkbox" v-model="localStreamDeckButtonMode" />
+              <span class="toggle-track"></span>
+              <span class="toggle-thumb"></span>
+            </label>
+          </div>
+          <p class="text-[11px] text-text-dim mt-1.5 leading-relaxed">
+            Show sounds as a button grid in the Stream Deck PI instead of a dropdown
           </p>
         </div>
 

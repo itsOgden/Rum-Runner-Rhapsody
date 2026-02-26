@@ -20,6 +20,7 @@ type SoundItem = {
 let stateReady = false;
 let currentSounds: SoundItem[] = [];
 let folderSelected = false;
+let buttonMode = true;
 
 // Playing state tracking — used to flip button images via setState()
 const currentlyPlaying = new Set<string>();
@@ -32,6 +33,7 @@ function pushState(): void {
 		connected: stateReady,
 		folderSelected,
 		sounds: currentSounds,
+		buttonMode,
 	});
 }
 
@@ -47,10 +49,11 @@ rrrClient.on("disconnected", () => {
 	pushState();
 });
 
-rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean; playingKeys?: string[] }) => {
+rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean; playingKeys?: string[]; buttonMode?: boolean }) => {
 	if (data.type === "sounds-list" || data.type === "sounds-updated") {
 		currentSounds = data.sounds ?? [];
 		folderSelected = data.folderSelected !== false;
+		if (data.buttonMode !== undefined) buttonMode = data.buttonMode;
 		stateReady = true;
 		pushState();
 	} else if (data.type === "folder-status") {
@@ -118,9 +121,10 @@ function fillLines(name: string, maxLines: number): string[] {
 // showCategory=false: no category, name greedy-filled across up to 4 lines.
 function formatTitle(category: string, name: string, showCategory: boolean = false): string {
 	const catLine = showCategory ? truncate(category) : "";
-	if (!name) return catLine;
+	if (!name) return catLine.trim();
 	const nameLines = fillLines(name, showCategory ? 3 : 4);
-	return [catLine, ...nameLines].filter(Boolean).join("\n");
+	const lines = [catLine, ...nameLines].map(l => l.trim()).filter(l => l.length > 0);
+	return lines.join("\n");
 }
 
 @action({ UUID: "com.pdog1.rum-runner-rhapsody.playsound" })
