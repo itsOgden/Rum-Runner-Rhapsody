@@ -14,7 +14,10 @@ interface ActiveSource {
 }
 
 const activeSources: ActiveSource[] = []
-const playingPaths = ref(new Set<string>())
+// Tracks the number of active playSound() invocations per path.
+// A key is present if and only if count > 0; the key is removed when count reaches 0.
+// This allows overlap mode to keep the button lit until every overlapping instance finishes.
+const playingPaths = ref(new Map<string, number>())
 const statusText = ref('Ready')
 
 // ── Preview playback (primary device only, isolated from main playback) ───────
@@ -66,11 +69,21 @@ watch(
   { deep: true }
 )
 
+function incrementPlaying(path: string): void {
+  playingPaths.value.set(path, (playingPaths.value.get(path) ?? 0) + 1)
+}
+
+function decrementPlaying(path: string): void {
+  const count = (playingPaths.value.get(path) ?? 1) - 1
+  if (count <= 0) playingPaths.value.delete(path)
+  else playingPaths.value.set(path, count)
+}
+
 // Notify the Stream Deck plugin whenever the set of playing sounds changes.
 // Converts full file paths to sound keys (relative forward-slash paths).
 watch(playingPaths, (newPaths) => {
   const folder = settings.value.soundFolder
-  const keys = Array.from(newPaths).map(p => {
+  const keys = Array.from(newPaths.keys()).map(p => {
     const rel = folder && p.startsWith(folder) ? p.slice(folder.length + 1) : p
     return rel.replace(/\\/g, '/')
   })
@@ -93,28 +106,32 @@ export function useAudioPlayer() {
       for (let i = activeSources.length - 1; i >= 0; i--) {
         if (activeSources[i].path === sound.path) activeSources.splice(i, 1)
       }
-      const next = new Set(playingPaths.value)
-      next.delete(sound.path)
-      playingPaths.value = next
+      playingPaths.value.delete(sound.path)
       if (playingPaths.value.size === 0) statusText.value = 'Ready'
       return
     }
 
-    if (mode === 'restart' && playingPaths.value.has(sound.path)) {
+    // Capture before the async gap so we know whether to skip the increment below.
+    const isRestart = mode === 'restart' && playingPaths.value.has(sound.path)
+
+    if (isRestart) {
       const toStop = activeSources.filter(e => e.path === sound.path)
       toStop.forEach(e => {
-        e.source.onended = null  // prevent stale cleanup from removing the path we're about to re-add
+        e.source.onended = null  // prevent stale decrements from the cancelled instances
         try { e.source.stop() } catch {}
         try { e.audioCtx.close() } catch {}
       })
       for (let i = activeSources.length - 1; i >= 0; i--) {
         if (activeSources[i].path === sound.path) activeSources.splice(i, 1)
       }
-      // Keep sound.path in playingPaths — we're immediately restarting
+      // Reset count to 1 for the single upcoming play; keeps the key in the map so
+      // the button stays lit and no flash occurs during the async file load.
+      playingPaths.value.set(sound.path, 1)
     }
 
     const arrayBuffer = await window.api.readSoundFile(sound.path)
     if (!arrayBuffer) {
+      if (isRestart) playingPaths.value.delete(sound.path)
       statusText.value = `Error reading: ${sound.filename}`
       showToast(`Could not read file: ${sound.name}`)
       return
@@ -127,7 +144,8 @@ export function useAudioPlayer() {
     const masterVol = s.masterVolume ?? 1.0
 
     statusText.value = `Playing: ${sound.name}`
-    playingPaths.value = new Set([...playingPaths.value, sound.path])
+    // Restart already set the count to 1 above; all other modes increment normally.
+    if (!isRestart) incrementPlaying(sound.path)
 
     const promises: Promise<void>[] = []
 
@@ -140,16 +158,12 @@ export function useAudioPlayer() {
 
     Promise.all(promises)
       .then(() => {
-        const next = new Set(playingPaths.value)
-        next.delete(sound.path)
-        playingPaths.value = next
+        decrementPlaying(sound.path)
         if (playingPaths.value.size === 0) statusText.value = 'Ready'
       })
       .catch(e => {
         console.error('Playback error:', e)
-        const next = new Set(playingPaths.value)
-        next.delete(sound.path)
-        playingPaths.value = next
+        decrementPlaying(sound.path)
         statusText.value = `Error: ${(e as Error).message}`
         showToast(`Playback failed: ${sound.name}`)
       })
@@ -205,7 +219,7 @@ export function useAudioPlayer() {
       try { audioCtx.close() } catch {}
     })
     activeSources.length = 0
-    playingPaths.value = new Set()
+    playingPaths.value.clear()
     statusText.value = 'Stopped'
   }
 

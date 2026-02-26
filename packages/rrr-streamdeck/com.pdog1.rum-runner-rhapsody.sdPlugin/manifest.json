@@ -9,6 +9,7 @@
 			"Icon": "imgs/actions/play-sound/icon",
 			"Tooltip": "Play a sound in Rum-Runner Rhapsody.",
 			"PropertyInspectorPath": "ui/play-sound.html",
+			"DisableAutomaticStates": true,
 			"Controllers": [
 				"Keypad"
 			],

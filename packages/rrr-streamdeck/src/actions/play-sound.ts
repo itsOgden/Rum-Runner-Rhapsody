@@ -62,7 +62,18 @@ rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelec
 		currentlyPlaying.clear();
 		for (const key of (data.playingKeys ?? [])) currentlyPlaying.add(key);
 		for (const { action, soundKey } of activeActions.values()) {
-			action.setState(soundKey && currentlyPlaying.has(soundKey) ? 1 : 0).catch(() => {});
+			if (soundKey && currentlyPlaying.has(soundKey)) {
+				action.setState(1).catch(() => {});
+			} else {
+				// Delay setState(0) and re-check at fire time to prevent flicker
+				// when a playing-status update arrives in quick succession.
+				const capturedKey = soundKey;
+				setTimeout(() => {
+					const newState = capturedKey && currentlyPlaying.has(capturedKey) ? 1 : 0;
+					console.log('[SD] setState', newState, 'for key:', capturedKey, 'playingKeys:', Array.from(currentlyPlaying));
+					action.setState(newState).catch(() => {});
+				}, 75);
+			}
 		}
 	}
 });
@@ -133,11 +144,13 @@ export class PlaySound extends SingletonAction<PlaySoundSettings> {
 		await ev.action.setTitle(formatTitle(soundCategory || "", soundName || soundKey || "", showCategory ?? false));
 	}
 
-	override onKeyDown(ev: KeyDownEvent<PlaySoundSettings>): void {
+	override async onKeyDown(ev: KeyDownEvent<PlaySoundSettings>): Promise<void> {
 		const { soundKey } = ev.payload.settings;
-		if (soundKey) {
-			rrrClient.send({ type: "play-sound", key: soundKey });
-		}
+		if (!soundKey) return;
+		rrrClient.send({ type: "play-sound", key: soundKey });
+		// Prevent Stream Deck's auto-toggle by immediately setting correct state.
+		// The playing-status broadcast from RRR will update this properly once it arrives.
+		await ev.action.setState(currentlyPlaying.has(soundKey) ? 1 : 0);
 	}
 
 	override onPropertyInspectorDidAppear(_ev: PropertyInspectorDidAppearEvent<PlaySoundSettings>): void {
