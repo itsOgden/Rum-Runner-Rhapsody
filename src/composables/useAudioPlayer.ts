@@ -33,7 +33,7 @@ let _previewNormGain = 1.0
 let _previewGeneration = 0
 
 // Module-level singletons — shared across all useAudioPlayer() calls
-const { settings } = useSettings()
+const { settings, saveSettings } = useSettings()
 const { findMatchingDeviceId } = useAudioDevices()
 
 // Scans all channels and returns a gain factor that brings peak amplitude to 0.9.
@@ -136,6 +136,14 @@ export function useAudioPlayer() {
       showToast(`Could not read file: ${sound.name}`)
       return
     }
+
+    // Increment play count — fire-and-forget, does not block audio start.
+    // Use a local plain object for the saveSettings call — settings.value.playCounts
+    // becomes a Vue reactive proxy after assignment and cannot be serialized by IPC.
+    const newCount = (settings.value.playCounts?.[sound.key] ?? 0) + 1
+    const newCounts = { ...(settings.value.playCounts ?? {}), [sound.key]: newCount }
+    settings.value.playCounts = newCounts
+    saveSettings({ playCounts: newCounts })
 
     // Read settings fresh after the async IPC call
     const s = settings.value

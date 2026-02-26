@@ -2,6 +2,8 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useAudioPlayer } from '../composables/useAudioPlayer'
 import { useSoundManagement } from '../composables/useSoundManagement'
+import { useSettings } from '../composables/useSettings'
+import { showToast } from '../toastState'
 import { activeDropdownId } from '../dropdownState'
 import { draggingSound } from '../dragState'
 import Icon from '@/components/Icon.vue'
@@ -18,6 +20,14 @@ const props = defineProps<{
 
 const { playSound, playingPaths, previewSound, stopPreview, previewingPath } = useAudioPlayer()
 const { hideSound, restoreSound, moveSound, resetSound, getSoundCategory, getAvailableCategories, renameSound } = useSoundManagement()
+const { settings, saveSettings } = useSettings()
+
+const playCount = computed(() => settings.value.playCounts?.[props.sound.key] ?? 0)
+const playCountLabel = computed(() => {
+  if (playCount.value === 0) return 'Never played'
+  if (playCount.value === 1) return 'Played 1 time'
+  return `Played ${playCount.value} times`
+})
 
 const isPlaying = computed(() => playingPaths.value.has(props.sound.path))
 const isPreviewing = computed(() => previewingPath.value === props.sound.path)
@@ -111,6 +121,14 @@ function handleMove(categoryId: string): void {
 function handleReset(): void {
   menuOpen.value = false
   resetSound(props.sound.key)
+}
+
+function handleResetPlayCount(): void {
+  menuOpen.value = false
+  const newCounts = { ...(settings.value.playCounts ?? {}), [props.sound.key]: 0 }
+  settings.value.playCounts = newCounts
+  saveSettings({ playCounts: newCounts })
+  showToast('Play count reset')
 }
 
 // isMoved: sound has been explicitly placed into a different category
@@ -211,11 +229,10 @@ function cancelRename(): void {
         :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }"
         @click.stop
       >
-        <!-- Rename -->
-        <button
-          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
-          @click="startRename"
-        >Rename</button>
+        <!-- Play count info — isolated at top with divider below -->
+        <div class="px-3 py-1.5 text-[11px] text-text-dim select-none border-b border-border">
+          {{ playCountLabel }}
+        </div>
 
         <!-- Hide / Restore -->
         <button
@@ -228,6 +245,12 @@ function cancelRename(): void {
           class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
           @click="handleRestore"
         >Restore</button>
+
+        <!-- Rename -->
+        <button
+          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
+          @click="startRename"
+        >Rename</button>
 
         <!-- Move to… -->
         <template v-if="!showMoveList">
@@ -263,6 +286,13 @@ function cancelRename(): void {
           class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary border-t border-border"
           @click="handleReset"
         >Reset</button>
+
+        <!-- Reset play count — at the bottom, only when count > 0 -->
+        <button
+          v-if="playCount > 0"
+          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary border-t border-border"
+          @click="handleResetPlayCount"
+        >Reset play count</button>
       </div>
     </Teleport>
   </div>
