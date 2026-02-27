@@ -21,11 +21,6 @@ const pluginBundledVersion = ref('')
 const pluginInstalledVersion = ref<string | null>(null)
 const pluginRestartingStreamDeck = ref(false)
 
-const localHotkey = ref('Escape')
-const localPlaybackMode = ref<'overlap' | 'restart' | 'stop'>('overlap')
-const localNormalize = ref(false)
-const localStreamDeckButtonMode = ref(true)
-
 async function checkPluginStatus() {
   pluginState.value = 'checking'
   try {
@@ -44,16 +39,36 @@ async function checkPluginStatus() {
   }
 }
 
-// Sync local state when modal opens
-watch(settingsModalOpen, (open) => {
-  if (open) {
-    localHotkey.value = settings.value.hotkeys?.stop || 'Escape'
-    localPlaybackMode.value = settings.value.playbackMode || 'stop'
-    localNormalize.value = settings.value.normalize ?? false
-    localStreamDeckButtonMode.value = settings.value.streamDeckButtonMode ?? true
-    checkPluginStatus()
-  }
-})
+watch(settingsModalOpen, (open) => { if (open) checkPluginStatus() })
+
+// ── Auto-save handlers ──────────────────────────────────────────────────────
+
+let hotkeyTimer: ReturnType<typeof setTimeout> | null = null
+function onHotkeyInput() {
+  if (hotkeyTimer) clearTimeout(hotkeyTimer)
+  hotkeyTimer = setTimeout(() => {
+    saveSettings({ hotkeys: { stop: settings.value.hotkeys.stop } })
+  }, 300)
+}
+
+function setPlaybackMode(mode: 'overlap' | 'restart' | 'stop') {
+  settings.value.playbackMode = mode
+  saveSettings({ playbackMode: mode })
+}
+
+function setNormalize(e: Event) {
+  const val = (e.target as HTMLInputElement).checked
+  settings.value.normalize = val
+  saveSettings({ normalize: val })
+}
+
+function setStreamDeckButtonMode(e: Event) {
+  const val = (e.target as HTMLInputElement).checked
+  settings.value.streamDeckButtonMode = val
+  saveSettings({ streamDeckButtonMode: val })
+}
+
+// ── Plugin install ──────────────────────────────────────────────────────────
 
 async function handleInstallPlugin(): Promise<void> {
   pluginState.value = 'installing'
@@ -72,21 +87,6 @@ async function handleInstallPlugin(): Promise<void> {
     pluginErrorMessage.value = result.message
   }
 }
-
-async function handleSave() {
-  const hotkeys = { ...settings.value.hotkeys, stop: localHotkey.value }
-  settings.value.hotkeys = hotkeys
-  settings.value.playbackMode = localPlaybackMode.value
-  settings.value.normalize = localNormalize.value
-  settings.value.streamDeckButtonMode = localStreamDeckButtonMode.value
-  await saveSettings({
-    hotkeys,
-    playbackMode: localPlaybackMode.value,
-    normalize: localNormalize.value,
-    streamDeckButtonMode: localStreamDeckButtonMode.value,
-  })
-  settingsModalOpen.value = false
-}
 </script>
 
 <template>
@@ -97,7 +97,10 @@ async function handleSave() {
       @click.self="settingsModalOpen = false"
     >
       <div class="bg-bg-raised border border-border rounded-lg p-7 w-105 shadow-lg">
-        <div class="text-lg font-bold mb-2 text-text-primary">Settings</div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-lg font-bold text-text-primary">Settings</div>
+          <button class="close-btn" @click="settingsModalOpen = false">×</button>
+        </div>
 
         <!-- ── KEYBINDS ──────────────────────────────────────── -->
         <div class="settings-section">
@@ -109,7 +112,8 @@ async function handleSave() {
                 type="text"
                 class="modal-input"
                 placeholder="Escape"
-                v-model="localHotkey"
+                v-model="settings.hotkeys.stop"
+                @input="onHotkeyInput"
               />
             </div>
           </div>
@@ -121,13 +125,13 @@ async function handleSave() {
 
           <div class="settings-row-label mb-2">Playback mode</div>
           <div class="flex gap-2">
-            <button class="flex-1 btn" :class="{ 'btn-accent': localPlaybackMode === 'stop' }" @click="localPlaybackMode = 'stop'">Stop</button>
-            <button class="flex-1 btn" :class="{ 'btn-accent': localPlaybackMode === 'restart' }" @click="localPlaybackMode = 'restart'">Restart</button>
-            <button class="flex-1 btn" :class="{ 'btn-accent': localPlaybackMode === 'overlap' }" @click="localPlaybackMode = 'overlap'">Overlap</button>
+            <button class="flex-1 btn" :class="{ 'btn-accent': settings.playbackMode === 'stop' }" @click="setPlaybackMode('stop')">Stop</button>
+            <button class="flex-1 btn" :class="{ 'btn-accent': settings.playbackMode === 'restart' }" @click="setPlaybackMode('restart')">Restart</button>
+            <button class="flex-1 btn" :class="{ 'btn-accent': settings.playbackMode === 'overlap' }" @click="setPlaybackMode('overlap')">Overlap</button>
           </div>
           <p class="settings-description mt-1">
-            <template v-if="localPlaybackMode === 'overlap'">Clicking a playing sound adds a new simultaneous instance.</template>
-            <template v-else-if="localPlaybackMode === 'restart'">Clicking a playing sound stops and restarts it.</template>
+            <template v-if="settings.playbackMode === 'overlap'">Clicking a playing sound adds a new simultaneous instance.</template>
+            <template v-else-if="settings.playbackMode === 'restart'">Clicking a playing sound stops and restarts it.</template>
             <template v-else>Clicking a playing sound stops it. Clicking it again plays it from the start.</template>
           </p>
 
@@ -135,7 +139,7 @@ async function handleSave() {
             <div class="settings-row-label">Normalize volumes</div>
             <div class="settings-row-control">
               <label class="toggle">
-                <input type="checkbox" v-model="localNormalize" />
+                <input type="checkbox" :checked="settings.normalize" @change="setNormalize" />
                 <span class="toggle-track"></span>
                 <span class="toggle-thumb"></span>
               </label>
@@ -151,7 +155,7 @@ async function handleSave() {
             <div class="settings-row-label">Button grid mode</div>
             <div class="settings-row-control">
               <label class="toggle">
-                <input type="checkbox" v-model="localStreamDeckButtonMode" />
+                <input type="checkbox" :checked="settings.streamDeckButtonMode" @change="setStreamDeckButtonMode" />
                 <span class="toggle-track"></span>
                 <span class="toggle-thumb"></span>
               </label>
@@ -191,17 +195,11 @@ async function handleSave() {
                 class="settings-description"
                 :style="pluginState === 'error' && 'color: #f87171'"
             >
-            <template v-if="pluginState === 'error'">{{ pluginErrorMessage }}</template>
-            <template v-else-if="pluginState === 'restarting'">{{ pluginRestartingStreamDeck ? '' : 'Please restart your Stream Deck.' }}</template>
-            <template v-else-if="!['not-installed', 'installing', 'checking'].includes(pluginState)">v{{ pluginInstalledVersion }}</template>
-          </span>
+              <template v-if="pluginState === 'error'">{{ pluginErrorMessage }}</template>
+              <template v-else-if="pluginState === 'restarting'">{{ pluginRestartingStreamDeck ? '' : 'Please restart your Stream Deck.' }}</template>
+              <template v-else-if="!['not-installed', 'installing', 'checking'].includes(pluginState)">v{{ pluginInstalledVersion }}</template>
+            </span>
           </div>
-        </div>
-
-        <!-- Actions -->
-        <div class="flex justify-end gap-2 mt-6">
-          <button class="btn" @click="settingsModalOpen = false">Cancel</button>
-          <button class="btn btn-accent" @click="handleSave">Save</button>
         </div>
       </div>
     </div>
@@ -245,6 +243,20 @@ async function handleSave() {
   color: var(--color-text-dim);
   line-height: 1.5;
 }
+
+/* ---- Close button ---- */
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-dim);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.close-btn:hover { color: var(--color-text-primary); }
 
 /* ---- Toggle switch ---- */
 .toggle { position: relative; width: 36px; height: 20px; cursor: pointer; display: inline-block; }
