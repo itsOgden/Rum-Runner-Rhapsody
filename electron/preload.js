@@ -10,4 +10,5 @@ contextBridge.exposeInMainWorld("api", {
   onWsStopAll: (callback) => ipcRenderer.on("ws-stop-all", () => callback()),
   updatePlayingStatus: (keys) => ipcRenderer.send("ws-playing-status", keys),
   installStreamDeckPlugin: () => ipcRenderer.invoke("install-streamdeck-plugin"),
+  getStreamDeckPluginStatus: () => ipcRenderer.invoke("get-streamdeck-plugin-status"),
 });

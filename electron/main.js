@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const { exec } = require("child_process");
 const { WebSocketServer } = require("ws");
 
 // ---------------------------------------------------------------------------
@@ -489,6 +490,19 @@ ipcMain.handle("read-sound-file", (_event, filePath) => {
 // Stream Deck plugin installer
 // ---------------------------------------------------------------------------
 
+function compareVersions(a, b) {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const na = pa[i] ?? 0;
+    const nb = pb[i] ?? 0;
+    if (na < nb) return -1;
+    if (na > nb) return 1;
+  }
+  return 0;
+}
+
 function copyDirSync(src, dest) {
   if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
   for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
@@ -511,14 +525,74 @@ ipcMain.handle("install-streamdeck-plugin", () => {
     );
 
     if (!fs.existsSync(pluginsDir)) {
-      return { success: false, message: "Stream Deck plugins folder not found. Is Stream Deck software installed?" };
+      return { success: false, message: "Stream Deck plugins folder not found. Is Stream Deck installed?", restartingStreamDeck: false };
     }
 
     const destPath = path.join(pluginsDir, pluginName);
     copyDirSync(srcPath, destPath);
-    return { success: true, message: "Stream Deck plugin installed!" };
+
+    const sdPaths = [
+      "C:\\Program Files\\Elgato\\StreamDeck\\StreamDeck.exe",
+      "C:\\Program Files (x86)\\Elgato\\StreamDeck\\StreamDeck.exe",
+    ];
+    const sdExe = sdPaths.find((p) => fs.existsSync(p));
+
+    exec("taskkill /F /IM StreamDeck.exe", () => {
+      if (sdExe) {
+        setTimeout(() => {
+          exec(`start "" "${sdExe}"`);
+        }, 1500);
+      }
+    });
+
+    return { success: true, message: "Plugin installed successfully!", restartingStreamDeck: !!sdExe };
   } catch (e) {
     console.error("Failed to install SD plugin:", e.message);
-    return { success: false, message: `Install failed: ${e.message}` };
+    return { success: false, message: `Install failed: ${e.message}`, restartingStreamDeck: false };
+  }
+});
+
+ipcMain.handle("get-streamdeck-plugin-status", () => {
+  try {
+    const pluginName = "com.pdog1.rum-runner-rhapsody.sdPlugin";
+
+    const bundledManifestPath = app.isPackaged
+      ? path.join(process.resourcesPath, "streamdeck-plugin", pluginName, "manifest.json")
+      : path.join(__dirname, "..", "packages", "rrr-streamdeck", pluginName, "manifest.json");
+
+    let bundledVersion = "0.0.0";
+    try {
+      const manifest = JSON.parse(fs.readFileSync(bundledManifestPath, "utf-8"));
+      bundledVersion = manifest.Version ?? "0.0.0";
+    } catch (e) {
+      console.warn("Could not read bundled plugin manifest:", e.message);
+    }
+
+    const installedManifestPath = path.join(
+      os.homedir(), "AppData", "Roaming", "Elgato", "StreamDeck", "Plugins",
+      pluginName, "manifest.json"
+    );
+
+    let installedVersion = null;
+    let isInstalled = false;
+
+    if (fs.existsSync(installedManifestPath)) {
+      isInstalled = true;
+      try {
+        const manifest = JSON.parse(fs.readFileSync(installedManifestPath, "utf-8"));
+        installedVersion = manifest.Version ?? null;
+      } catch (e) {
+        console.warn("Could not read installed plugin manifest:", e.message);
+      }
+    }
+
+    const needsUpdate = isInstalled && installedVersion !== null
+      ? compareVersions(installedVersion, bundledVersion) < 0
+      : false;
+
+    return { bundledVersion, installedVersion, needsUpdate, isInstalled };
+  } catch (e) {
+    console.error("Failed to get plugin status:", e.message);
+    return { bundledVersion: "0.0.0", installedVersion: null, needsUpdate: false, isInstalled: false };
   }
 });

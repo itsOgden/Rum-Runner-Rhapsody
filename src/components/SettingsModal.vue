@@ -5,20 +5,44 @@ import { settingsModalOpen } from '../modalState'
 
 const { settings, saveSettings } = useSettings()
 
-const installStatus = ref<'idle' | 'installing' | 'ok' | 'error'>('idle')
-const installMessage = ref('')
+type PluginState =
+  | 'checking'
+  | 'not-installed'
+  | 'up-to-date'
+  | 'update-available'
+  | 'installing'
+  | 'restarting'
+  | 'done'
+  | 'error'
 
-async function handleInstallPlugin(): Promise<void> {
-  installStatus.value = 'installing'
-  const result = await window.api.installStreamDeckPlugin()
-  installStatus.value = result.success ? 'ok' : 'error'
-  installMessage.value = result.message
-}
+const pluginState = ref<PluginState>('checking')
+const pluginErrorMessage = ref('')
+const pluginBundledVersion = ref('')
+const pluginInstalledVersion = ref<string | null>(null)
+const pluginRestartingStreamDeck = ref(false)
 
 const localHotkey = ref('Escape')
 const localPlaybackMode = ref<'overlap' | 'restart' | 'stop'>('overlap')
 const localNormalize = ref(false)
 const localStreamDeckButtonMode = ref(true)
+
+async function checkPluginStatus() {
+  pluginState.value = 'checking'
+  try {
+    const status = await window.api.getStreamDeckPluginStatus()
+    pluginBundledVersion.value = status.bundledVersion
+    pluginInstalledVersion.value = status.installedVersion
+    if (!status.isInstalled) {
+      pluginState.value = 'not-installed'
+    } else if (status.needsUpdate) {
+      pluginState.value = 'update-available'
+    } else {
+      pluginState.value = 'up-to-date'
+    }
+  } catch {
+    pluginState.value = 'not-installed'
+  }
+}
 
 // Sync local state when modal opens
 watch(settingsModalOpen, (open) => {
@@ -27,10 +51,25 @@ watch(settingsModalOpen, (open) => {
     localPlaybackMode.value = settings.value.playbackMode || 'stop'
     localNormalize.value = settings.value.normalize ?? false
     localStreamDeckButtonMode.value = settings.value.streamDeckButtonMode ?? true
-    installStatus.value = 'idle'
-    installMessage.value = ''
+    checkPluginStatus()
   }
 })
+
+async function handleInstallPlugin(): Promise<void> {
+  pluginState.value = 'installing'
+  const [result] = await Promise.all([
+    window.api.installStreamDeckPlugin(),
+    new Promise<void>(resolve => setTimeout(resolve, 1500)),
+  ])
+  if (result.success) {
+    pluginRestartingStreamDeck.value = result.restartingStreamDeck
+    pluginState.value = 'restarting'
+    setTimeout(() => { pluginState.value = 'done' }, 2000)
+  } else {
+    pluginState.value = 'error'
+    pluginErrorMessage.value = result.message
+  }
+}
 
 async function handleSave() {
   const hotkeys = { ...settings.value.hotkeys, stop: localHotkey.value }
@@ -123,14 +162,36 @@ async function handleSave() {
             <div class="settings-row-control">
               <button
                 class="btn"
-                :disabled="installStatus === 'installing'"
+                :class="{
+                  'btn-accent': pluginState === 'update-available',
+                  'plugin-btn-muted': pluginState === 'up-to-date' || pluginState === 'checking' || pluginState === 'restarting' || pluginState === 'done',
+                }"
+                :disabled="pluginState === 'checking' || pluginState === 'up-to-date' || pluginState === 'installing' || pluginState === 'restarting' || pluginState === 'done'"
                 @click="handleInstallPlugin"
-              >{{ installStatus === 'installing' ? 'Installing…' : 'Install' }}</button>
+              >
+                <template v-if="pluginState === 'installing'">
+                  <span class="btn-spinner" />Installing...
+                </template>
+                <template v-else-if="pluginState === 'up-to-date'">Stream Deck Plugin ✓</template>
+                <template v-else-if="pluginState === 'restarting' || pluginState === 'done'">Stream Deck Plugin ✓</template>
+                <template v-else-if="pluginState === 'update-available'">Update Stream Deck Plugin</template>
+                <template v-else>Install Stream Deck Plugin</template>
+              </button>
             </div>
           </div>
-          <p v-if="installStatus === 'ok'" class="settings-description" style="color: var(--color-accent)">{{ installMessage }}</p>
-          <p v-else-if="installStatus === 'error'" class="settings-description" style="color: #f87171">{{ installMessage }}</p>
-          <p v-else class="settings-description">Copy the plugin to the Stream Deck plugins folder</p>
+          <p
+            class="settings-description mt-1"
+            :style="pluginState === 'error' ? 'color: #f87171' : pluginState === 'done' ? 'color: var(--color-accent)' : ''"
+          >
+            <template v-if="pluginState === 'checking'">Checking plugin status…</template>
+            <template v-else-if="pluginState === 'not-installed'">Copy the plugin to the Stream Deck plugins folder</template>
+            <template v-else-if="pluginState === 'up-to-date'">v{{ pluginBundledVersion }} — up to date</template>
+            <template v-else-if="pluginState === 'update-available'">Update available: v{{ pluginInstalledVersion }} → v{{ pluginBundledVersion }}</template>
+            <template v-else-if="pluginState === 'installing'">Installing plugin…</template>
+            <template v-else-if="pluginState === 'restarting'">{{ pluginRestartingStreamDeck ? 'Installed — restarting Stream Deck…' : 'Installed. Please restart Stream Deck manually.' }}</template>
+            <template v-else-if="pluginState === 'done'">Stream Deck Plugin installed ✓</template>
+            <template v-else-if="pluginState === 'error'">{{ pluginErrorMessage }}</template>
+          </p>
         </div>
 
         <!-- Actions -->
@@ -221,4 +282,26 @@ async function handleSave() {
   text-align: center;
 }
 .modal-input:focus { border-color: var(--color-accent); }
+
+/* ---- Plugin install button states ---- */
+.plugin-btn-muted {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.65s linear infinite;
+  vertical-align: middle;
+  margin-right: 5px;
+}
+
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
 </style>
