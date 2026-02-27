@@ -334,7 +334,7 @@ function broadcastToClients(payload) {
 }
 
 function startWebSocketServer() {
-  wss = new WebSocketServer({ host: "0.0.0.0", port: 57432 });
+  wss = new WebSocketServer({ host: "127.0.0.1", port: 57432 });
 
   wss.on("listening", () => {
     console.log("[WS] WebSocket server listening on port 57432");
