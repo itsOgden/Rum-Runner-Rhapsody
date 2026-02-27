@@ -83,6 +83,12 @@ function setCloseToTray(e: Event) {
   saveSettings({ closeToTray: val })
 }
 
+function setTheme(e: Event) {
+  const val = (e.target as HTMLSelectElement).value as 'dark' | 'light'
+  settings.value.theme = val
+  saveSettings({ theme: val })
+}
+
 // ── Plugin install ──────────────────────────────────────────────────────────
 
 async function handleInstallPlugin(): Promise<void> {
@@ -142,6 +148,15 @@ async function handleInstallPlugin(): Promise<void> {
             <div v-if="activeTab === 'app'">
               <div class="settings-section">
                 <div class="settings-row">
+                  <div class="settings-row-label">Theme</div>
+                  <div class="settings-row-control">
+                    <select class="modal-select" :value="settings.theme" @change="setTheme">
+                      <option value="dark">Dark</option>
+                      <option value="light">Light</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="settings-row mt-3">
                   <div class="settings-row-label">Close to notification tray</div>
                   <div class="settings-row-control">
                     <label class="toggle">
@@ -204,7 +219,7 @@ async function handleInstallPlugin(): Promise<void> {
             <div v-else-if="activeTab === 'streamdeck'">
               <div class="settings-section">
                 <div class="settings-row">
-                  <div class="settings-row-label">Button grid mode</div>
+                  <div class="settings-row-label">Grid Mode</div>
                   <div class="settings-row-control">
                     <label class="toggle">
                       <input type="checkbox" :checked="settings.streamDeckButtonMode" @change="setStreamDeckButtonMode" />
@@ -215,7 +230,8 @@ async function handleInstallPlugin(): Promise<void> {
                 </div>
                 <p class="settings-description">Show sounds as a grid in the Stream Deck Plugin</p>
 
-                <div class="settings-row gap-2! flex items-end mt-3 flex-wrap">
+                <div class="plugin-install-section">
+                <div class="settings-row gap-2! flex items-end flex-wrap">
                   <button
                       class="btn self-end"
                       :class="{
@@ -252,6 +268,7 @@ async function handleInstallPlugin(): Promise<void> {
                     <template v-else-if="!['not-installed', 'installing', 'checking'].includes(pluginState)">v{{ pluginInstalledVersion }}</template>
                   </span>
                 </div>
+                </div>
               </div>
             </div>
 
@@ -266,7 +283,7 @@ async function handleInstallPlugin(): Promise<void> {
 <style scoped>
 /* ---- Modal shell ---- */
 .modal {
-  width: 480px;
+  width: 560px;
 }
 
 /* ---- Tab list (left panel) ---- */
@@ -309,7 +326,7 @@ async function handleInstallPlugin(): Promise<void> {
 .tab-content {
   flex: 1;
   padding: 20px 24px 28px;
-  min-height: 260px;
+  min-height: 280px;
 }
 
 /* First section header in a tab panel needs no top margin */
@@ -408,6 +425,27 @@ async function handleInstallPlugin(): Promise<void> {
   text-align: center;
 }
 .modal-input:focus { border-color: var(--color-accent); }
+
+/* ---- Plugin install divider ---- */
+.plugin-install-section {
+  border-top: 1px solid var(--color-border);
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+/* ---- Select ---- */
+.modal-select {
+  padding: 6px 8px;
+  font-size: 12px;
+  min-width: 140px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: pointer;
+}
+.modal-select:focus { border-color: var(--color-accent); }
 
 /* ---- Plugin install button states ---- */
 .plugin-btn-muted {

@@ -20,12 +20,6 @@ function onMasterChange() {
   saveSettings({ masterVolume: settings.value.masterVolume })
 }
 
-function toggleTheme() {
-  const next = settings.value.theme === 'dark' ? 'light' : 'dark'
-  settings.value.theme = next
-  saveSettings({ theme: next })
-}
-
 function minimize() { window.api.windowMinimize() }
 function toggleMaximize() { window.api.windowMaximize() }
 function close() { window.api.windowClose() }
@@ -67,13 +61,6 @@ onMounted(async () => {
         @click="stopAll"
       >
         <Icon name="stop" />
-      </button>
-      <button
-        class="wc-btn"
-        :title="settings.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-        @click="toggleTheme"
-      >
-        <Icon :name="settings.theme !== 'dark' ? 'sun-bright-solid' : 'moon'" />
       </button>
       <button class="wc-btn" title="Settings" @click="settingsModalOpen = true">
         <Icon name="gear-solid" />
