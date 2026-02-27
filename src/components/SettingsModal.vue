@@ -65,6 +65,8 @@ async function handleInstallPlugin(): Promise<void> {
     pluginRestartingStreamDeck.value = result.restartingStreamDeck
     pluginState.value = 'restarting'
     setTimeout(() => { pluginState.value = 'done' }, 2000)
+    const status = await window.api.getStreamDeckPluginStatus()
+    pluginInstalledVersion.value = status.installedVersion
   } else {
     pluginState.value = 'error'
     pluginErrorMessage.value = result.message
@@ -157,41 +159,42 @@ async function handleSave() {
           </div>
           <p class="settings-description">Show sounds as a grid in the Stream Deck Plugin</p>
 
-          <div class="settings-row mt-3">
-            <div class="settings-row-label">Stream Deck plugin</div>
-            <div class="settings-row-control">
-              <button
-                class="btn"
+          <div class="settings-row flex items-end mt-3 flex-wrap">
+            <button
+                class="btn self-end"
                 :class="{
-                  'btn-accent': pluginState === 'update-available',
-                  'plugin-btn-muted': pluginState === 'up-to-date' || pluginState === 'checking' || pluginState === 'restarting' || pluginState === 'done',
+                  'btn-accent': ['not-installed', 'update-available'].includes(pluginState),
+                  'plugin-btn-muted': !['not-installed', 'update-available'].includes(pluginState),
                 }"
-                :disabled="pluginState === 'checking' || pluginState === 'up-to-date' || pluginState === 'installing' || pluginState === 'restarting' || pluginState === 'done'"
+                :disabled="!['not-installed', 'update-available', 'error'].includes(pluginState)"
                 @click="handleInstallPlugin"
-              >
-                <template v-if="pluginState === 'installing'">
-                  <span class="btn-spinner" />Installing...
-                </template>
-                <template v-else-if="pluginState === 'up-to-date'">Stream Deck Plugin ✓</template>
-                <template v-else-if="pluginState === 'restarting' || pluginState === 'done'">Stream Deck Plugin ✓</template>
-                <template v-else-if="pluginState === 'update-available'">Update Stream Deck Plugin</template>
-                <template v-else>Install Stream Deck Plugin</template>
-              </button>
-            </div>
+            >
+              <template v-if="pluginState === 'checking'">
+                <span class="btn-spinner" />Checking for Updates
+              </template>
+              <template v-else-if="pluginState === 'installing' && pluginInstalledVersion && pluginBundledVersion !== pluginInstalledVersion">
+                <span class="btn-spinner" />Updating Plugin
+              </template>
+              <template v-else-if="pluginState === 'installing'">
+                <span class="btn-spinner" />Installing Plugin
+              </template>
+              <template v-else-if="['up-to-date', 'done'].includes(pluginState)">Installed</template>
+              <template v-else-if="pluginState === 'restarting'">
+                <span class="btn-spinner" />Restarting Stream Deck
+              </template>
+              <template v-else-if="pluginState === 'update-available'">Update Available (v{{pluginBundledVersion}})</template>
+              <template v-else-if="pluginState === 'error'">{{ pluginErrorMessage }}</template>
+              <template v-else>Install Plugin</template>
+            </button>
+            <span
+                class="settings-description mt-1 "
+                :style="pluginState === 'error' && 'color: #f87171'"
+            >
+            <template v-if="pluginState === 'error'">{{ pluginErrorMessage }}</template>
+            <template v-else-if="pluginState === 'restarting'">{{ pluginRestartingStreamDeck ? '' : 'Please restart your Stream Deck.' }}</template>
+            <template v-else-if="!['not-installed', 'installing', 'checking'].includes(pluginState)">v{{ pluginInstalledVersion }}</template>
+          </span>
           </div>
-          <p
-            class="settings-description mt-1"
-            :style="pluginState === 'error' ? 'color: #f87171' : pluginState === 'done' ? 'color: var(--color-accent)' : ''"
-          >
-            <template v-if="pluginState === 'checking'">Checking plugin status…</template>
-            <template v-else-if="pluginState === 'not-installed'">Copy the plugin to the Stream Deck plugins folder</template>
-            <template v-else-if="pluginState === 'up-to-date'">v{{ pluginBundledVersion }} — up to date</template>
-            <template v-else-if="pluginState === 'update-available'">Update available: v{{ pluginInstalledVersion }} → v{{ pluginBundledVersion }}</template>
-            <template v-else-if="pluginState === 'installing'">Installing plugin…</template>
-            <template v-else-if="pluginState === 'restarting'">{{ pluginRestartingStreamDeck ? 'Installed — restarting Stream Deck…' : 'Installed. Please restart Stream Deck manually.' }}</template>
-            <template v-else-if="pluginState === 'done'">Stream Deck Plugin installed ✓</template>
-            <template v-else-if="pluginState === 'error'">{{ pluginErrorMessage }}</template>
-          </p>
         </div>
 
         <!-- Actions -->
