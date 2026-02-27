@@ -6,7 +6,7 @@ const { exec } = require("child_process");
 const { WebSocketServer } = require("ws");
 
 // ─── STREAMDECK TEST OVERRIDES (set to false for production) ────────────────
-const TEST_SD_STREAM_DECK_NOT_FOUND = true;  // simulates StreamDeck.exe not found (install succeeds, no auto-restart)
+const TEST_SD_STREAM_DECK_NOT_FOUND = false;  // simulates StreamDeck.exe not found (install succeeds, no auto-restart)
 const TEST_SD_INSTALL_FAIL         = false;  // simulates copy failing with an error
 const TEST_SD_NOT_INSTALLED        = false;  // simulates plugin not installed
 const TEST_SD_UPDATE_AVAILABLE     = false;  // simulates installed version being outdated
@@ -378,6 +378,7 @@ function createWindow() {
     height: globalSettings.windowHeight,
     minWidth: 640,
     minHeight: 480,
+    title: "Rum-Runner Rhapsody",
     backgroundColor: "#0f1117",
     autoHideMenuBar: true,
     show: false,

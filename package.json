@@ -1,7 +1,7 @@
 {
   "name": "rum-runner-rhapsody",
   "version": "0.0.1",
-  "description": "A dual-output soundboard for Windows. Plays audio to headphones and a virtual cable simultaneously.",
+  "description": "Rum-Runner Rhapsody",
   "main": "dist-electron/main.js",
   "author": "Pdog1",
   "scripts": {
@@ -32,7 +32,7 @@
     "vue-tsc": "^3.2.5"
   },
   "build": {
-    "appId": "com.rum-runner-rhapsody.app",
+    "appId": "com.pdog1.rum-runner-rhapsody",
     "productName": "Rum-Runner Rhapsody",
     "directories": {
       "output": "release"
