@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -41,6 +41,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
   playbackMode: "stop",
   normalize: false,
   streamDeckButtonMode: true,
+  closeToTray: false,
 };
 
 // Per-folder settings file — stored inside each sound folder
@@ -195,6 +196,8 @@ function discoverSounds(folder) {
 // App lifecycle
 // ---------------------------------------------------------------------------
 let mainWindow;
+let tray = null;
+let isQuitting = false;
 let globalSettings = loadGlobalSettings();
 let folderSettings = loadFolderSettings(globalSettings.soundFolder);
 let wss = null;
@@ -378,7 +381,8 @@ function createWindow() {
     height: globalSettings.windowHeight,
     minWidth: 640,
     minHeight: 480,
-    title: "Rum-Runner Rhapsody",
+    frame: false,
+    titleBarStyle: "hidden",
     backgroundColor: "#0f1117",
     autoHideMenuBar: true,
     show: false,
@@ -399,6 +403,21 @@ function createWindow() {
     mainWindow.show();
   });
 
+  mainWindow.on("maximize", () => {
+    mainWindow.webContents.send("window-maximized", true);
+  });
+
+  mainWindow.on("unmaximize", () => {
+    mainWindow.webContents.send("window-maximized", false);
+  });
+
+  mainWindow.on("close", (e) => {
+    if (!isQuitting && globalSettings.closeToTray) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
   mainWindow.on("resize", () => {
     const [w, h] = mainWindow.getSize();
     globalSettings.windowWidth = w;
@@ -415,9 +434,32 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
   startWebSocketServer();
+
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, "app-icon.png")
+    : path.join(__dirname, "..", "app-icon.png");
+
+  const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  tray = new Tray(trayIcon);
+  tray.setToolTip("Rum-Runner Rhapsody");
+  const contextMenu = Menu.buildFromTemplate([
+    { label: "Open", click: () => { mainWindow?.show(); mainWindow?.focus(); } },
+    { label: "Quit", click: () => app.quit() },
+  ]);
+  tray.setContextMenu(contextMenu);
+  tray.on("click", () => { mainWindow?.show(); mainWindow?.focus(); });
 });
+
+app.on("before-quit", () => {
+  isQuitting = true;
+  wss && wss.close();
+  if (mainWindow) {
+    saveGlobalSettings(globalSettings);
+    saveFolderSettings(globalSettings.soundFolder, folderSettings);
+  }
+});
+
 app.on("window-all-closed", () => app.quit());
-app.on("before-quit", () => wss && wss.close());
 
 // ---------------------------------------------------------------------------
 // IPC handlers
@@ -480,6 +522,17 @@ ipcMain.handle("pick-folder", async () => {
 ipcMain.on("ws-playing-status", (_event, playingKeys) => {
   broadcastToClients({ type: "playing-status", playingKeys });
 });
+
+// ---------------------------------------------------------------------------
+// Window control IPC
+// ---------------------------------------------------------------------------
+ipcMain.on("window-minimize", () => mainWindow?.minimize());
+ipcMain.on("window-maximize", () => {
+  if (mainWindow?.isMaximized()) mainWindow.unmaximize();
+  else mainWindow?.maximize();
+});
+ipcMain.on("window-close", () => mainWindow?.close());
+ipcMain.handle("window-is-maximized", () => mainWindow?.isMaximized() ?? false);
 
 ipcMain.handle("read-sound-file", (_event, filePath) => {
   try {

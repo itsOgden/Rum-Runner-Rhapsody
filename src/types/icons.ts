@@ -17,6 +17,9 @@ export type IconName =
   | 'plus'
   | 'stop'
   | 'sun-bright'
+  | 'window-maximize'
+  | 'window-minimize'
+  | 'window-restore'
   | 'xmark'
   | 'arrow-rotate-right-light'
   | 'chevron-down-light'
@@ -51,6 +54,9 @@ export type IconName =
   | 'plus-solid'
   | 'stop-solid'
   | 'sun-bright-solid'
+  | 'window-maximize-solid'
+  | 'window-minimize-solid'
+  | 'window-restore-solid'
   | 'xmark-solid'
 
 export const IconsFolder = [

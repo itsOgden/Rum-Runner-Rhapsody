@@ -73,6 +73,7 @@ export interface GlobalSettings extends FolderSettings {
   playbackMode: 'overlap' | 'restart' | 'stop'
   normalize: boolean
   streamDeckButtonMode: boolean
+  closeToTray: boolean
 }
 
 // ── Folder-change IPC result ───────────────────────────────────────────────
@@ -95,6 +96,11 @@ export interface WindowApi {
   updatePlayingStatus(keys: string[]): void
   installStreamDeckPlugin(): Promise<{ success: boolean; message: string; restartingStreamDeck: boolean }>
   getStreamDeckPluginStatus(): Promise<{ bundledVersion: string; installedVersion: string | null; needsUpdate: boolean; isInstalled: boolean }>
+  windowMinimize(): void
+  windowMaximize(): void
+  windowClose(): void
+  windowIsMaximized(): Promise<boolean>
+  onWindowMaximized(cb: (isMaximized: boolean) => void): void
 }
 
 declare global {

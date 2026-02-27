@@ -6,7 +6,7 @@ import { useAudioPlayer } from './composables/useAudioPlayer'
 import { useSoundManagement } from './composables/useSoundManagement'
 import { filterQuery } from './filterState'
 import appIcon from '../app-icon.png'
-import TopBar from './components/TopBar.vue'
+import TitleBar from './components/TitleBar.vue'
 import DevicePanel from './components/DevicePanel.vue'
 import FolderBar from './components/FolderBar.vue'
 import SoundGrid from './components/SoundGrid.vue'
@@ -71,6 +71,9 @@ onUnmounted(() => {
 <template>
   <div class="flex flex-col h-screen overflow-hidden">
 
+    <!-- ── Custom titlebar — always visible ──────────────────────────────── -->
+    <TitleBar />
+
     <!-- ── Welcome screen — no folder selected yet ───────────────────────── -->
     <template v-if="!hasSoundFolder">
       <div class="flex-1 flex flex-col items-center justify-center text-center gap-7 px-10">
@@ -89,7 +92,6 @@ onUnmounted(() => {
 
     <!-- ── Normal app chrome ─────────────────────────────────────────────── -->
     <template v-else>
-      <TopBar />
       <DevicePanel />
       <FolderBar />
       <SoundGrid />

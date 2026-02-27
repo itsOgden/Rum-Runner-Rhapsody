@@ -68,6 +68,12 @@ function setStreamDeckButtonMode(e: Event) {
   saveSettings({ streamDeckButtonMode: val })
 }
 
+function setCloseToTray(e: Event) {
+  const val = (e.target as HTMLInputElement).checked
+  settings.value.closeToTray = val
+  saveSettings({ closeToTray: val })
+}
+
 // ── Plugin install ──────────────────────────────────────────────────────────
 
 async function handleInstallPlugin(): Promise<void> {
@@ -117,6 +123,22 @@ async function handleInstallPlugin(): Promise<void> {
               />
             </div>
           </div>
+        </div>
+
+        <!-- ── WINDOW ───────────────────────────────────────── -->
+        <div class="settings-section">
+          <h3 class="settings-section-header">Window</h3>
+          <div class="settings-row">
+            <div class="settings-row-label">Close to notification tray</div>
+            <div class="settings-row-control">
+              <label class="toggle">
+                <input type="checkbox" :checked="settings.closeToTray" @change="setCloseToTray" />
+                <span class="toggle-track"></span>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
+          </div>
+          <p class="settings-description">Keeps RRR running in the notification area when the window is closed</p>
         </div>
 
         <!-- ── PLAYBACK ──────────────────────────────────────── -->

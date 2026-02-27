@@ -16,6 +16,7 @@ const settings = ref<GlobalSettings>({
   playbackMode: 'stop',
   normalize: false,
   streamDeckButtonMode: true,
+  closeToTray: false,
   hiddenSounds: [],
   hiddenCategories: [],
   categoryNames: {},

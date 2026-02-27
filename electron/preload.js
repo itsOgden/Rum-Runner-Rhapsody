@@ -11,4 +11,9 @@ contextBridge.exposeInMainWorld("api", {
   updatePlayingStatus: (keys) => ipcRenderer.send("ws-playing-status", keys),
   installStreamDeckPlugin: () => ipcRenderer.invoke("install-streamdeck-plugin"),
   getStreamDeckPluginStatus: () => ipcRenderer.invoke("get-streamdeck-plugin-status"),
+  windowMinimize: () => ipcRenderer.send("window-minimize"),
+  windowMaximize: () => ipcRenderer.send("window-maximize"),
+  windowClose: () => ipcRenderer.send("window-close"),
+  windowIsMaximized: () => ipcRenderer.invoke("window-is-maximized"),
+  onWindowMaximized: (cb) => ipcRenderer.on("window-maximized", (_event, val) => cb(val)),
 });
