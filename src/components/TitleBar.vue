@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAudioPlayer } from '../composables/useAudioPlayer'
 import { useSettings } from '../composables/useSettings'
-import { settingsModalOpen } from '../modalState'
+import { settingsModalOpen, helpModalOpen } from '../modalState'
 import appIcon from '../../app-icon.png'
 import Icon from '@/components/Icon.vue'
 
@@ -61,6 +61,9 @@ onMounted(async () => {
         @click="stopAll"
       >
         <Icon name="stop" />
+      </button>
+      <button class="wc-btn" title="Help" @click="helpModalOpen = true">
+        <Icon name="circle-question" class="text-base" />
       </button>
       <button class="wc-btn" title="Settings" @click="settingsModalOpen = true">
         <Icon name="gear-solid" />

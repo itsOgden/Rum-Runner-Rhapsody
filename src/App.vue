@@ -12,6 +12,7 @@ import FolderBar from './components/FolderBar.vue'
 import SoundGrid from './components/SoundGrid.vue'
 import StatusBar from './components/StatusBar.vue'
 import SettingsModal from './components/SettingsModal.vue'
+import HelpModal from './components/HelpModal.vue'
 import Toast from './components/Toast.vue'
 
 const { settings, loadSettings, onFolderChanged } = useSettings()
@@ -98,8 +99,9 @@ onUnmounted(() => {
       <StatusBar />
     </template>
 
-    <!-- Overlays always available (toasts, settings) -->
+    <!-- Overlays always available (toasts, settings, help) -->
     <SettingsModal />
+    <HelpModal />
     <Toast />
   </div>
 </template>
