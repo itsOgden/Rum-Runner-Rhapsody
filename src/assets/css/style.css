@@ -11,8 +11,7 @@
 
 @font-face {
   font-family: 'TavernloreBB';
-  src: url('../../../assets/css/Tavernlore/TavernloreBB-Regular.woff') format('woff'),
-       url('../../../assets/css/Tavernlore/TavernloreBB-Regular.ttf') format('truetype');
+  src: url('../fonts/TavernloreBB.woff') format('woff');
   font-weight: normal;
   font-style: normal;
   font-display: swap;

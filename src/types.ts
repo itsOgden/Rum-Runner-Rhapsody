@@ -93,6 +93,7 @@ export interface WindowApi {
   onWsPlaySound(callback: (data: { key: string }) => void): void
   onWsStopAll(callback: () => void): void
   updatePlayingStatus(keys: string[]): void
+  installStreamDeckPlugin(): Promise<{ success: boolean; message: string }>
 }
 
 declare global {

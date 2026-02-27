@@ -1,19 +1,22 @@
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const { WebSocketServer } = require("ws");
 
 // ---------------------------------------------------------------------------
 // Settings management — global + per-folder
 // ---------------------------------------------------------------------------
 
-// Global settings file — next to the exe (packaged) or project root (dev)
-const GLOBAL_SETTINGS_FILE = path.join(
-  app.isPackaged
-    ? path.dirname(process.execPath)
-    : path.join(__dirname, ".."),
-  "rrr-settings.json"
-);
+// Global settings file — next to the portable exe (packaged) or project root (dev).
+// PORTABLE_EXECUTABLE_DIR is set by electron-builder's portable wrapper to the directory
+// containing the .exe the user actually launched. process.execPath points to the electron
+// binary inside the temp extraction dir, so we prefer PORTABLE_EXECUTABLE_DIR.
+const settingsDir = app.isPackaged
+  ? (process.env.PORTABLE_EXECUTABLE_DIR ?? path.dirname(process.execPath))
+  : path.resolve(__dirname, "..");
+
+const GLOBAL_SETTINGS_FILE = path.join(settingsDir, "rrr-settings.json");
 
 const DEFAULT_GLOBAL_SETTINGS = {
   soundFolder: "",
@@ -479,5 +482,43 @@ ipcMain.handle("read-sound-file", (_event, filePath) => {
   } catch (e) {
     console.error("Could not read file:", e.message);
     return null;
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Stream Deck plugin installer
+// ---------------------------------------------------------------------------
+
+function copyDirSync(src, dest) {
+  if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) copyDirSync(srcPath, destPath);
+    else fs.copyFileSync(srcPath, destPath);
+  }
+}
+
+ipcMain.handle("install-streamdeck-plugin", () => {
+  try {
+    const pluginName = "com.pdog1.rum-runner-rhapsody.sdPlugin";
+    const srcPath = app.isPackaged
+      ? path.join(process.resourcesPath, "streamdeck-plugin", pluginName)
+      : path.join(__dirname, "..", "packages", "rrr-streamdeck", pluginName);
+
+    const pluginsDir = path.join(
+      os.homedir(), "AppData", "Roaming", "Elgato", "StreamDeck", "Plugins"
+    );
+
+    if (!fs.existsSync(pluginsDir)) {
+      return { success: false, message: "Stream Deck plugins folder not found. Is Stream Deck software installed?" };
+    }
+
+    const destPath = path.join(pluginsDir, pluginName);
+    copyDirSync(srcPath, destPath);
+    return { success: true, message: "Stream Deck plugin installed!" };
+  } catch (e) {
+    console.error("Failed to install SD plugin:", e.message);
+    return { success: false, message: `Install failed: ${e.message}` };
   }
 });

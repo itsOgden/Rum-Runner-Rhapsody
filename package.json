@@ -7,9 +7,10 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "vue-tsc --noEmit",
-    "build": "vue-tsc --noEmit && vite build && electron-builder --win portable",
-    "build:installer": "vue-tsc --noEmit && vite build && electron-builder --win nsis",
-    "streamdeck:dev": "pnpm --filter @rrr/streamdeck build && streamdeck restart com.pdog1.rum-runner-rhapsody"
+    "build": "pnpm --filter @rrr/streamdeck build && vue-tsc --noEmit && vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win portable",
+    "build:installer": "vue-tsc --noEmit && vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis",
+    "streamdeck:dev": "pnpm --filter @rrr/streamdeck build && streamdeck restart com.pdog1.rum-runner-rhapsody",
+    "streamdeck:unlink": "streamdeck unlink com.pdog1.rum-runner-rhapsody"
   },
   "license": "MIT",
   "dependencies": {
@@ -21,6 +22,7 @@
     "@types/node": "^25.3.0",
     "@vitejs/plugin-vue": "^5.2.0",
     "chalk": "^5.6.2",
+    "cross-env": "^10.1.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0",
     "tailwindcss": "^4.0.0",
@@ -48,7 +50,9 @@
           ]
         }
       ],
-      "icon": "app-icon.png"
+      "icon": "app-icon.png",
+      "sign": false,
+      "signingHashAlgorithms": null
     },
     "portable": {
       "artifactName": "Rum-Runner-Rhapsody.exe"
@@ -58,7 +62,16 @@
       "allowToChangeInstallationDirectory": false,
       "artifactName": "RRR-Setup.exe"
     },
-    "extraResources": []
+    "extraResources": [
+      {
+        "from": "packages/rrr-streamdeck/com.pdog1.rum-runner-rhapsody.sdPlugin",
+        "to": "streamdeck-plugin/com.pdog1.rum-runner-rhapsody.sdPlugin",
+        "filter": [
+          "**/*",
+          "!**/node_modules/**"
+        ]
+      }
+    ]
   },
   "pnpm": {
     "onlyBuiltDependencies": [

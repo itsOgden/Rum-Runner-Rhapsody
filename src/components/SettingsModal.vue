@@ -5,6 +5,16 @@ import { settingsModalOpen } from '../modalState'
 
 const { settings, saveSettings } = useSettings()
 
+const installStatus = ref<'idle' | 'installing' | 'ok' | 'error'>('idle')
+const installMessage = ref('')
+
+async function handleInstallPlugin(): Promise<void> {
+  installStatus.value = 'installing'
+  const result = await window.api.installStreamDeckPlugin()
+  installStatus.value = result.success ? 'ok' : 'error'
+  installMessage.value = result.message
+}
+
 const localHotkey = ref('Escape')
 const localPlaybackMode = ref<'overlap' | 'restart' | 'stop'>('overlap')
 const localNormalize = ref(false)
@@ -17,6 +27,8 @@ watch(settingsModalOpen, (open) => {
     localPlaybackMode.value = settings.value.playbackMode || 'stop'
     localNormalize.value = settings.value.normalize ?? false
     localStreamDeckButtonMode.value = settings.value.streamDeckButtonMode ?? true
+    installStatus.value = 'idle'
+    installMessage.value = ''
   }
 })
 
@@ -105,6 +117,20 @@ async function handleSave() {
             </div>
           </div>
           <p class="settings-description">Show sounds as a grid in the Stream Deck Plugin</p>
+
+          <div class="settings-row mt-3">
+            <div class="settings-row-label">Stream Deck plugin</div>
+            <div class="settings-row-control">
+              <button
+                class="btn"
+                :disabled="installStatus === 'installing'"
+                @click="handleInstallPlugin"
+              >{{ installStatus === 'installing' ? 'Installing…' : 'Install' }}</button>
+            </div>
+          </div>
+          <p v-if="installStatus === 'ok'" class="settings-description" style="color: var(--color-accent)">{{ installMessage }}</p>
+          <p v-else-if="installStatus === 'error'" class="settings-description" style="color: #f87171">{{ installMessage }}</p>
+          <p v-else class="settings-description">Copy the plugin to the Stream Deck plugins folder</p>
         </div>
 
         <!-- Actions -->
