@@ -159,12 +159,13 @@ async function handleSave() {
           </div>
           <p class="settings-description">Show sounds as a grid in the Stream Deck Plugin</p>
 
-          <div class="settings-row flex items-end mt-3 flex-wrap">
+          <div class="settings-row gap-2! flex items-end mt-3 flex-wrap">
             <button
                 class="btn self-end"
                 :class="{
+                  'btn-danger': pluginState === 'error',
                   'btn-accent': ['not-installed', 'update-available'].includes(pluginState),
-                  'plugin-btn-muted': !['not-installed', 'update-available'].includes(pluginState),
+                  'plugin-btn-muted': !['not-installed', 'update-available', 'error'].includes(pluginState),
                 }"
                 :disabled="!['not-installed', 'update-available', 'error'].includes(pluginState)"
                 @click="handleInstallPlugin"
@@ -183,11 +184,11 @@ async function handleSave() {
                 <span class="btn-spinner" />Restarting Stream Deck
               </template>
               <template v-else-if="pluginState === 'update-available'">Update Available (v{{pluginBundledVersion}})</template>
-              <template v-else-if="pluginState === 'error'">{{ pluginErrorMessage }}</template>
+              <template v-else-if="pluginState === 'error'">Installation Failed</template>
               <template v-else>Install Plugin</template>
             </button>
             <span
-                class="settings-description mt-1 "
+                class="settings-description"
                 :style="pluginState === 'error' && 'color: #f87171'"
             >
             <template v-if="pluginState === 'error'">{{ pluginErrorMessage }}</template>

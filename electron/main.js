@@ -5,6 +5,13 @@ const os = require("os");
 const { exec } = require("child_process");
 const { WebSocketServer } = require("ws");
 
+// ─── STREAMDECK TEST OVERRIDES (set to false for production) ────────────────
+const TEST_SD_STREAM_DECK_NOT_FOUND = true;  // simulates StreamDeck.exe not found (install succeeds, no auto-restart)
+const TEST_SD_INSTALL_FAIL         = false;  // simulates copy failing with an error
+const TEST_SD_NOT_INSTALLED        = false;  // simulates plugin not installed
+const TEST_SD_UPDATE_AVAILABLE     = false;  // simulates installed version being outdated
+// ────────────────────────────────────────────────────────────────────────────
+
 // ---------------------------------------------------------------------------
 // Settings management — global + per-folder
 // ---------------------------------------------------------------------------
@@ -514,6 +521,11 @@ function copyDirSync(src, dest) {
 }
 
 ipcMain.handle("install-streamdeck-plugin", () => {
+  if (TEST_SD_INSTALL_FAIL)
+    return { success: false, message: "Test: install failed — simulated error", restartingStreamDeck: false };
+  if (TEST_SD_STREAM_DECK_NOT_FOUND)
+    return { success: true, message: "Test: installed (StreamDeck.exe not found)", restartingStreamDeck: false };
+
   try {
     const pluginName = "com.pdog1.rum-runner-rhapsody.sdPlugin";
     const srcPath = app.isPackaged
@@ -567,6 +579,11 @@ ipcMain.handle("get-streamdeck-plugin-status", () => {
     } catch (e) {
       console.warn("Could not read bundled plugin manifest:", e.message);
     }
+
+    if (TEST_SD_NOT_INSTALLED)
+      return { bundledVersion, installedVersion: null, needsUpdate: false, isInstalled: false };
+    if (TEST_SD_UPDATE_AVAILABLE)
+      return { bundledVersion, installedVersion: "0.0.0.0", needsUpdate: true, isInstalled: true };
 
     const installedManifestPath = path.join(
       os.homedir(), "AppData", "Roaming", "Elgato", "StreamDeck", "Plugins",
