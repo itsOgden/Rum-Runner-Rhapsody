@@ -6,8 +6,14 @@ type Tab = 'audio-setup'
 const activeTab = ref<Tab>('audio-setup')
 
 const tabs: { id: Tab; label: string }[] = [
-  { id: 'audio-setup', label: 'VB Cables' },
+  { id: 'audio-setup', label: 'VB-Cable' },
 ]
+
+function handleExternalLink(e: MouseEvent) {
+  e.preventDefault()
+  const href = (e.currentTarget as HTMLAnchorElement).href
+  window.api.openExternal(href)
+}
 </script>
 
 <template>
@@ -49,11 +55,11 @@ const tabs: { id: Tab; label: string }[] = [
 
               <div class="guide-header">
                 <div class="guide-title">Audio Routing with VB-Cable</div>
-                <p class="guide-subtitle">How to make Discord and OBS hear your soundboard</p>
+                <p class="guide-subtitle">Our recommended way to let any app hear your soundboard</p>
               </div>
 
               <div class="concept-box">
-                VB-Cable creates a virtual microphone on your PC. You point your real mic and Rum-Runner Rhapsody at it, and Discord or OBS hears everything mixed together — as if it's all coming from one microphone.
+                VB-Cable creates a virtual microphone on your PC. You point your real mic and Rum-Runner Rhapsody at it, and any app (Discord, OBS, Zoom, etc) hears everything mixed together as if it's all coming from one microphone.
               </div>
 
               <div class="steps">
@@ -63,7 +69,7 @@ const tabs: { id: Tab; label: string }[] = [
                   <div class="step-content">
                     <div class="step-title">Install VB-Cable</div>
                     <p class="step-body">
-                      Download and install the free driver from vb-audio.com/Cable.<br>
+                      Download and install the free driver from <a href="https://vb-audio.com/Cable" class="step-link" @click.prevent="handleExternalLink">vb-audio.com/Cable</a>.<br>
                       Right-click the installer → Run as Administrator.<br>
                       Restart your PC when prompted.
                     </p>
@@ -82,7 +88,7 @@ const tabs: { id: Tab; label: string }[] = [
                       Set "Playback through this device" to CABLE Input (VB-Audio Virtual Cable).<br>
                       Click Apply.
                     </p>
-                    <div class="screenshot-placeholder">📷 Screenshot: Listen tab with the correct settings</div>
+                    <img src="../assets/images/vb-cables-listen-tab.png" alt="Listen tab with the correct settings" class="step-screenshot" />
                   </div>
                 </div>
 
@@ -94,17 +100,19 @@ const tabs: { id: Tab; label: string }[] = [
                       In Rum-Runner Rhapsody, open the device selector.<br>
                       Set one of your outputs to CABLE Input (VB-Audio Virtual Cable).
                     </p>
-                    <div class="screenshot-placeholder">📷 Screenshot: RRR device selector with CABLE Input selected</div>
+                    <img src="../assets/images/vb-cables-rrr-selection.png" alt="RRR device selector with CABLE Input selected" class="step-screenshot" />
                   </div>
                 </div>
 
                 <div class="step">
                   <div class="step-badge">4</div>
                   <div class="step-content">
-                    <div class="step-title">Set Discord or OBS to listen to the cable</div>
+                    <div class="step-title">Set your app to listen to the cable</div>
                     <p class="step-body">
-                      Discord: Settings → Voice &amp; Video → Input Device → CABLE Output (VB-Audio Virtual Cable)<br>
-                      OBS: Settings → Audio → Mic/Aux → CABLE Output (VB-Audio Virtual Cable)
+                      In whichever app you use, find its microphone or audio input setting and select CABLE Output (VB-Audio Virtual Cable).<br><br>
+                      Discord: Settings → Voice &amp; Video → Input Device<br>
+                      OBS: Settings → Audio → Mic/Aux<br>
+                      Zoom / Teams: Settings → Audio → Microphone
                     </p>
                   </div>
                 </div>
@@ -126,7 +134,7 @@ const tabs: { id: Tab; label: string }[] = [
 <style scoped>
 /* ---- Modal shell ---- */
 .modal {
-  width: 600px;
+  width: 720px;
 }
 
 /* ---- Tab list (left panel) ---- */
@@ -281,15 +289,30 @@ code {
   font-weight: 600;
 }
 
-/* ---- Screenshot placeholder ---- */
-.screenshot-placeholder {
-  border: 1px dashed var(--color-border);
-  background: var(--color-bg-surface);
-  padding: 12px;
+/* ---- Screenshot ---- */
+.step-screenshot {
+  display: block;
+  width: 100%;
   border-radius: 4px;
-  color: var(--color-text-secondary);
-  font-size: 12px;
+  border: 1px solid var(--color-border);
   margin-top: 8px;
+}
+
+/* ---- External link ---- */
+.step-link {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.step-link:hover {
+  text-decoration: underline;
+}
+
+/* ---- Guide note ---- */
+.guide-note {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  font-style: italic;
+  margin: 0 0 12px;
 }
 
 /* ---- Closing line ---- */

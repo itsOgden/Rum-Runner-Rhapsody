@@ -101,6 +101,7 @@ export interface WindowApi {
   windowClose(): void
   windowIsMaximized(): Promise<boolean>
   onWindowMaximized(cb: (isMaximized: boolean) => void): void
+  openExternal(url: string): void
 }
 
 declare global {
