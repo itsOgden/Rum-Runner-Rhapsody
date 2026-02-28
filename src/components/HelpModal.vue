@@ -80,15 +80,19 @@ function handleExternalLink(e: MouseEvent) {
                   <div class="step-badge">2</div>
                   <div class="step-content">
                     <div class="step-title">Route your microphone into the cable</div>
-                    <p class="step-body">
-                      Press Win + R, type <code>mmsys.cpl</code>, press Enter.<br>
-                      Go to the Recording tab.<br>
-                      Right-click your microphone → Properties → Listen tab.<br>
-                      <span class="step-check">✓</span> Check "Listen to this device"<br>
-                      Set "Playback through this device" to CABLE Input (VB-Audio Virtual Cable).<br>
-                      Click Apply.
-                    </p>
+                    <ol class="step-substeps">
+                      <li>Press <kbd>Win + R</kbd>, type <code>mmsys.cpl</code>, press Enter</li>
+                      <li>Click the <strong>Recording</strong> tab</li>
+                      <li>Right-click your microphone → <strong>Properties</strong> → <strong>Listen</strong> tab</li>
+                      <li><span class="step-check">✓</span> Check <strong>"Listen to this device"</strong></li>
+                      <li>Set <strong>"Playback through this device"</strong> to <em>CABLE Input (VB-Audio Virtual Cable)</em></li>
+                      <li>Click <strong>Apply</strong></li>
+                    </ol>
                     <img src="../assets/images/vb-cables-listen-tab.png" alt="Listen tab with the correct settings" class="step-screenshot" />
+                    <div class="step-tip">
+                      <span class="step-check">💡</span>
+                      <span>We recommend renaming your VB-Cable device to something recognizable. In our example we named ours <strong>"Microphone RRR (VB-Audio Virtual Cable B)"</strong> — making it easy to identify in any app's device list. To rename: right-click the device in the Recording tab → Properties → change the name at the top.</span>
+                    </div>
                   </div>
                 </div>
 
@@ -298,6 +302,21 @@ code {
   margin-top: 8px;
 }
 
+/* ---- Tip box ---- */
+.step-tip {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: var(--color-bg-surface);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 3px;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
 /* ---- External link ---- */
 .step-link {
   color: var(--color-accent);
@@ -305,6 +324,59 @@ code {
 }
 .step-link:hover {
   text-decoration: underline;
+}
+
+/* ---- Substep list ---- */
+.step-substeps {
+  margin: 6px 0 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.step-substeps li {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  padding-left: 14px;
+  position: relative;
+  line-height: 1.5;
+}
+.step-substeps li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--color-accent);
+  font-size: 11px;
+}
+
+/* ---- Cable output callout ---- */
+.step-cable-out {
+  background: var(--color-bg-surface);
+  border-left: 3px solid var(--color-accent);
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-size: 12px;
+  margin: 6px 0;
+}
+
+/* ---- App compatibility note ---- */
+.step-apps-list {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-style: italic;
+  margin: 0;
+}
+
+/* ---- Keyboard shortcut ---- */
+kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--color-bg-surface-active);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--color-text-primary);
 }
 
 /* ---- Guide note ---- */
