@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { useSettings } from '../composables/useSettings'
 import { settingsModalOpen } from '../modalState'
+import BaseModal from './BaseModal.vue'
 
 const { settings, saveSettings } = useSettings()
 
@@ -111,22 +112,10 @@ async function handleInstallPlugin(): Promise<void> {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      v-if="settingsModalOpen"
-      class="fixed inset-0 bg-black/60 backdrop-blur-xs z-100 flex justify-center items-center"
-      @click.self="settingsModalOpen = false"
-    >
-      <div class="modal bg-bg-raised border border-border rounded-lg shadow-lg overflow-hidden">
+  <BaseModal :open="settingsModalOpen" title="Settings" width="560px" @close="settingsModalOpen = false">
 
-        <!-- ── Header ─────────────────────────────────────────────────────── -->
-        <div class="flex items-center justify-between px-5 py-3.5 border-b border-border">
-          <div class="text-lg font-bold text-text-primary">Settings</div>
-          <button class="close-btn" @click="settingsModalOpen = false">×</button>
-        </div>
-
-        <!-- ── Body: tab list + content ──────────────────────────────────── -->
-        <div class="flex">
+    <!-- ── Body: tab list + content ──────────────────────────────────── -->
+    <div class="flex">
 
           <!-- Tab list -->
           <nav class="tab-list">
@@ -274,18 +263,10 @@ async function handleInstallPlugin(): Promise<void> {
 
           </div>
         </div>
-
-      </div>
-    </div>
-  </Teleport>
+  </BaseModal>
 </template>
 
 <style scoped>
-/* ---- Modal shell ---- */
-.modal {
-  width: 560px;
-}
-
 /* ---- Tab list (left panel) ---- */
 .tab-list {
   width: 120px;
@@ -370,20 +351,6 @@ async function handleInstallPlugin(): Promise<void> {
   color: var(--color-text-dim);
   line-height: 1.5;
 }
-
-/* ---- Close button ---- */
-.close-btn {
-  background: none;
-  border: none;
-  color: var(--color-text-dim);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 2px;
-  border-radius: 4px;
-  transition: color 0.15s;
-}
-.close-btn:hover { color: var(--color-text-primary); }
 
 /* ---- Toggle switch ---- */
 .toggle { position: relative; width: 36px; height: 20px; cursor: pointer; display: inline-block; }

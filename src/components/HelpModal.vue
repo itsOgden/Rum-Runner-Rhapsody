@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { helpModalOpen } from '../modalState'
+import BaseModal from './BaseModal.vue'
 
 type Tab = 'audio-setup'
 const activeTab = ref<Tab>('audio-setup')
@@ -17,22 +18,10 @@ function handleExternalLink(e: MouseEvent) {
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      v-if="helpModalOpen"
-      class="fixed inset-0 bg-black/60 backdrop-blur-xs z-100 flex justify-center items-center"
-      @click.self="helpModalOpen = false"
-    >
-      <div class="modal bg-bg-raised border border-border rounded-lg shadow-lg overflow-hidden">
+  <BaseModal :open="helpModalOpen" title="Help" width="600px" @close="helpModalOpen = false">
 
-        <!-- ── Header ────────────────────────────────────────────────────── -->
-        <div class="flex items-center justify-between px-5 py-3.5 border-b border-border">
-          <div class="text-lg font-bold text-text-primary">Help</div>
-          <button class="close-btn" @click="helpModalOpen = false">×</button>
-        </div>
-
-        <!-- ── Body: tab list + content ─────────────────────────────────── -->
-        <div class="flex">
+    <!-- ── Body: tab list + content ─────────────────────────────────── -->
+    <div class="flex">
 
           <!-- Tab list -->
           <nav class="tab-list">
@@ -128,19 +117,11 @@ function handleExternalLink(e: MouseEvent) {
             </div>
 
           </div>
-        </div>
-
-      </div>
     </div>
-  </Teleport>
+  </BaseModal>
 </template>
 
 <style scoped>
-/* ---- Modal shell ---- */
-.modal {
-  width: 720px;
-}
-
 /* ---- Tab list (left panel) ---- */
 .tab-list {
   width: 120px;
@@ -184,20 +165,6 @@ function handleExternalLink(e: MouseEvent) {
   overflow-y: auto;
   max-height: 480px;
 }
-
-/* ---- Close button ---- */
-.close-btn {
-  background: none;
-  border: none;
-  color: var(--color-text-dim);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 2px;
-  border-radius: 4px;
-  transition: color 0.15s;
-}
-.close-btn:hover { color: var(--color-text-primary); }
 
 /* ---- Guide header ---- */
 .guide-header {
