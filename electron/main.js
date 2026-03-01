@@ -10,6 +10,7 @@ const TEST_SD_STREAM_DECK_NOT_FOUND = false;  // simulates StreamDeck.exe not fo
 const TEST_SD_INSTALL_FAIL         = false;  // simulates copy failing with an error
 const TEST_SD_NOT_INSTALLED        = false;  // simulates plugin not installed
 const TEST_SD_UPDATE_AVAILABLE     = false;  // simulates installed version being outdated
+const DEBUG_LOGGING                = false;  // set to true to enable rrr-debug.log output
 // ────────────────────────────────────────────────────────────────────────────
 
 // ---------------------------------------------------------------------------
@@ -29,6 +30,7 @@ const GLOBAL_SETTINGS_FILE = path.join(settingsDir, "rrr-settings.json");
 // ─── DEBUG LOG ───────────────────────────────────────────────────────────────
 const DEBUG_LOG_FILE = path.join(settingsDir, "rrr-debug.log");
 function debugLog(...args) {
+  if (!DEBUG_LOGGING) return;
   const line = `[${new Date().toISOString()}] ${args.join(" ")}\n`;
   try { fs.appendFileSync(DEBUG_LOG_FILE, line); } catch {}
   console.log(...args);
@@ -516,6 +518,7 @@ app.whenReady().then(() => {
     ? path.join(process.resourcesPath, "app-icon.png")
     : path.join(__dirname, "..", "app-icon.png");
 
+  debugLog("Tray icon path: " + iconPath + " exists: " + fs.existsSync(iconPath));
   const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
   tray = new Tray(trayIcon);
   tray.setToolTip("Rum-Runner Rhapsody");

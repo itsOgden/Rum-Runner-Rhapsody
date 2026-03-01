@@ -67,6 +67,10 @@
     },
     "extraResources": [
       {
+        "from": "app-icon.png",
+        "to": "app-icon.png"
+      },
+      {
         "from": "packages/rrr-streamdeck/com.pdog1.rum-runner-rhapsody.sdPlugin",
         "to": "streamdeck-plugin/com.pdog1.rum-runner-rhapsody.sdPlugin",
         "filter": [
