@@ -11,6 +11,8 @@ import type { Sound } from '../types'
 import {filterQuery} from "@/filterState";
 import CircleButton from "@/components/CircleButton.vue";
 import ToggleCircleButton from "@/components/ToggleCircleButton.vue";
+import VolumeSlider from '@/components/VolumeSlider.vue'
+import { CLIP_VOLUME_MAX_DB, setClipVolumeOffset } from '../composables/useAudioPlayer'
 
 const props = defineProps<{
   sound: Sound
@@ -78,7 +80,7 @@ watch(activeDropdownId, (id) => {
 })
 
 // Estimated menu height for viewport flip calculation
-const MENU_HEIGHT_ESTIMATE = 220
+const MENU_HEIGHT_ESTIMATE = 300
 
 function openMenu(event: MouseEvent): void {
   event.stopPropagation()
@@ -124,11 +126,9 @@ function handleReset(): void {
 }
 
 function handleResetPlayCount(): void {
-  menuOpen.value = false
   const newCounts = { ...(settings.value.playCounts ?? {}), [props.sound.key]: 0 }
   settings.value.playCounts = newCounts
   saveSettings({ playCounts: newCounts })
-  showToast('Play count reset')
 }
 
 // isMoved: sound has been explicitly placed into a different category
@@ -159,6 +159,30 @@ function confirmRename(): void {
 
 function cancelRename(): void {
   isRenaming.value = false
+}
+
+// ── Per-clip volume offset ───────────────────────────────────────────────────
+
+const localVolumeOffset = ref(0)
+
+watch(menuOpen, (open) => {
+  if (open) localVolumeOffset.value = settings.value.soundVolumes?.[props.sound.key] ?? 0
+})
+
+function onVolumeInput(value: number): void {
+  localVolumeOffset.value = value
+  setClipVolumeOffset(props.sound.key, value)
+}
+
+function handleVolumeChange(value: number): void {
+  const newVolumes = { ...settings.value.soundVolumes, [props.sound.key]: value }
+  settings.value.soundVolumes = newVolumes
+  saveSettings({ soundVolumes: newVolumes })
+}
+
+function resetVolumeOffset(): void {
+  onVolumeInput(0)
+  handleVolumeChange(0)
 }
 </script>
 
@@ -229,9 +253,13 @@ function cancelRename(): void {
         :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }"
         @click.stop
       >
-        <!-- Play count info — isolated at top with divider below -->
-        <div class="px-3 py-1.5 text-[11px] text-text-dim select-none border-b border-border">
-          {{ playCountLabel }}
+        <!-- Play count info + Reset — grouped at top with divider below -->
+        <div class="px-3 flex justify-between items-center py-1.5 border-b border-border">
+          <div class="text-[11px] text-text-dim select-none">{{ playCountLabel }}</div>
+<!--          <button class="text-xs" v-if="playCount > 0" @click="handleResetPlayCount" title="Reset play count">-->
+<!--            <Icon name="xmark" />-->
+<!--          </button>-->
+          <CircleButton v-if="playCount > 0" icon="xmark" @click="handleResetPlayCount" no-colors class="-mr-1.5 text-text-primary hover:border hover:border-danger hover:text-danger" title="Reset play count" />
         </div>
 
         <!-- Hide / Restore -->
@@ -287,12 +315,24 @@ function cancelRename(): void {
           @click="handleReset"
         >Reset</button>
 
-        <!-- Reset play count — at the bottom, only when count > 0 -->
-        <button
-          v-if="playCount > 0"
-          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary border-t border-border"
-          @click="handleResetPlayCount"
-        >Reset play count</button>
+        <!-- Volume Offset -->
+        <div class="border-t border-border px-3 pt-2 pb-2">
+          <div class="text-[11px] text-text-secondary mb-1.5">Volume Offset</div>
+          <VolumeSlider
+            :modelValue="localVolumeOffset"
+            :min="-CLIP_VOLUME_MAX_DB"
+            :max="CLIP_VOLUME_MAX_DB"
+            :step="1"
+            unit=" dB"
+            @update:modelValue="onVolumeInput"
+            @change="handleVolumeChange"
+          />
+          <button
+            v-if="localVolumeOffset !== 0"
+            class="reset-btn mt-1.5"
+            @click="resetVolumeOffset"
+          >Reset</button>
+        </div>
       </div>
     </Teleport>
   </div>
@@ -314,6 +354,21 @@ function cancelRename(): void {
 }
 .menu-parent button{
   cursor: pointer;
+}
+.reset-btn {
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 11px;
+  background: var(--color-bg-surface-active);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+.reset-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
 }
 .sound-btn-playing::after {
   content: '';

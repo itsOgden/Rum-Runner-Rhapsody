@@ -58,6 +58,7 @@ const DEFAULT_FOLDER_SETTINGS = {
   soundOrder: {},
   categoryOrder: [],
   playCounts: {},
+  soundVolumes: {},
 };
 
 const GLOBAL_KEYS = new Set(Object.keys(DEFAULT_GLOBAL_SETTINGS));

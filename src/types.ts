@@ -58,6 +58,7 @@ export interface FolderSettings {
   categoryOrder: string[]
   collapsedCategories: string[]
   playCounts: Record<string, number>
+  soundVolumes: Record<string, number>
 }
 
 // Global app settings — stored in rrr-settings.json next to the executable

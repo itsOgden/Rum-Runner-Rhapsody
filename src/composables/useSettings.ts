@@ -27,6 +27,7 @@ const settings = ref<GlobalSettings>({
   soundOrder: {},
   categoryOrder: [],
   playCounts: {},
+  soundVolumes: {},
 })
 
 const soundGroups = ref<SoundGroup[]>([])

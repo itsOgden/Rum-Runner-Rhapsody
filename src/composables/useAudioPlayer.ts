@@ -4,13 +4,16 @@ import { useAudioDevices } from './useAudioDevices'
 import { showToast } from '../toastState'
 import type { Sound } from '../types'
 
+export const CLIP_VOLUME_MAX_DB = 20
+
 interface ActiveSource {
   source: AudioBufferSourceNode
   audioCtx: AudioContext
   path: string
+  key: string
   gainNode: GainNode
   deviceIndex: number
-  normGain: number
+  normGain: number  // normalize-only linear gain (excludes per-clip dB offset)
 }
 
 const activeSources: ActiveSource[] = []
@@ -59,7 +62,10 @@ watch(
     const masterVol = s.masterVolume ?? 1.0
     for (const active of activeSources) {
       const devVol = s.devices[active.deviceIndex]?.volume ?? 1.0
-      active.gainNode.gain.setTargetAtTime(devVol * masterVol * active.normGain, active.audioCtx.currentTime, 0.01)
+      const normalizeDb = 20 * Math.log10(active.normGain)
+      const dbOffset = s.soundVolumes?.[active.key] ?? 0
+      const gainValue = Math.pow(10, (normalizeDb + dbOffset) / 20)
+      active.gainNode.gain.setTargetAtTime(devVol * masterVol * gainValue, active.audioCtx.currentTime, 0.01)
     }
     if (_previewGain && _previewCtx) {
       const devVol = s.devices[0]?.volume ?? 1.0
@@ -68,6 +74,18 @@ watch(
   },
   { deep: true }
 )
+
+export function setClipVolumeOffset(soundKey: string, dbOffset: number): void {
+  const s = settings.value
+  const masterVol = s.masterVolume ?? 1.0
+  for (const active of activeSources) {
+    if (active.key !== soundKey) continue
+    const devVol = s.devices[active.deviceIndex]?.volume ?? 1.0
+    const normalizeDb = 20 * Math.log10(active.normGain)
+    const gainValue = Math.pow(10, (normalizeDb + dbOffset) / 20)
+    active.gainNode.gain.setTargetAtTime(devVol * masterVol * gainValue, active.audioCtx.currentTime, 0.01)
+  }
+}
 
 function incrementPlaying(path: string): void {
   playingPaths.value.set(path, (playingPaths.value.get(path) ?? 0) + 1)
@@ -158,10 +176,10 @@ export function useAudioPlayer() {
     const promises: Promise<void>[] = []
 
     if ((s.devices[0]?.enabled ?? true) && primaryDeviceId) {
-      promises.push(playSoundOnDevice(arrayBuffer.slice(0), primaryDeviceId, (s.devices[0]?.volume ?? 1.0) * masterVol, sound.path, 0, sound.name))
+      promises.push(playSoundOnDevice(arrayBuffer.slice(0), primaryDeviceId, (s.devices[0]?.volume ?? 1.0) * masterVol, sound.path, 0, sound.name, sound.key))
     }
     if ((s.devices[1]?.enabled ?? true) && secondaryDeviceId) {
-      promises.push(playSoundOnDevice(arrayBuffer.slice(0), secondaryDeviceId, (s.devices[1]?.volume ?? 1.0) * masterVol, sound.path, 1, sound.name))
+      promises.push(playSoundOnDevice(arrayBuffer.slice(0), secondaryDeviceId, (s.devices[1]?.volume ?? 1.0) * masterVol, sound.path, 1, sound.name, sound.key))
     }
 
     Promise.all(promises)
@@ -177,7 +195,7 @@ export function useAudioPlayer() {
       })
   }
 
-  function playSoundOnDevice(arrayBuffer: ArrayBuffer, deviceId: string, volume: number, path: string, deviceIndex: number, soundName: string): Promise<void> {
+  function playSoundOnDevice(arrayBuffer: ArrayBuffer, deviceId: string, volume: number, path: string, deviceIndex: number, soundName: string, soundKey: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
       try {
         const audioCtx = new AudioContext()
@@ -185,11 +203,17 @@ export function useAudioPlayer() {
 
         const normGain = computeNormGain(decodedData)
 
+        // Combine normalize gain (in dB) with per-clip dB offset, then convert back to linear
+        const normalizeDb = 20 * Math.log10(normGain)
+        const dbOffset = settings.value.soundVolumes?.[soundKey] ?? 0
+        const totalDb = normalizeDb + dbOffset
+        const gainValue = Math.pow(10, totalDb / 20)
+
         const source = audioCtx.createBufferSource()
         source.buffer = decodedData
 
         const gainNode = audioCtx.createGain()
-        gainNode.gain.value = volume * normGain
+        gainNode.gain.value = volume * gainValue
 
         source.connect(gainNode)
         gainNode.connect(audioCtx.destination)
@@ -198,7 +222,7 @@ export function useAudioPlayer() {
           await audioCtx.setSinkId(deviceId)
         }
 
-        const sourceEntry: ActiveSource = { source, audioCtx, path, gainNode, deviceIndex, normGain }
+        const sourceEntry: ActiveSource = { source, audioCtx, path, key: soundKey, gainNode, deviceIndex, normGain }
         activeSources.push(sourceEntry)
 
         source.onended = () => {
