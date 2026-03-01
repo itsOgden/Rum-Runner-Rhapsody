@@ -256,9 +256,6 @@ function resetVolumeOffset(): void {
         <!-- Play count info + Reset — grouped at top with divider below -->
         <div class="px-3 flex justify-between items-center py-1.5 border-b border-border">
           <div class="text-[11px] text-text-dim select-none">{{ playCountLabel }}</div>
-<!--          <button class="text-xs" v-if="playCount > 0" @click="handleResetPlayCount" title="Reset play count">-->
-<!--            <Icon name="xmark" />-->
-<!--          </button>-->
           <CircleButton v-if="playCount > 0" icon="xmark" @click="handleResetPlayCount" no-colors class="-mr-1.5 text-text-primary hover:border hover:border-danger hover:text-danger" title="Reset play count" />
         </div>
 

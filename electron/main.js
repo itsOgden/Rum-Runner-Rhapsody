@@ -42,6 +42,8 @@ const DEFAULT_GLOBAL_SETTINGS = {
   normalize: false,
   streamDeckButtonMode: true,
   closeToTray: false,
+  autoStart: false,
+  launchMinimized: false,
 };
 
 // Per-folder settings file — stored inside each sound folder
@@ -62,6 +64,16 @@ const DEFAULT_FOLDER_SETTINGS = {
 };
 
 const GLOBAL_KEYS = new Set(Object.keys(DEFAULT_GLOBAL_SETTINGS));
+
+function applyAutoStart(enabled) {
+  app.setLoginItemSettings({
+    openAtLogin: enabled,
+    path: process.env.PORTABLE_EXECUTABLE_DIR
+      ? path.join(process.env.PORTABLE_EXECUTABLE_DIR, "Rum-Runner Rhapsody.exe")
+      : process.execPath,
+    args: [],
+  });
+}
 
 function loadGlobalSettings() {
   try {
@@ -401,7 +413,9 @@ function createWindow() {
   }
 
   mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
+    if (!(globalSettings.autoStart && globalSettings.launchMinimized)) {
+      mainWindow.show();
+    }
   });
 
   mainWindow.on("maximize", () => {
@@ -433,6 +447,15 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Sync setting with actual registry state (user may have toggled startup externally)
+  const loginItemSettings = app.getLoginItemSettings();
+  if (loginItemSettings.openAtLogin !== globalSettings.autoStart) {
+    globalSettings.autoStart = loginItemSettings.openAtLogin;
+    saveGlobalSettings(globalSettings);
+  }
+  // Apply to register current exe path (important after portable exe is moved)
+  applyAutoStart(globalSettings.autoStart);
+
   createWindow();
   startWebSocketServer();
 
@@ -481,6 +504,9 @@ ipcMain.handle("save-settings", (_event, newSettings) => {
   }
   saveGlobalSettings(globalSettings);
   saveFolderSettings(globalSettings.soundFolder, folderSettings);
+  if ("autoStart" in newSettings) {
+    applyAutoStart(newSettings.autoStart);
+  }
   if (hasFolderKeys || "streamDeckButtonMode" in newSettings) {
     broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode });
   }

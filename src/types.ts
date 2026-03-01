@@ -75,6 +75,8 @@ export interface GlobalSettings extends FolderSettings {
   normalize: boolean
   streamDeckButtonMode: boolean
   closeToTray: boolean
+  autoStart: boolean
+  launchMinimized: boolean
 }
 
 // ── Folder-change IPC result ───────────────────────────────────────────────

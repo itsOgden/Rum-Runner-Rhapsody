@@ -84,6 +84,18 @@ function setCloseToTray(e: Event) {
   saveSettings({ closeToTray: val })
 }
 
+function setAutoStart(e: Event) {
+  const val = (e.target as HTMLInputElement).checked
+  settings.value.autoStart = val
+  saveSettings({ autoStart: val })
+}
+
+function setLaunchMinimized(e: Event) {
+  const val = (e.target as HTMLInputElement).checked
+  settings.value.launchMinimized = val
+  saveSettings({ launchMinimized: val })
+}
+
 function setTheme(e: Event) {
   const val = (e.target as HTMLSelectElement).value as 'dark' | 'light'
   settings.value.theme = val
@@ -156,6 +168,28 @@ async function handleInstallPlugin(): Promise<void> {
                   </div>
                 </div>
                 <p class="settings-description">Keep running in the notification tray when the window is closed</p>
+                <div class="settings-row mt-3">
+                  <div class="settings-row-label">Start with Windows</div>
+                  <div class="settings-row-control">
+                    <label class="toggle">
+                      <input type="checkbox" :checked="settings.autoStart" @change="setAutoStart" />
+                      <span class="toggle-track"></span>
+                      <span class="toggle-thumb"></span>
+                    </label>
+                  </div>
+                </div>
+                <p class="settings-description">Start the app automatically when you start your PC</p>
+                <div v-show="settings.autoStart" class="settings-row mt-3">
+                  <div class="settings-row-label">Start minimized</div>
+                  <div class="settings-row-control">
+                    <label class="toggle">
+                      <input type="checkbox" :checked="settings.launchMinimized" @change="setLaunchMinimized" />
+                      <span class="toggle-track"></span>
+                      <span class="toggle-thumb"></span>
+                    </label>
+                  </div>
+                </div>
+                <p v-show="settings.autoStart" class="settings-description">Start in the system tray instead of opening the window</p>
               </div>
               <div class="settings-section">
                 <h3 class="settings-section-header">Keybinds</h3>
@@ -324,7 +358,6 @@ async function handleInstallPlugin(): Promise<void> {
   font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--color-text-dim);
   margin-bottom: 0.75rem;
   margin-top: 1rem;
@@ -349,7 +382,7 @@ async function handleInstallPlugin(): Promise<void> {
 .settings-description {
   font-size: 12px;
   color: var(--color-text-dim);
-  line-height: 1.5;
+  line-height: 1;
 }
 
 /* ---- Toggle switch ---- */
