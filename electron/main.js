@@ -26,6 +26,15 @@ const settingsDir = app.isPackaged
 
 const GLOBAL_SETTINGS_FILE = path.join(settingsDir, "rrr-settings.json");
 
+// ─── DEBUG LOG ───────────────────────────────────────────────────────────────
+const DEBUG_LOG_FILE = path.join(settingsDir, "rrr-debug.log");
+function debugLog(...args) {
+  const line = `[${new Date().toISOString()}] ${args.join(" ")}\n`;
+  try { fs.appendFileSync(DEBUG_LOG_FILE, line); } catch {}
+  console.log(...args);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const DEFAULT_GLOBAL_SETTINGS = {
   soundFolder: "",
   windowWidth: 960,
@@ -66,12 +75,17 @@ const DEFAULT_FOLDER_SETTINGS = {
 const GLOBAL_KEYS = new Set(Object.keys(DEFAULT_GLOBAL_SETTINGS));
 
 function applyAutoStart(enabled) {
+  // PORTABLE_EXECUTABLE_FILE is set by electron-builder's portable NSIS wrapper
+  // to the full path of the portable exe the user actually launched.
+  // PORTABLE_EXECUTABLE_DIR is only the directory — combining it with a hardcoded
+  // filename is fragile and breaks when the artifact name differs from the string.
+  const exePath = process.env.PORTABLE_EXECUTABLE_FILE ?? process.execPath;
+  debugLog("applyAutoStart path: " + exePath + ", enabled: " + enabled);
   app.setLoginItemSettings({
     openAtLogin: enabled,
-    path: process.env.PORTABLE_EXECUTABLE_DIR
-      ? path.join(process.env.PORTABLE_EXECUTABLE_DIR, "Rum-Runner Rhapsody.exe")
-      : process.execPath,
-    args: [],
+    name: "Rum-Runner Rhapsody",
+    path: exePath,
+    args: enabled ? ["--autostarted"] : [],
   });
 }
 
@@ -413,9 +427,16 @@ function createWindow() {
   }
 
   mainWindow.once("ready-to-show", () => {
-    if (!(globalSettings.autoStart && globalSettings.launchMinimized)) {
+    const wasAutoStarted = process.argv.includes("--autostarted");
+    if (!(globalSettings.launchMinimized && wasAutoStarted)) {
       mainWindow.show();
     }
+  });
+
+  // Fallback: if loading fails the window may be stuck hidden — show it anyway.
+  mainWindow.webContents.once("did-fail-load", () => {
+    debugLog("Window did-fail-load — forcing show");
+    mainWindow?.show();
   });
 
   mainWindow.on("maximize", () => {
@@ -447,17 +468,49 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  // Sync setting with actual registry state (user may have toggled startup externally)
-  const loginItemSettings = app.getLoginItemSettings();
-  if (loginItemSettings.openAtLogin !== globalSettings.autoStart) {
-    globalSettings.autoStart = loginItemSettings.openAtLogin;
-    saveGlobalSettings(globalSettings);
-  }
-  // Apply to register current exe path (important after portable exe is moved)
-  applyAutoStart(globalSettings.autoStart);
+  try {
+    debugLog("app.whenReady — starting initialization");
 
-  createWindow();
-  startWebSocketServer();
+    // Push the JSON setting into the registry on every launch.
+    // This keeps the registry in sync with rrr-settings.json and re-registers
+    // the correct exe path if the portable exe has been moved.
+    applyAutoStart(globalSettings.autoStart);
+
+    createWindow();
+
+    // Kill any lingering process occupying port 57432, then start the WS server.
+    // At login time netstat/taskkill can hang or fail, so a 2-second timeout
+    // ensures we proceed regardless.
+    let wsStarted = false;
+    function maybeStartWss() {
+      if (wsStarted) return;
+      wsStarted = true;
+      startWebSocketServer();
+    }
+    const killTimeout = setTimeout(() => {
+      debugLog("Port-kill timed out — starting WS server anyway");
+      maybeStartWss();
+    }, 2000);
+    exec("netstat -ano | findstr :57432", (err, stdout) => {
+      try {
+        const pids = [...new Set(
+          (stdout || "").trim().split("\n")
+            .map(l => l.trim().split(/\s+/).pop())
+            .filter(p => p && /^\d+$/.test(p) && p !== "0")
+        )];
+        if (pids.length > 0) {
+          exec(`taskkill /F ${pids.map(p => `/PID ${p}`).join(" ")}`, () => {
+            clearTimeout(killTimeout);
+            maybeStartWss();
+          });
+          return;
+        }
+      } catch (e) {
+        debugLog("Port-kill parse error:", e.message);
+      }
+      clearTimeout(killTimeout);
+      maybeStartWss();
+    });
 
   const iconPath = app.isPackaged
     ? path.join(process.resourcesPath, "app-icon.png")
@@ -472,6 +525,11 @@ app.whenReady().then(() => {
   ]);
   tray.setContextMenu(contextMenu);
   tray.on("click", () => { mainWindow?.show(); mainWindow?.focus(); });
+    debugLog("app.whenReady — initialization complete");
+  } catch (e) {
+    debugLog("FATAL error during app initialization:", e.stack || e.message);
+    throw e;
+  }
 });
 
 app.on("before-quit", () => {
@@ -489,6 +547,7 @@ app.on("window-all-closed", () => app.quit());
 // IPC handlers
 // ---------------------------------------------------------------------------
 ipcMain.handle("get-settings", () => {
+  debugLog("get-settings: autoStart=" + globalSettings.autoStart + " closeToTray=" + globalSettings.closeToTray + " launchMinimized=" + globalSettings.launchMinimized);
   return { ...globalSettings, ...folderSettings };
 });
 

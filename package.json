@@ -51,6 +51,9 @@
         }
       ],
       "icon": "app-icon.png",
+      "signtoolOptions": {
+        "publisherName": "Pdog1"
+      },
       "sign": false,
       "signingHashAlgorithms": null
     },
