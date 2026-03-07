@@ -30,6 +30,16 @@ interface ChangelogRelease {
   sections: ChangelogSection[]
 }
 
+// Splits a text string on backtick pairs so inline code can be rendered as <code>.
+function parseInlineCode(text: string): Array<{ text: string; code: boolean }> {
+  const parts: Array<{ text: string; code: boolean }> = []
+  const segments = text.split('`')
+  for (let i = 0; i < segments.length; i++) {
+    if (segments[i]) parts.push({ text: segments[i], code: i % 2 === 1 })
+  }
+  return parts
+}
+
 function parseChangelog(md: string): ChangelogRelease[] {
   const releases: ChangelogRelease[] = []
   // Each release starts at a "## " line; split on them and drop the preamble.
@@ -116,7 +126,12 @@ onMounted(async () => {
                   >
                     <div class="cl-section-heading">{{ section.heading }}</div>
                     <ul class="cl-items">
-                      <li v-for="item in section.items" :key="item">{{ item }}</li>
+                      <li v-for="item in section.items" :key="item">
+                        <template v-for="(part, i) in parseInlineCode(item)" :key="i">
+                          <code v-if="part.code" class="cl-code">{{ part.text }}</code>
+                          <template v-else>{{ part.text }}</template>
+                        </template>
+                      </li>
                     </ul>
                   </div>
                 </div>
@@ -258,9 +273,9 @@ onMounted(async () => {
 }
 
 .cl-release {
-  padding-bottom: 20px;
+  padding-bottom: 22px;
+  margin-bottom: 22px;
   border-bottom: 1px solid var(--color-border);
-  margin-bottom: 20px;
 }
 
 .cl-release:last-child {
@@ -272,15 +287,16 @@ onMounted(async () => {
 .cl-release-header {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
 .cl-version {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--color-text-primary);
   font-family: var(--font-mono);
+  letter-spacing: -0.01em;
 }
 
 .cl-date {
@@ -290,7 +306,7 @@ onMounted(async () => {
 }
 
 .cl-section {
-  margin-bottom: 10px;
+  margin-bottom: 9px;
 }
 
 .cl-section:last-child {
@@ -299,11 +315,11 @@ onMounted(async () => {
 
 .cl-section-heading {
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--color-accent);
-  margin-bottom: 5px;
+  letter-spacing: 0.1em;
+  color: var(--color-text-dim);
+  margin-bottom: 4px;
 }
 
 .cl-items {
@@ -312,15 +328,15 @@ onMounted(async () => {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .cl-items li {
   font-size: 12px;
   color: var(--color-text-secondary);
-  padding-left: 14px;
+  padding-left: 13px;
   position: relative;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .cl-items li::before {
@@ -328,6 +344,15 @@ onMounted(async () => {
   position: absolute;
   left: 0;
   color: var(--color-text-dim);
+}
+
+.cl-code {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  background: var(--color-bg-surface-active);
+  color: var(--color-text-primary);
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 /* ── VB-Cable guide ────────────────────────────────────────────────── */

@@ -7,41 +7,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.8.0] - 2026-03-07
 
 ### Added
-- Category quick-nav sidebar in the sound list — shows all categories for one-click scrolling, with a toggle in App settings to hide it
-- Stream Deck category-level custom button icons (idle and playing), configurable via the new category settings modal
-- Stream Deck global default button icons (idle, playing, and stop all) in the Stream Deck settings tab — applies to all buttons without a category override
-- Stream Deck image picker now shows a red-tinted error placeholder and "File not found" label when a configured image path no longer exists on disk
-- Broken Stream Deck image warning in the status bar, listing affected source names (e.g. "Default, Music, Ambience")
-- Error badge on the Stream Deck tab in Settings and Category Settings modals when images in that scope are missing
-- Stream Deck button titles and images now sync immediately when sounds or categories are renamed in the app
-- Category settings modal (cog icon on each category) for renaming, hiding, restoring, and deleting categories
+- Category quick-nav sidebar with App settings toggle
+- Per-category Stream Deck button icons (idle/playing) via the category settings modal
+- Global default Stream Deck icons (idle/playing/stop) in the Stream Deck settings tab
+- Stream Deck image picker shows an error state when a configured path no longer exists
+- Status bar warning for missing Stream Deck images, listing affected source names
+- Error badge on the Stream Deck settings tab when images are missing
+- Stream Deck button titles and images sync when sounds or categories are renamed
+- Category settings modal (cog icon) for renaming, hiding, and deleting categories
 
 ### Fixed
-- Stream Deck "Show Category in Title" toggle now applies correctly to all existing buttons, not just newly created ones
-- Stream Deck buttons were not updating when the library was refreshed via the toolbar button
-- Refreshing the library now re-checks all configured Stream Deck image paths for load errors
+- Stream Deck "Show Category in Title" toggle now applies to existing buttons, not just new ones
+- Stream Deck buttons not updating after refreshing the library
+- Library refresh now re-checks all Stream Deck image paths for errors
 
 ## [0.7.0] - 2026-03-01
 
 ### Added
-- Master volume slider in the device panel
-- Auto-start with Windows option in App settings
-- Launch minimized option — starts to the system tray instead of opening the window
-- Per-folder soundboard settings stored in `rrr-soundboard.json` alongside the sounds folder, so category and sound customisations move with the folder
-- Stream Deck plugin support with Play Sound and Stop All actions
-- One-click Stream Deck plugin install and auto-update from within the app
-- Stream Deck grid mode for browsing all sounds directly on the device
+- Master volume slider
+- Auto-start with Windows
+- Launch minimized option (starts to system tray)
+- Per-folder soundboard settings saved in `rrr-soundboard.json` alongside your sounds
+- Stream Deck plugin with Play Sound and Stop All actions
+- One-click Stream Deck plugin install and auto-update
+- Stream Deck grid mode for browsing sounds on the device
 - Per-sound play count tracking
-- Custom titlebar with minimize, maximize, and close controls
+- Custom titlebar
 - Settings modal with App, Playback, and Stream Deck tabs
-- VB-Cable audio routing setup guide in the Help modal
-- Volume normalisation — automatically balances loud and quiet sounds to a consistent level
-- Playback modes: Stop (default), Restart, and Overlap
-- Close to notification tray option
+- VB-Cable setup guide in the Help modal
+- Volume normalisation
+- Playback modes: Stop, Restart, Overlap
+- Close to notification tray
 
 ### Changed
-- Settings are now split between global (`rrr-settings.json`) and per-folder (`rrr-soundboard.json`) storage
+- Settings split into global (`rrr-settings.json`) and per-folder (`rrr-soundboard.json`) files
 
 ### Fixed
-- Audio device metadata display inconsistencies across sessions
-- Removed debugging output that was reaching production builds
+- Audio device metadata display inconsistencies
+- Debugging output removed from production builds
