@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
+  getChangelog: () => ipcRenderer.invoke("get-changelog"),
   getSettings: () => ipcRenderer.invoke("get-settings"),
   saveSettings: (s) => ipcRenderer.invoke("save-settings", s),
   getSounds: () => ipcRenderer.invoke("get-sounds"),

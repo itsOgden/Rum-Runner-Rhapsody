@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { helpModalOpen } from '../modalState'
 import BaseModal from './BaseModal.vue'
 
-type Tab = 'audio-setup'
-const activeTab = ref<Tab>('audio-setup')
+type Tab = 'patch-notes' | 'audio-setup'
+const activeTab = ref<Tab>('patch-notes')
 
 const tabs: { id: Tab; label: string }[] = [
+  { id: 'patch-notes', label: 'Patch Notes' },
   { id: 'audio-setup', label: 'VB-Cable' },
 ]
 
@@ -15,6 +16,57 @@ function handleExternalLink(e: MouseEvent) {
   const href = (e.currentTarget as HTMLAnchorElement).href
   window.api.openExternal(href)
 }
+
+// ── Changelog parsing ────────────────────────────────────────────────────────
+
+interface ChangelogSection {
+  heading: string
+  items: string[]
+}
+
+interface ChangelogRelease {
+  version: string
+  date: string
+  sections: ChangelogSection[]
+}
+
+function parseChangelog(md: string): ChangelogRelease[] {
+  const releases: ChangelogRelease[] = []
+  // Each release starts at a "## " line; split on them and drop the preamble.
+  const blocks = md.split(/^## /m).slice(1)
+  for (const block of blocks) {
+    const lines = block.split('\n')
+    const header = lines[0]
+    const match = header.match(/\[([^\]]+)\].*?(\d{4}-\d{2}-\d{2})/)
+    if (!match) continue
+    const [, version, date] = match
+    const sections: ChangelogSection[] = []
+    let current: ChangelogSection | null = null
+    for (const line of lines.slice(1)) {
+      if (line.startsWith('### ')) {
+        if (current) sections.push(current)
+        current = { heading: line.slice(4).trim(), items: [] }
+      } else if (line.startsWith('- ') && current) {
+        current.items.push(line.slice(2))
+      }
+    }
+    if (current) sections.push(current)
+    releases.push({ version, date, sections })
+  }
+  return releases
+}
+
+const changelog = ref<ChangelogRelease[]>([])
+const changelogError = ref(false)
+
+onMounted(async () => {
+  const raw = await window.api.getChangelog()
+  if (raw) {
+    changelog.value = parseChangelog(raw)
+  } else {
+    changelogError.value = true
+  }
+})
 </script>
 
 <template>
@@ -39,8 +91,40 @@ function handleExternalLink(e: MouseEvent) {
           <!-- Content -->
           <div class="tab-content">
 
+            <!-- ── PATCH NOTES tab ── -->
+            <div v-if="activeTab === 'patch-notes'">
+              <div v-if="changelogError" class="cl-empty">
+                Could not load patch notes.
+              </div>
+              <div v-else-if="!changelog.length" class="cl-empty">
+                Loading…
+              </div>
+              <div v-else>
+                <div
+                  v-for="release in changelog"
+                  :key="release.version"
+                  class="cl-release"
+                >
+                  <div class="cl-release-header">
+                    <span class="cl-version">v{{ release.version }}</span>
+                    <span class="cl-date">{{ release.date }}</span>
+                  </div>
+                  <div
+                    v-for="section in release.sections"
+                    :key="section.heading"
+                    class="cl-section"
+                  >
+                    <div class="cl-section-heading">{{ section.heading }}</div>
+                    <ul class="cl-items">
+                      <li v-for="item in section.items" :key="item">{{ item }}</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- ── AUDIO SETUP tab ── -->
-            <div v-if="activeTab === 'audio-setup'">
+            <div v-else-if="activeTab === 'audio-setup'">
 
               <div class="guide-header">
                 <div class="guide-title">Audio Routing with VB-Cable</div>
@@ -166,7 +250,88 @@ function handleExternalLink(e: MouseEvent) {
   max-height: 480px;
 }
 
-/* ---- Guide header ---- */
+/* ── Patch notes ──────────────────────────────────────────────────── */
+
+.cl-empty {
+  font-size: 12px;
+  color: var(--color-text-dim);
+}
+
+.cl-release {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 20px;
+}
+
+.cl-release:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.cl-release-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.cl-version {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+}
+
+.cl-date {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  font-family: var(--font-mono);
+}
+
+.cl-section {
+  margin-bottom: 10px;
+}
+
+.cl-section:last-child {
+  margin-bottom: 0;
+}
+
+.cl-section-heading {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-accent);
+  margin-bottom: 5px;
+}
+
+.cl-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cl-items li {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  padding-left: 14px;
+  position: relative;
+  line-height: 1.5;
+}
+
+.cl-items li::before {
+  content: '–';
+  position: absolute;
+  left: 0;
+  color: var(--color-text-dim);
+}
+
+/* ── VB-Cable guide ────────────────────────────────────────────────── */
+
 .guide-header {
   margin-bottom: 20px;
 }
@@ -185,7 +350,6 @@ function handleExternalLink(e: MouseEvent) {
   margin: 0;
 }
 
-/* ---- Step cards ---- */
 .steps {
   display: flex;
   flex-direction: column;
@@ -232,7 +396,6 @@ function handleExternalLink(e: MouseEvent) {
   margin: 0;
 }
 
-/* ---- Concept box ---- */
 .concept-box {
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-light);
@@ -244,7 +407,6 @@ function handleExternalLink(e: MouseEvent) {
   margin-bottom: 20px;
 }
 
-/* ---- Inline code ---- */
 code {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -254,13 +416,11 @@ code {
   border-radius: 3px;
 }
 
-/* ---- Checkmark ---- */
 .step-check {
   color: var(--color-accent);
   font-weight: 600;
 }
 
-/* ---- Screenshot ---- */
 .step-screenshot {
   display: block;
   width: 100%;
@@ -269,7 +429,6 @@ code {
   margin-top: 8px;
 }
 
-/* ---- Tip box ---- */
 .step-tip {
   display: flex;
   gap: 8px;
@@ -284,7 +443,6 @@ code {
   margin-top: 8px;
 }
 
-/* ---- External link ---- */
 .step-link {
   color: var(--color-accent);
   text-decoration: none;
@@ -293,7 +451,6 @@ code {
   text-decoration: underline;
 }
 
-/* ---- Substep list ---- */
 .step-substeps {
   margin: 6px 0 0 0;
   padding: 0;
@@ -317,25 +474,6 @@ code {
   font-size: 11px;
 }
 
-/* ---- Cable output callout ---- */
-.step-cable-out {
-  background: var(--color-bg-surface);
-  border-left: 3px solid var(--color-accent);
-  padding: 6px 10px;
-  border-radius: 3px;
-  font-size: 12px;
-  margin: 6px 0;
-}
-
-/* ---- App compatibility note ---- */
-.step-apps-list {
-  font-size: 11px;
-  color: var(--color-text-secondary);
-  font-style: italic;
-  margin: 0;
-}
-
-/* ---- Keyboard shortcut ---- */
 kbd {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -346,7 +484,6 @@ kbd {
   color: var(--color-text-primary);
 }
 
-/* ---- Guide note ---- */
 .guide-note {
   font-size: 11px;
   color: var(--color-text-dim);
@@ -354,7 +491,6 @@ kbd {
   margin: 0 0 12px;
 }
 
-/* ---- Closing line ---- */
 .guide-closing {
   margin-top: 16px;
   margin-bottom: 0;

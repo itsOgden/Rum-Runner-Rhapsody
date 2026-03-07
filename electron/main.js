@@ -553,6 +553,17 @@ app.on("window-all-closed", () => app.quit());
 // ---------------------------------------------------------------------------
 // IPC handlers
 // ---------------------------------------------------------------------------
+ipcMain.handle("get-changelog", () => {
+  const changelogPath = app.isPackaged
+    ? path.join(process.resourcesPath, "CHANGELOG.md")
+    : path.resolve(__dirname, "..", "CHANGELOG.md");
+  try {
+    return fs.readFileSync(changelogPath, "utf8");
+  } catch {
+    return null;
+  }
+});
+
 ipcMain.handle("get-settings", () => {
   debugLog("get-settings: autoStart=" + globalSettings.autoStart + " closeToTray=" + globalSettings.closeToTray + " launchMinimized=" + globalSettings.launchMinimized);
   return { ...globalSettings, ...folderSettings };

@@ -92,6 +92,7 @@ export interface FolderChangeResult {
 // ── Window API (exposed by preload.js via contextBridge) ───────────────────
 
 export interface WindowApi {
+  getChangelog(): Promise<string | null>
   getSettings(): Promise<GlobalSettings>
   saveSettings(partial: Partial<GlobalSettings>): Promise<void>
   getSounds(): Promise<SoundGroup[]>

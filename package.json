@@ -1,6 +1,6 @@
 {
   "name": "rum-runner-rhapsody",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Rum-Runner Rhapsody",
   "main": "dist-electron/main.js",
   "author": "Pdog1",
@@ -70,6 +70,10 @@
       {
         "from": "app-icon.png",
         "to": "app-icon.png"
+      },
+      {
+        "from": "CHANGELOG.md",
+        "to": "CHANGELOG.md"
       },
       {
         "from": "packages/rrr-streamdeck/com.pdog1.rum-runner-rhapsody.sdPlugin",
