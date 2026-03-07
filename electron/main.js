@@ -576,7 +576,9 @@ ipcMain.handle("save-settings", (_event, newSettings) => {
 });
 
 ipcMain.handle("get-sounds", () => {
-  return discoverSounds(globalSettings.soundFolder);
+  const groups = discoverSounds(globalSettings.soundFolder);
+  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode });
+  return groups;
 });
 
 ipcMain.handle("pick-folder", async () => {
