@@ -28,6 +28,7 @@ let currentSounds: SoundItem[] = [];
 let folderSelected = false;
 let buttonMode = true;
 let categoryStreamDeckImages: Record<string, CategoryImages> = {};
+let streamDeckDefaultImages: { idle?: string; playing?: string } = {};
 
 // Playing state tracking — used to flip button images
 const currentlyPlaying = new Set<string>();
@@ -42,23 +43,36 @@ function getCategoryImages(settings: PlaySoundSettings): CategoryImages | null {
 	return entry;
 }
 
+async function loadImage(imgPath: string): Promise<string> {
+	const data = readFileSync(imgPath);
+	const ext = imgPath.split(".").pop()?.toLowerCase();
+	const mime = ext === "png" ? "image/png" : "image/jpeg";
+	return `data:${mime};base64,${data.toString("base64")}`;
+}
+
 async function applyKeyImage(keyAction: KeyAction<PlaySoundSettings>, settings: PlaySoundSettings, isPlaying: boolean): Promise<void> {
+	// Priority 1: per-category override
 	const catImages = settings.useCategoryImage !== false ? getCategoryImages(settings) : null;
 	if (catImages) {
 		const imgPath = isPlaying && catImages.playing ? catImages.playing : catImages.idle!;
 		try {
-			const data = readFileSync(imgPath);
-			const ext = imgPath.split(".").pop()?.toLowerCase();
-			const mime = ext === "png" ? "image/png" : "image/jpeg";
-			await keyAction.setImage(`data:${mime};base64,${data.toString("base64")}`);
+			await keyAction.setImage(await loadImage(imgPath));
 			return;
 		} catch {
-			// Image unreadable — fall through to state-based image
+			// unreadable — fall through
 		}
 	}
-	// No custom image, load failed, or useCategoryImage is off/undefined/stale —
-	// clear any previously set custom image then render the built-in state image.
-	// setImage("") is always attempted so a leftover custom image never persists.
+	// Priority 2: global default override
+	if (streamDeckDefaultImages.idle) {
+		const imgPath = isPlaying && streamDeckDefaultImages.playing ? streamDeckDefaultImages.playing : streamDeckDefaultImages.idle;
+		try {
+			await keyAction.setImage(await loadImage(imgPath));
+			return;
+		} catch {
+			// unreadable — fall through
+		}
+	}
+	// Priority 3: built-in key.png / playing.png state images
 	try { await keyAction.setImage(""); } catch {}
 	try { await keyAction.setState(isPlaying ? 1 : 0); } catch {}
 }
@@ -90,12 +104,13 @@ rrrClient.on("disconnected", () => {
 	pushState();
 });
 
-rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean; playingKeys?: string[]; buttonMode?: boolean; categoryStreamDeckImages?: Record<string, CategoryImages> }) => {
+rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean; playingKeys?: string[]; buttonMode?: boolean; categoryStreamDeckImages?: Record<string, CategoryImages>; streamDeckDefaultImages?: { idle?: string; playing?: string } }) => {
 	if (data.type === "sounds-list" || data.type === "sounds-updated") {
 		currentSounds = data.sounds ?? [];
 		folderSelected = data.folderSelected !== false;
 		if (data.buttonMode !== undefined) buttonMode = data.buttonMode;
 		categoryStreamDeckImages = data.categoryStreamDeckImages ?? {};
+		if (data.streamDeckDefaultImages !== undefined) streamDeckDefaultImages = data.streamDeckDefaultImages;
 		stateReady = true;
 		pushState();
 		// Refresh all active action images and titles from the updated sounds list
@@ -116,6 +131,7 @@ rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelec
 		currentSounds = [];
 		folderSelected = false;
 		categoryStreamDeckImages = {};
+		if (data.streamDeckDefaultImages !== undefined) streamDeckDefaultImages = data.streamDeckDefaultImages;
 		stateReady = true;
 		pushState();
 		for (const { action, soundKey, settings } of activeActions.values()) {

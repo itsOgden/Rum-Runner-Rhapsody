@@ -111,6 +111,7 @@ function clearPlaying(e: MouseEvent): void {
 .picker {
   display: flex;
   gap: 20px;
+  max-width: 240px;
 }
 
 .slot {

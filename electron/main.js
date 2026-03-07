@@ -52,6 +52,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
   playbackMode: "stop",
   normalize: false,
   streamDeckButtonMode: true,
+  streamDeckDefaultImages: {},
   closeToTray: false,
   autoStart: false,
   launchMinimized: false,
@@ -381,9 +382,9 @@ function startWebSocketServer() {
   wss.on("connection", (ws) => {
     const folder = globalSettings.soundFolder;
     if (folder) {
-      ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {} }));
+      ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} }));
     } else {
-      ws.send(JSON.stringify({ type: "folder-status", folderSelected: false }));
+      ws.send(JSON.stringify({ type: "folder-status", folderSelected: false, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} }));
     }
 
     ws.on("message", (raw) => {
@@ -393,9 +394,9 @@ function startWebSocketServer() {
       if (msg.type === "get-sounds") {
         const folder = globalSettings.soundFolder;
         if (folder) {
-          ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {} }));
+          ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} }));
         } else {
-          ws.send(JSON.stringify({ type: "folder-status", folderSelected: false }));
+          ws.send(JSON.stringify({ type: "folder-status", folderSelected: false, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} }));
         }
       } else if (msg.type === "play-sound" && msg.key) {
         mainWindow?.webContents.send("ws-play-sound", { key: msg.key });
@@ -571,15 +572,15 @@ ipcMain.handle("save-settings", (_event, newSettings) => {
   if ("autoStart" in newSettings) {
     applyAutoStart(newSettings.autoStart);
   }
-  if (hasFolderKeys || "streamDeckButtonMode" in newSettings) {
-    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {} });
+  if (hasFolderKeys || "streamDeckButtonMode" in newSettings || "streamDeckDefaultImages" in newSettings) {
+    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} });
   }
   return { ...globalSettings, ...folderSettings };
 });
 
 ipcMain.handle("get-sounds", () => {
   const groups = discoverSounds(globalSettings.soundFolder);
-  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {} });
+  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} });
   return groups;
 });
 
@@ -607,7 +608,7 @@ ipcMain.handle("pick-folder", async () => {
   folderSettings = loadFolderSettings(newFolder);
 
   // Notify connected Stream Deck clients that the folder and sounds have changed.
-  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {} });
+  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} });
 
   return { folder: newFolder, folderSettings: { ...folderSettings } };
 });

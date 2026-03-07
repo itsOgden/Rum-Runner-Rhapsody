@@ -16,6 +16,7 @@ const settings = ref<GlobalSettings>({
   playbackMode: 'stop',
   normalize: false,
   streamDeckButtonMode: true,
+  streamDeckDefaultImages: {},
   closeToTray: false,
   autoStart: false,
   launchMinimized: false,
