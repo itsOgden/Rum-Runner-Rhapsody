@@ -65,6 +65,10 @@ const ACTIVE_HIGHLIGHT_ENABLED = true
 
 const scrollContainerRef = ref<HTMLElement | null>(null)
 const activeSectionId = ref<string | null>(null)
+// manualActiveSection: set on click, cleared only when natural tracking catches
+// up to it or the user manually scrolls. Acts as a safety net so updateActiveSection
+// can never overwrite a click-chosen highlight with a wrong scroll position.
+const manualActiveSection = ref<string | null>(null)
 // Plain boolean — only gates updateActiveSection, no template reactivity needed.
 let scrollLocked = false
 let scrollIdleTimer: ReturnType<typeof setTimeout> | null = null
@@ -84,21 +88,32 @@ function updateActiveSection(): void {
     if (!el) continue
     if (el.getBoundingClientRect().top <= containerTop + 32) active = section.id
   }
-  activeSectionId.value = active ?? (navSections.value[0]?.id ?? null)
+  const natural = active ?? (navSections.value[0]?.id ?? null)
+  // Safety net: if there is a pending manual selection and natural tracking
+  // disagrees (e.g. the section couldn't reach the top), preserve the clicked
+  // highlight rather than overriding it with the wrong entry.
+  if (manualActiveSection.value && natural !== manualActiveSection.value) return
+  // Natural tracking has converged with the manual selection (or no manual
+  // selection is active) — accept it and clear the override.
+  manualActiveSection.value = null
+  activeSectionId.value = natural
 }
 
 function onScroll(): void {
   if (scrollLocked) {
     // Each scroll event restarts the idle timer; when scroll has been stable
-    // for 150ms the lock releases and scroll-based tracking resumes.
+    // for 300ms the lock releases and scroll-based tracking resumes.
     if (scrollIdleTimer) clearTimeout(scrollIdleTimer)
     scrollIdleTimer = setTimeout(() => {
       scrollLocked = false
       scrollIdleTimer = null
       updateActiveSection()
-    }, 150)
+    }, 300)
     return
   }
+  // User is scrolling manually — clear any pending manual override so natural
+  // tracking can take over immediately.
+  manualActiveSection.value = null
   updateActiveSection()
 }
 
@@ -109,6 +124,7 @@ function scrollToSection(sectionId: string): void {
   if (!el) return
   if (ACTIVE_HIGHLIGHT_ENABLED) {
     activeSectionId.value = sectionId
+    manualActiveSection.value = sectionId
     scrollLocked = true
     if (scrollIdleTimer) clearTimeout(scrollIdleTimer)
   }
