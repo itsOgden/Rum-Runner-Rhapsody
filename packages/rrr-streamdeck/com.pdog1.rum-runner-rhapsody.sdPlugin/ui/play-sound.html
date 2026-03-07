@@ -400,6 +400,7 @@
             opt.value = sound.key;
             opt.textContent = sound.displayName;
             opt.dataset.categoryId = sound.categoryId || "";
+            opt.dataset.category = sound.category || "";
             if (sound.key === savedKey) opt.selected = true;
             return opt;
         }
@@ -504,7 +505,8 @@
             const opt = e.target.options[e.target.selectedIndex];
             const soundName = opt?.textContent ?? "";
             const soundCategoryId = opt?.dataset?.categoryId ?? "";
-            const newSettings = { ..._currentSettings, soundKey, soundName, soundCategoryId };
+            const soundCategory = opt?.dataset?.category ?? "";
+            const newSettings = { ..._currentSettings, soundKey, soundName, soundCategory, soundCategoryId };
             setSettings(newSettings);
             _currentSettings = newSettings;
             updateCategoryImageToggle();

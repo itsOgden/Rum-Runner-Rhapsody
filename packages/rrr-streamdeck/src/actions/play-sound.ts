@@ -180,7 +180,14 @@ function formatTitle(category: string, name: string, showCategory: boolean = fal
 @action({ UUID: "com.pdog1.rum-runner-rhapsody.playsound" })
 export class PlaySound extends SingletonAction<PlaySoundSettings> {
 	override async onWillAppear(ev: WillAppearEvent<PlaySoundSettings>): Promise<void> {
-		const settings = ev.payload.settings;
+		let settings = ev.payload.settings;
+		if (settings.soundKey && !settings.soundCategory) {
+			const match = currentSounds.find(s => s.key === settings.soundKey);
+			if (match?.category) {
+				settings = { ...settings, soundCategory: match.category };
+				ev.action.setSettings(settings).catch(() => {});
+			}
+		}
 		const { soundName, soundKey, soundCategory, showCategory } = settings;
 		const keyAction = ev.action as KeyAction<PlaySoundSettings>;
 		activeActions.set(ev.action.id, { action: keyAction, soundKey: soundKey ?? "", settings });
@@ -194,6 +201,14 @@ export class PlaySound extends SingletonAction<PlaySoundSettings> {
 
 	override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<PlaySoundSettings>): Promise<void> {
 		let settings = ev.payload.settings;
+		// One-time migration: back-fill soundCategory for buttons saved before the fix.
+		if (settings.soundKey && !settings.soundCategory) {
+			const match = currentSounds.find(s => s.key === settings.soundKey);
+			if (match?.category) {
+				settings = { ...settings, soundCategory: match.category };
+				ev.action.setSettings(settings).catch(() => {});
+			}
+		}
 		const { soundName, soundKey, soundCategory, showCategory } = settings;
 		const entry = activeActions.get(ev.action.id);
 		if (entry) {
