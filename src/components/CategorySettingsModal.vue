@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, computed } from 'vue'
 import BaseModal from './BaseModal.vue'
+import StreamDeckImagePicker from './StreamDeckImagePicker.vue'
 import { useSoundManagement } from '../composables/useSoundManagement'
+import { useSettings } from '../composables/useSettings'
 import type { SoundSection } from '../types'
 
 const props = defineProps<{
@@ -14,6 +16,7 @@ const emit = defineEmits<{
 }>()
 
 const { renameCategory, deleteCategory, hideSection, unhideSection, restoreSection } = useSoundManagement()
+const { settings, saveSettings } = useSettings()
 
 type Tab = 'general' | 'streamdeck'
 const activeTab = ref<Tab>('general')
@@ -66,10 +69,44 @@ function handleDelete(): void {
   deleteCategory(props.section.id)
   emit('close')
 }
+
+// ── Stream Deck images ────────────────────────────────────────────────────────
+
+const imageEntry = computed(() => {
+  const map = settings.value.categoryStreamDeckImages || {}
+  return map[props.section.id] || {}
+})
+
+const idleImagePath = computed(() => imageEntry.value.idle || null)
+const playingImagePath = computed(() => imageEntry.value.playing || null)
+
+function saveImages(idle: string | null, playing: string | null): void {
+  const map = { ...(settings.value.categoryStreamDeckImages || {}) }
+  if (!idle && !playing) {
+    delete map[props.section.id]
+  } else {
+    const entry: { idle?: string; playing?: string } = {}
+    if (idle) entry.idle = idle
+    if (playing) entry.playing = playing
+    map[props.section.id] = entry
+  }
+  // Update local reactive state immediately so computed previews update without waiting for IPC round-trip
+  settings.value.categoryStreamDeckImages = map
+  saveSettings({ categoryStreamDeckImages: map })
+}
+
+function onIdleImageChange(path: string | null): void {
+  // Clearing idle also clears playing (playing requires idle)
+  saveImages(path, path ? playingImagePath.value : null)
+}
+
+function onPlayingImageChange(path: string | null): void {
+  saveImages(idleImagePath.value, path)
+}
 </script>
 
 <template>
-  <BaseModal :open="open" :title="editingName || section.displayName" width="440px" @close="handleClose">
+  <BaseModal :open="open" :title="editingName || section.displayName" width="480px" @close="handleClose">
 
     <!-- ── Body: tab list + content ── -->
     <div class="flex">
@@ -111,7 +148,7 @@ function handleDelete(): void {
 
           <div class="settings-section">
             <div class="settings-row">
-              <div class="settings-row-label">Hide category</div>
+              <div class="settings-row-label">Hide</div>
               <div class="settings-row-control">
                 <label class="toggle">
                   <input type="checkbox" :checked="section.isHidden" @change="handleToggleHide" />
@@ -126,6 +163,18 @@ function handleDelete(): void {
 
         <!-- ── STREAM DECK tab ── -->
         <div v-else-if="activeTab === 'streamdeck'">
+          <div class="settings-section">
+            <div class="settings-row-label">Custom Icons</div>
+            <p class="settings-description mb-3">Optional icons for this category's Stream Deck buttons.</p>
+            <StreamDeckImagePicker
+              :idle-path="idleImagePath"
+              :playing-path="playingImagePath"
+              :default-idle-path="null"
+              :default-playing-path="null"
+              @update:idle-path="onIdleImageChange"
+              @update:playing-path="onPlayingImageChange"
+            />
+          </div>
         </div>
 
       </div>

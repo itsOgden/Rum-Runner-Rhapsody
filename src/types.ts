@@ -59,6 +59,7 @@ export interface FolderSettings {
   collapsedCategories: string[]
   playCounts: Record<string, number>
   soundVolumes: Record<string, number>
+  categoryStreamDeckImages: Record<string, { idle?: string; playing?: string }>
 }
 
 // Global app settings — stored in rrr-settings.json next to the executable
@@ -93,6 +94,7 @@ export interface WindowApi {
   saveSettings(partial: Partial<GlobalSettings>): Promise<void>
   getSounds(): Promise<SoundGroup[]>
   pickFolder(): Promise<FolderChangeResult | null>
+  pickImage(): Promise<string | null>
   readSoundFile(filePath: string): Promise<ArrayBuffer | null>
   onWsPlaySound(callback: (data: { key: string }) => void): void
   onWsStopAll(callback: () => void): void

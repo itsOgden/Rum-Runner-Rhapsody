@@ -30,6 +30,7 @@ const settings = ref<GlobalSettings>({
   categoryOrder: [],
   playCounts: {},
   soundVolumes: {},
+  categoryStreamDeckImages: {},
 })
 
 const soundGroups = ref<SoundGroup[]>([])

@@ -72,6 +72,7 @@ const DEFAULT_FOLDER_SETTINGS = {
   categoryOrder: [],
   playCounts: {},
   soundVolumes: {},
+  categoryStreamDeckImages: {},
 };
 
 const GLOBAL_KEYS = new Set(Object.keys(DEFAULT_GLOBAL_SETTINGS));
@@ -608,6 +609,16 @@ ipcMain.handle("pick-folder", async () => {
   broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode });
 
   return { folder: newFolder, folderSettings: { ...folderSettings } };
+});
+
+ipcMain.handle("pick-image", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile"],
+    title: "Select Image",
+    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg"] }],
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
 });
 
 ipcMain.on("ws-playing-status", (_event, playingKeys) => {
