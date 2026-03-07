@@ -103,6 +103,12 @@ function setTheme(e: Event) {
   saveSettings({ theme: val })
 }
 
+function setShowCategorySidebar(e: Event) {
+  const val = (e.target as HTMLInputElement).checked
+  settings.value.showCategorySidebar = val
+  saveSettings({ showCategorySidebar: val })
+}
+
 // ── Stream Deck default images ──────────────────────────────────────────────
 
 const defaultIdlePath = computed(() => settings.value.streamDeckDefaultImages?.idle || null)
@@ -218,6 +224,17 @@ async function handleInstallPlugin(): Promise<void> {
                   </div>
                 </div>
                 <p v-show="settings.autoStart" class="settings-description">Start in the system tray instead of opening the window</p>
+                <div class="settings-row mt-3">
+                  <div class="settings-row-label">Show category sidebar</div>
+                  <div class="settings-row-control">
+                    <label class="toggle">
+                      <input type="checkbox" :checked="settings.showCategorySidebar" @change="setShowCategorySidebar" />
+                      <span class="toggle-track"></span>
+                      <span class="toggle-thumb"></span>
+                    </label>
+                  </div>
+                </div>
+                <p class="settings-description">Show the category quick-nav sidebar in the sound list</p>
               </div>
               <div class="settings-section">
                 <h3 class="settings-section-header">Keybinds</h3>

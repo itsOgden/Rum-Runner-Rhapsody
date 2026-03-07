@@ -76,6 +76,7 @@ export interface GlobalSettings extends FolderSettings {
   normalize: boolean
   streamDeckButtonMode: boolean
   streamDeckDefaultImages: { idle?: string; playing?: string; stop?: string }
+  showCategorySidebar: boolean
   closeToTray: boolean
   autoStart: boolean
   launchMinimized: boolean

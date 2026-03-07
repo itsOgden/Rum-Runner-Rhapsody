@@ -17,6 +17,7 @@ const settings = ref<GlobalSettings>({
   normalize: false,
   streamDeckButtonMode: true,
   streamDeckDefaultImages: {},
+  showCategorySidebar: true,
   closeToTray: false,
   autoStart: false,
   launchMinimized: false,

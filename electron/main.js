@@ -53,6 +53,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
   normalize: false,
   streamDeckButtonMode: true,
   streamDeckDefaultImages: {},
+  showCategorySidebar: true,
   closeToTray: false,
   autoStart: false,
   launchMinimized: false,
