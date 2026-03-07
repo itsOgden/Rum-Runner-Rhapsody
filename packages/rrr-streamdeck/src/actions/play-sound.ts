@@ -98,9 +98,19 @@ rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelec
 		categoryStreamDeckImages = data.categoryStreamDeckImages ?? {};
 		stateReady = true;
 		pushState();
-		// Refresh all active action images in case category images changed
-		for (const { action, soundKey, settings } of activeActions.values()) {
+		// Refresh all active action images and titles from the updated sounds list
+		for (const entry of activeActions.values()) {
+			const { action, soundKey, settings } = entry;
 			applyKeyImage(action, settings, soundKey ? currentlyPlaying.has(soundKey) : false).catch(() => {});
+			if (soundKey) {
+				const sound = currentSounds.find(s => s.key === soundKey);
+				if (sound) {
+					const updated = { ...settings, soundName: sound.displayName, soundCategory: sound.category };
+					entry.settings = updated;
+					action.setTitle(formatTitle(sound.category, sound.displayName, settings.showCategory ?? false)).catch(() => {});
+					action.setSettings(updated).catch(() => {});
+				}
+			}
 		}
 	} else if (data.type === "folder-status") {
 		currentSounds = [];
@@ -181,11 +191,17 @@ function formatTitle(category: string, name: string, showCategory: boolean = fal
 export class PlaySound extends SingletonAction<PlaySoundSettings> {
 	override async onWillAppear(ev: WillAppearEvent<PlaySoundSettings>): Promise<void> {
 		let settings = ev.payload.settings;
-		if (settings.soundKey && !settings.soundCategory) {
+		// If the sounds list is already loaded, use fresh name/category from it rather than
+		// stored settings — guards against stale data when sounds-list arrives before this
+		// onWillAppear fires (race condition on plugin/Stream Deck startup).
+		if (settings.soundKey && currentSounds.length > 0) {
 			const match = currentSounds.find(s => s.key === settings.soundKey);
-			if (match?.category) {
-				settings = { ...settings, soundCategory: match.category };
-				ev.action.setSettings(settings).catch(() => {});
+			if (match) {
+				const updated = { ...settings, soundName: match.displayName, soundCategory: match.category };
+				if (updated.soundName !== settings.soundName || updated.soundCategory !== settings.soundCategory) {
+					settings = updated;
+					ev.action.setSettings(settings).catch(() => {});
+				}
 			}
 		}
 		const { soundName, soundKey, soundCategory, showCategory } = settings;
