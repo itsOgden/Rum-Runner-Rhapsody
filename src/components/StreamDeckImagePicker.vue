@@ -14,14 +14,19 @@ const emit = defineEmits<{
   'update:idlePath': [string | null]
   'update:playingPath': [string | null]
   'update:stopPath': [string | null]
+  'errors': [count: number]
 }>()
 
 const previewIdle = ref<string | null>(null)
 const previewPlaying = ref<string | null>(null)
 const previewStop = ref<string | null>(null)
 
-async function loadBlobUrl(path: string | null): Promise<string | null> {
-  if (!path) return null
+// Filename of the broken path, or null if the slot loaded ok (or has no path).
+const idleError = ref<string | null>(null)
+const playingError = ref<string | null>(null)
+const stopError = ref<string | null>(null)
+
+async function tryLoadBlobUrl(path: string): Promise<string | null> {
   const ab = await window.api.readSoundFile(path)
   if (!ab) return null
   const ext = path.split('.').pop()?.toLowerCase()
@@ -29,11 +34,23 @@ async function loadBlobUrl(path: string | null): Promise<string | null> {
   return URL.createObjectURL(new Blob([ab], { type: mime }))
 }
 
+function errorFilename(path: string): string {
+  return path.split(/[/\\]/).pop() ?? path
+}
+
 watch(
   () => [props.idlePath, props.defaultIdlePath] as const,
   async ([path, fallback]) => {
     const old = previewIdle.value
-    previewIdle.value = await loadBlobUrl(path ?? fallback)
+    const effective = path ?? fallback
+    if (!effective) {
+      previewIdle.value = null
+      idleError.value = null
+    } else {
+      const url = await tryLoadBlobUrl(effective)
+      previewIdle.value = url
+      idleError.value = url ? null : errorFilename(effective)
+    }
     if (old) URL.revokeObjectURL(old)
   },
   { immediate: true }
@@ -43,7 +60,15 @@ watch(
   () => [props.playingPath, props.defaultPlayingPath] as const,
   async ([path, fallback]) => {
     const old = previewPlaying.value
-    previewPlaying.value = await loadBlobUrl(path ?? fallback)
+    const effective = path ?? fallback
+    if (!effective) {
+      previewPlaying.value = null
+      playingError.value = null
+    } else {
+      const url = await tryLoadBlobUrl(effective)
+      previewPlaying.value = url
+      playingError.value = url ? null : errorFilename(effective)
+    }
     if (old) URL.revokeObjectURL(old)
   },
   { immediate: true }
@@ -53,7 +78,15 @@ watch(
   () => [props.stopPath ?? null, props.defaultStopPath ?? null] as const,
   async ([path, fallback]) => {
     const old = previewStop.value
-    previewStop.value = await loadBlobUrl(path ?? fallback)
+    const effective = path ?? fallback
+    if (!effective) {
+      previewStop.value = null
+      stopError.value = null
+    } else {
+      const url = await tryLoadBlobUrl(effective)
+      previewStop.value = url
+      stopError.value = url ? null : errorFilename(effective)
+    }
     if (old) URL.revokeObjectURL(old)
   },
   { immediate: true }
@@ -64,6 +97,11 @@ onUnmounted(() => {
   if (previewPlaying.value) URL.revokeObjectURL(previewPlaying.value)
   if (previewStop.value) URL.revokeObjectURL(previewStop.value)
 })
+
+const errorCount = computed(() =>
+  [idleError.value, playingError.value, stopError.value].filter(Boolean).length
+)
+watch(errorCount, (n) => emit('errors', n), { immediate: true })
 
 const playingDisabled = computed(() => !props.idlePath)
 
@@ -106,40 +144,71 @@ function clearStop(e: MouseEvent): void {
     <!-- Idle slot -->
     <div class="slot">
       <div class="slot-label">Idle</div>
-      <div class="slot-preview" role="button" tabindex="0" @click="pickIdle" @keydown.enter="pickIdle">
-        <img v-if="previewIdle" :src="previewIdle" class="preview-img" draggable="false"  alt=""/>
+      <div
+        class="slot-preview"
+        :class="{ 'slot-preview-error': idleError }"
+        role="button" tabindex="0"
+        @click="pickIdle"
+        @keydown.enter="pickIdle"
+      >
+        <img v-if="previewIdle" :src="previewIdle" class="preview-img" draggable="false" alt="" />
+        <div v-else-if="idleError" class="preview-error-content">
+          <span class="preview-error-icon">⚠</span>
+        </div>
         <div v-else class="preview-empty">
           <span class="preview-empty-text">Select Icon</span>
         </div>
         <button v-if="idlePath" class="clear-btn" title="Clear override" @click="clearIdle">×</button>
         <div class="pick-overlay"><span>Change Icon</span></div>
       </div>
+      <div v-if="idleError" class="slot-error-msg">File not found: {{ idleError }}</div>
     </div>
 
     <!-- Playing slot -->
     <div class="slot" :class="{ 'slot-disabled': playingDisabled }">
       <div class="slot-label">Playing</div>
-      <div class="slot-preview" role="button" :tabindex="playingDisabled ? -1 : 0" @click="pickPlaying" @keydown.enter="pickPlaying">
-        <img v-if="previewPlaying" :src="previewPlaying" class="preview-img" draggable="false"  alt="" />
+      <div
+        class="slot-preview"
+        :class="{ 'slot-preview-error': playingError }"
+        role="button"
+        :tabindex="playingDisabled ? -1 : 0"
+        @click="pickPlaying"
+        @keydown.enter="pickPlaying"
+      >
+        <img v-if="previewPlaying" :src="previewPlaying" class="preview-img" draggable="false" alt="" />
+        <div v-else-if="playingError" class="preview-error-content">
+          <span class="preview-error-icon">⚠</span>
+        </div>
         <div v-else class="preview-empty">
           <span class="preview-empty-text">{{ playingDisabled ? 'Select Idle First' : 'Select Icon' }}</span>
         </div>
         <button v-if="playingPath" class="clear-btn" title="Clear override" @click="clearPlaying">×</button>
         <div v-if="!playingDisabled" class="pick-overlay"><span>Change Icon</span></div>
       </div>
+      <div v-if="playingError" class="slot-error-msg">File not found: {{ playingError }}</div>
     </div>
 
     <!-- Stop slot (optional — only rendered when stopPath prop is provided or explicitly null) -->
     <div v-if="stopPath !== undefined || defaultStopPath !== undefined" class="slot">
       <div class="slot-label">Stop</div>
-      <div class="slot-preview" role="button" tabindex="0" @click="pickStop" @keydown.enter="pickStop">
+      <div
+        class="slot-preview"
+        :class="{ 'slot-preview-error': stopError }"
+        role="button" tabindex="0"
+        @click="pickStop"
+        @keydown.enter="pickStop"
+      >
         <img v-if="previewStop" :src="previewStop" class="preview-img" draggable="false" alt="" />
+        <div v-else-if="stopError" class="preview-error-content">
+          <span class="preview-error-icon">⚠</span>
+        </div>
         <div v-else class="preview-empty">
           <span class="preview-empty-text">Select Icon</span>
         </div>
         <button v-if="stopPath" class="clear-btn" title="Clear override" @click="clearStop">×</button>
         <div class="pick-overlay"><span>Change Icon</span></div>
       </div>
+      <div v-if="stopError" class="slot-error-msg">File not found: {{ stopError }}</div>
     </div>
 
   </div>
@@ -188,6 +257,17 @@ function clearStop(e: MouseEvent): void {
   border-color: var(--color-accent);
 }
 
+/* Error state — red tint border + background */
+.slot-preview-error {
+  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-bg-surface));
+}
+
+.slot-preview-error:focus-visible {
+  border-color: var(--color-danger);
+  outline: 1px solid var(--color-danger);
+}
+
 .preview-img {
   width: 100%;
   height: 100%;
@@ -209,6 +289,26 @@ function clearStop(e: MouseEvent): void {
   color: var(--color-text-dim);
   text-align: center;
   line-height: 1.4;
+}
+
+.preview-error-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-error-icon {
+  font-size: 22px;
+  color: var(--color-danger);
+}
+
+.slot-error-msg {
+  font-size: 11px;
+  color: var(--color-danger);
+  line-height: 1.3;
+  word-break: break-all;
 }
 
 /* Hover overlay shown on top of images */

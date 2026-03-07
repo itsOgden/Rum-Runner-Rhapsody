@@ -4,6 +4,7 @@ import { useSettings } from './composables/useSettings'
 import { useAudioDevices } from './composables/useAudioDevices'
 import { useAudioPlayer } from './composables/useAudioPlayer'
 import { useSoundManagement } from './composables/useSoundManagement'
+import { useStreamDeckImageErrors } from './composables/useStreamDeckImageErrors'
 import { filterQuery } from './filterState'
 import appIcon from '../app-icon.png'
 import TitleBar from './components/TitleBar.vue'
@@ -19,6 +20,14 @@ const { settings, loadSettings, onFolderChanged } = useSettings()
 const { refreshDevices } = useAudioDevices()
 const { playSound, stopAll } = useAudioPlayer()
 const { resetSessionState } = useSoundManagement()
+const { scanAll } = useStreamDeckImageErrors()
+
+// Re-scan broken images whenever the image settings change (covers picks, clears, and folder switches).
+watch(
+  () => [settings.value.streamDeckDefaultImages, settings.value.categoryStreamDeckImages],
+  () => scanAll(settings.value),
+  { deep: true }
+)
 
 const hasSoundFolder = computed(() => !!settings.value.soundFolder)
 
@@ -48,6 +57,7 @@ async function handleChooseFolder() {
 onMounted(async () => {
   await loadSettings()
   await refreshDevices()
+  await scanAll(settings.value)
   document.addEventListener('keydown', handleKeydown)
 
   window.api.onWsPlaySound(async ({ key }) => {

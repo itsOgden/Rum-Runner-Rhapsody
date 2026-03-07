@@ -124,7 +124,7 @@ function handleExternalLink(e: MouseEvent) {
 <style scoped>
 /* ---- Tab list (left panel) ---- */
 .tab-list {
-  width: 120px;
+  width: 140px;
   flex-shrink: 0;
   background: var(--color-bg-surface);
   border-right: 1px solid var(--color-border);

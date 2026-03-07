@@ -2,10 +2,19 @@
 import { ref, watch, computed } from 'vue'
 import { useSettings } from '../composables/useSettings'
 import { settingsModalOpen } from '../modalState'
+import { useStreamDeckImageErrors } from '../composables/useStreamDeckImageErrors'
 import BaseModal from './BaseModal.vue'
 import StreamDeckImagePicker from './StreamDeckImagePicker.vue'
 
 const { settings, saveSettings } = useSettings()
+const { brokenSources } = useStreamDeckImageErrors()
+
+// Track errors reported by the picker while the Stream Deck tab is open.
+// Fall back to the global scan so the icon is also visible before the tab is visited.
+const pickerErrorCount = ref(0)
+const hasStreamDeckErrors = computed(() =>
+  pickerErrorCount.value > 0 || brokenSources.value.includes('Default')
+)
 
 type Tab = 'app' | 'playback' | 'streamdeck'
 const activeTab = ref<Tab>('app')
@@ -172,7 +181,7 @@ async function handleInstallPlugin(): Promise<void> {
               :class="{ 'tab-btn-active': activeTab === tab.id }"
               @click="activeTab = tab.id"
             >
-              {{ tab.label }}
+              {{ tab.label }}<span v-if="tab.id === 'streamdeck' && hasStreamDeckErrors" class="tab-error-badge">⚠</span>
             </button>
           </nav>
 
@@ -350,6 +359,7 @@ async function handleInstallPlugin(): Promise<void> {
                     @update:idle-path="onDefaultIdleChange"
                     @update:playing-path="onDefaultPlayingChange"
                     @update:stop-path="onDefaultStopChange"
+                    @errors="n => pickerErrorCount = n"
                   />
                 </div>
               </div>
@@ -363,7 +373,7 @@ async function handleInstallPlugin(): Promise<void> {
 <style scoped>
 /* ---- Tab list (left panel) ---- */
 .tab-list {
-  width: 120px;
+  width: 140px;
   flex-shrink: 0;
   background: var(--color-bg-surface);
   border-right: 1px solid var(--color-border);
@@ -506,6 +516,15 @@ async function handleInstallPlugin(): Promise<void> {
   cursor: pointer;
 }
 .modal-select:focus { border-color: var(--color-accent); }
+
+/* ---- Tab error badge ---- */
+.tab-error-badge {
+  font-size: 10px;
+  color: var(--color-danger);
+  margin-left: 4px;
+  line-height: 1;
+  vertical-align: middle;
+}
 
 /* ---- Plugin install button states ---- */
 .plugin-btn-muted {

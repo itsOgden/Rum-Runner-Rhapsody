@@ -249,7 +249,7 @@ watch(navSections, () => nextTick(updateActiveSection))
 /* ── Category quick-nav sidebar ─────────────────────────────────────────── */
 
 .category-nav {
-  width: 90px;
+  width: 110px;
   flex-shrink: 0;
   padding: 16px 4px 16px 6px;
   border-right: 1px solid var(--color-border);

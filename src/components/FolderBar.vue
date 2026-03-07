@@ -2,6 +2,7 @@
 import { useSettings } from '../composables/useSettings'
 import { useAudioDevices } from '../composables/useAudioDevices'
 import { useSoundManagement } from '../composables/useSoundManagement'
+import { useStreamDeckImageErrors } from '../composables/useStreamDeckImageErrors'
 import { filterQuery } from '../filterState'
 import SquareButton from '@/components/SquareButton.vue'
 import CircleButton from '@/components/CircleButton.vue'
@@ -10,6 +11,7 @@ import Icon from '@/components/Icon.vue'
 const { settings, onFolderChanged, saveSettings, loadSounds } = useSettings()
 const { refreshDevices } = useAudioDevices()
 const { showHidden, resetSessionState } = useSoundManagement()
+const { scanAll } = useStreamDeckImageErrors()
 
 function toggleShowHidden() {
   showHidden.value = !showHidden.value
@@ -27,6 +29,7 @@ async function handleBrowse() {
 async function handleRefresh() {
   await refreshDevices()
   await loadSounds()
+  await scanAll(settings.value)
 }
 
 function toggleDensity() {

@@ -4,6 +4,7 @@ import BaseModal from './BaseModal.vue'
 import StreamDeckImagePicker from './StreamDeckImagePicker.vue'
 import { useSoundManagement } from '../composables/useSoundManagement'
 import { useSettings } from '../composables/useSettings'
+import { useStreamDeckImageErrors } from '../composables/useStreamDeckImageErrors'
 import type { SoundSection } from '../types'
 
 const props = defineProps<{
@@ -17,6 +18,15 @@ const emit = defineEmits<{
 
 const { renameCategory, deleteCategory, hideSection, unhideSection, restoreSection } = useSoundManagement()
 const { settings, saveSettings } = useSettings()
+const { brokenSources } = useStreamDeckImageErrors()
+
+// Track errors reported by the picker while the Stream Deck tab is open.
+// Fall back to the global scan (brokenSources) so the icon is also visible
+// before the user has visited the tab in this session.
+const pickerErrorCount = ref(0)
+const hasStreamDeckErrors = computed(() =>
+  pickerErrorCount.value > 0 || brokenSources.value.includes(props.section.displayName)
+)
 
 type Tab = 'general' | 'streamdeck'
 const activeTab = ref<Tab>('general')
@@ -127,7 +137,7 @@ function onPlayingImageChange(path: string | null): void {
           :class="{ 'tab-btn-active': activeTab === tab.id }"
           @click="activeTab = tab.id"
         >
-          {{ tab.label }}
+          {{ tab.label }}<span v-if="tab.id === 'streamdeck' && hasStreamDeckErrors" class="tab-error-badge">⚠</span>
         </button>
       </nav>
 
@@ -187,6 +197,7 @@ function onPlayingImageChange(path: string | null): void {
               :default-playing-path="null"
               @update:idle-path="onIdleImageChange"
               @update:playing-path="onPlayingImageChange"
+              @errors="n => pickerErrorCount = n"
             />
           </div>
         </div>
@@ -205,7 +216,7 @@ function onPlayingImageChange(path: string | null): void {
 <style scoped>
 /* ---- Tab list (left panel) ---- */
 .tab-list {
-  width: 120px;
+  width: 140px;
   flex-shrink: 0;
   background: var(--color-bg-surface);
   border-right: 1px solid var(--color-border);
@@ -307,6 +318,15 @@ function onPlayingImageChange(path: string | null): void {
 }
 .modal-input:focus { border-color: var(--color-accent); }
 .name-input { width: 160px; }
+
+/* ---- Tab error badge ---- */
+.tab-error-badge {
+  font-size: 10px;
+  color: var(--color-danger);
+  margin-left: 4px;
+  line-height: 1;
+  vertical-align: middle;
+}
 
 /* ---- Toggle switch ---- */
 .toggle { position: relative; width: 36px; height: 20px; cursor: pointer; display: inline-block; }
