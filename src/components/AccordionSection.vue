@@ -237,7 +237,7 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
           @dragover="onSoundWrapperDragOver($event, index)"
         >
           <SoundButton
-            :sound="sound"
+            :sound="sound" :density="density"
             :section-id="section.id"
             :animation-delay="index * 25"
           />

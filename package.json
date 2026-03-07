@@ -10,7 +10,8 @@
     "build": "pnpm --filter @rrr/streamdeck build && vue-tsc --noEmit && vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win portable",
     "build:installer": "vue-tsc --noEmit && vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis",
     "streamdeck:dev": "pnpm --filter @rrr/streamdeck build && streamdeck restart com.pdog1.rum-runner-rhapsody",
-    "streamdeck:unlink": "streamdeck unlink com.pdog1.rum-runner-rhapsody"
+    "streamdeck:link": "streamdeck link packages/rrr-streamdeck/com.pdog1.rum-runner-rhapsody.sdPlugin",
+    "streamdeck:unlink": "streamdeck unlink packages/rrr-streamdeck/com.pdog1.rum-runner-rhapsody.sdPlugin"
   },
   "license": "MIT",
   "dependencies": {

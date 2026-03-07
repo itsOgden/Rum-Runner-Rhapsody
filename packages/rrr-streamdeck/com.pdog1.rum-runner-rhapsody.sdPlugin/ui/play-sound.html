@@ -271,12 +271,14 @@
 
     <script>
         let _buttonMode = true;
+        let _categoryStreamDeckImages = {};
 
         let _ws = null;
         let _uuid = null;
         let _action = null;
         let _currentSettings = {};
         let _retryInterval = null;
+        let _catImageRow = null; // DOM node when present, null when removed
 
         // Show state-connecting on load without waiting for the websocket.
         setState("connecting");
@@ -309,6 +311,7 @@
                     _currentSettings = msg.payload?.settings ?? {};
                     document.getElementById("showCategory").checked = !!_currentSettings.showCategory;
                     updateToggleVisual(!!_currentSettings.showCategory);
+                    updateCategoryImageToggle();
                 }
             };
         };
@@ -396,6 +399,7 @@
             const opt = document.createElement("option");
             opt.value = sound.key;
             opt.textContent = sound.displayName;
+            opt.dataset.categoryId = sound.categoryId || "";
             if (sound.key === savedKey) opt.selected = true;
             return opt;
         }
@@ -444,7 +448,7 @@
                     btn.title = s.displayName;
                     btn.dataset.key = s.key;
                     btn.dataset.name = s.displayName;
-                    btn.addEventListener("click", () => selectSound(s.key, s.displayName, s.category));
+                    btn.addEventListener("click", () => selectSound(s.key, s.displayName, s.category, s.categoryId || ""));
                     row.appendChild(btn);
                 }
 
@@ -452,15 +456,15 @@
             }
         }
 
-        function selectSound(soundKey, soundName, soundCategory) {
+        function selectSound(soundKey, soundName, soundCategory, soundCategoryId) {
             // Update highlight
             document.querySelectorAll(".sound-btn").forEach(btn => {
                 btn.classList.toggle("selected", btn.dataset.key === soundKey);
             });
-            // Save settings
-            const newSettings = { ..._currentSettings, soundKey, soundName, soundCategory };
+            const newSettings = { ..._currentSettings, soundKey, soundName, soundCategory, soundCategoryId };
             setSettings(newSettings);
             _currentSettings = newSettings;
+            updateCategoryImageToggle();
         }
 
         function handlePluginMessage(payload) {
@@ -479,6 +483,9 @@
             if (typeof payload.buttonMode !== "undefined") {
                 _buttonMode = payload.buttonMode;
             }
+            if (typeof payload.categoryStreamDeckImages !== "undefined") {
+                _categoryStreamDeckImages = payload.categoryStreamDeckImages;
+            }
 
             // connected: true, folderSelected: false → no folder selected
             // connected: true, folderSelected: true → ready
@@ -488,6 +495,7 @@
                 setState("no-folder");
             } else {
                 populateSounds(payload.sounds);
+                updateCategoryImageToggle();
             }
         }
 
@@ -495,9 +503,11 @@
             const soundKey = e.target.value;
             const opt = e.target.options[e.target.selectedIndex];
             const soundName = opt?.textContent ?? "";
-            const newSettings = { ..._currentSettings, soundKey, soundName };
+            const soundCategoryId = opt?.dataset?.categoryId ?? "";
+            const newSettings = { ..._currentSettings, soundKey, soundName, soundCategoryId };
             setSettings(newSettings);
             _currentSettings = newSettings;
+            updateCategoryImageToggle();
         });
 
         document.getElementById("showCategory").addEventListener("change", (e) => {
@@ -519,6 +529,97 @@
             updateToggleVisual(cb.checked);
             cb.dispatchEvent(new Event('change'));
         });
+
+        function createCategoryImageRow() {
+            const row = document.createElement("div");
+            row.id = "use-category-image-row";
+            row.style.cssText = "display:flex; align-items:center; gap:10px; cursor:pointer;";
+
+            const toggle = document.createElement("div");
+            toggle.style.cssText = "position:relative; width:36px; height:20px; cursor:pointer; flex-shrink:0;";
+
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.id = "useCategoryImage";
+            cb.style.cssText = "opacity:0; width:0; height:0; position:absolute;";
+
+            const track = document.createElement("span");
+            track.id = "cat-img-toggle-track";
+            track.style.cssText = "position:absolute; inset:0; border-radius:10px; background:#3a3a3a; transition: background 0.2s;";
+
+            const thumb = document.createElement("span");
+            thumb.id = "cat-img-toggle-thumb";
+            thumb.style.cssText = "position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:50%; background:#a09a8f; transition: transform 0.2s, background 0.2s;";
+
+            toggle.appendChild(cb);
+            toggle.appendChild(track);
+            toggle.appendChild(thumb);
+
+            const label = document.createElement("span");
+            label.style.cssText = "font-size:12px; color:#a09a8f; user-select:none;";
+            label.textContent = "Use Category Image";
+
+            row.appendChild(toggle);
+            row.appendChild(label);
+
+            cb.addEventListener("change", (e) => {
+                const useCategoryImage = e.target.checked;
+                updateCatImageToggleVisual(useCategoryImage);
+                const newSettings = { ..._currentSettings, useCategoryImage };
+                setSettings(newSettings);
+                _currentSettings = newSettings;
+            });
+
+            row.addEventListener("click", (e) => {
+                if (e.target === cb) return;
+                cb.checked = !cb.checked;
+                updateCatImageToggleVisual(cb.checked);
+                cb.dispatchEvent(new Event("change"));
+            });
+
+            return row;
+        }
+
+        function updateCatImageToggleVisual(checked) {
+            const track = document.getElementById("cat-img-toggle-track");
+            const thumb = document.getElementById("cat-img-toggle-thumb");
+            if (!track || !thumb) return;
+            track.style.background = checked ? "#F5A800" : "#3a3a3a";
+            thumb.style.background = checked ? "#ffffff" : "#a09a8f";
+            thumb.style.transform = checked ? "translateX(16px)" : "translateX(0)";
+        }
+
+        function updateCategoryImageToggle() {
+            const catId = _currentSettings.soundCategoryId;
+            const hasImages = catId && _categoryStreamDeckImages[catId]?.idle;
+
+            if (hasImages) {
+                if (!_catImageRow) {
+                    _catImageRow = createCategoryImageRow();
+                    // Insert before the "Show Category in Title" row
+                    const showCatRow = document.getElementById("show-category-row");
+                    showCatRow.parentNode.insertBefore(_catImageRow, showCatRow);
+                }
+                // Sync checkbox state with current settings
+                const cb = document.getElementById("useCategoryImage");
+                if (cb) {
+                    const on = _currentSettings.useCategoryImage !== false;
+                    cb.checked = on;
+                    updateCatImageToggleVisual(on);
+                }
+            } else {
+                if (_catImageRow) {
+                    _catImageRow.remove();
+                    _catImageRow = null;
+                    // Clear the toggle setting if category no longer has images
+                    if (_currentSettings.useCategoryImage) {
+                        const newSettings = { ..._currentSettings, useCategoryImage: false };
+                        setSettings(newSettings);
+                        _currentSettings = newSettings;
+                    }
+                }
+            }
+        }
     </script>
 </body>
 

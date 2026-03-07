@@ -1,18 +1,24 @@
 import streamDeck, { action, DidReceiveSettingsEvent, KeyAction, KeyDownEvent, PropertyInspectorDidAppearEvent, SendToPluginEvent, SingletonAction, WillAppearEvent, WillDisappearEvent } from "@elgato/streamdeck";
 import { rrrClient } from "../rrr-client";
+import { readFileSync } from "fs";
 
 type PlaySoundSettings = {
 	soundKey?: string;
 	soundName?: string;
 	soundCategory?: string;
+	soundCategoryId?: string;
 	showCategory?: boolean;
+	useCategoryImage?: boolean;
 };
 
 type SoundItem = {
 	key: string;
 	displayName: string;
 	category: string;
+	categoryId?: string;
 };
+
+type CategoryImages = { idle?: string; playing?: string };
 
 // stateReady is only true after we've received a sounds-list from RRR.
 // This prevents the PI from briefly seeing "no folder" during the window
@@ -21,11 +27,41 @@ let stateReady = false;
 let currentSounds: SoundItem[] = [];
 let folderSelected = false;
 let buttonMode = true;
+let categoryStreamDeckImages: Record<string, CategoryImages> = {};
 
-// Playing state tracking — used to flip button images via setState()
+// Playing state tracking — used to flip button images
 const currentlyPlaying = new Set<string>();
-type ActionEntry = { action: KeyAction<PlaySoundSettings>; soundKey: string };
+type ActionEntry = { action: KeyAction<PlaySoundSettings>; soundKey: string; settings: PlaySoundSettings };
 const activeActions = new Map<string, ActionEntry>();
+
+function getCategoryImages(settings: PlaySoundSettings): CategoryImages | null {
+	const id = settings.soundCategoryId;
+	if (!id) return null;
+	const entry = categoryStreamDeckImages[id];
+	if (!entry?.idle) return null;
+	return entry;
+}
+
+async function applyKeyImage(keyAction: KeyAction<PlaySoundSettings>, settings: PlaySoundSettings, isPlaying: boolean): Promise<void> {
+	const catImages = settings.useCategoryImage !== false ? getCategoryImages(settings) : null;
+	if (catImages) {
+		const imgPath = isPlaying && catImages.playing ? catImages.playing : catImages.idle!;
+		try {
+			const data = readFileSync(imgPath);
+			const ext = imgPath.split(".").pop()?.toLowerCase();
+			const mime = ext === "png" ? "image/png" : "image/jpeg";
+			await keyAction.setImage(`data:${mime};base64,${data.toString("base64")}`);
+			return;
+		} catch {
+			// Image unreadable — fall through to state-based image
+		}
+	}
+	// No custom image, load failed, or useCategoryImage is off/undefined/stale —
+	// clear any previously set custom image then render the built-in state image.
+	// setImage("") is always attempted so a leftover custom image never persists.
+	try { await keyAction.setImage(""); } catch {}
+	try { await keyAction.setState(isPlaying ? 1 : 0); } catch {}
+}
 
 function pushState(): void {
 	streamDeck.ui.sendToPropertyInspector({
@@ -34,47 +70,61 @@ function pushState(): void {
 		folderSelected,
 		sounds: currentSounds,
 		buttonMode,
+		categoryStreamDeckImages,
 	});
 }
 
 rrrClient.on("connected", () => {
 	// Don't mark state as ready yet — wait for sounds-list to arrive.
 	stateReady = false;
+	// Proactively request fresh state so we don't miss updates that were
+	// broadcast while the connection was down.
+	rrrClient.send({ type: "get-sounds" });
 });
 
 rrrClient.on("disconnected", () => {
 	stateReady = false;
 	currentSounds = [];
 	folderSelected = false;
+	categoryStreamDeckImages = {};
 	pushState();
 });
 
-rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean; playingKeys?: string[]; buttonMode?: boolean }) => {
+rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean; playingKeys?: string[]; buttonMode?: boolean; categoryStreamDeckImages?: Record<string, CategoryImages> }) => {
 	if (data.type === "sounds-list" || data.type === "sounds-updated") {
 		currentSounds = data.sounds ?? [];
 		folderSelected = data.folderSelected !== false;
 		if (data.buttonMode !== undefined) buttonMode = data.buttonMode;
+		categoryStreamDeckImages = data.categoryStreamDeckImages ?? {};
 		stateReady = true;
 		pushState();
+		// Refresh all active action images in case category images changed
+		for (const { action, soundKey, settings } of activeActions.values()) {
+			applyKeyImage(action, settings, soundKey ? currentlyPlaying.has(soundKey) : false).catch(() => {});
+		}
 	} else if (data.type === "folder-status") {
 		currentSounds = [];
 		folderSelected = false;
+		categoryStreamDeckImages = {};
 		stateReady = true;
 		pushState();
+		for (const { action, soundKey, settings } of activeActions.values()) {
+			applyKeyImage(action, settings, soundKey ? currentlyPlaying.has(soundKey) : false).catch(() => {});
+		}
 	} else if (data.type === "playing-status") {
 		currentlyPlaying.clear();
 		for (const key of (data.playingKeys ?? [])) currentlyPlaying.add(key);
-		for (const { action, soundKey } of activeActions.values()) {
+		for (const { action, soundKey, settings } of activeActions.values()) {
 			if (soundKey && currentlyPlaying.has(soundKey)) {
-				action.setState(1).catch(() => {});
+				applyKeyImage(action, settings, true).catch(() => {});
 			} else {
-				// Delay setState(0) and re-check at fire time to prevent flicker
-				// when a playing-status update arrives in quick succession.
+				// Delay and re-check to prevent flicker on rapid successive updates
 				const capturedKey = soundKey;
+				const capturedAction = action;
+				const capturedSettings = settings;
 				setTimeout(() => {
-					const newState = capturedKey && currentlyPlaying.has(capturedKey) ? 1 : 0;
-					console.log('[SD] setState', newState, 'for key:', capturedKey, 'playingKeys:', Array.from(currentlyPlaying));
-					action.setState(newState).catch(() => {});
+					const isPlaying = !!(capturedKey && currentlyPlaying.has(capturedKey));
+					applyKeyImage(capturedAction, capturedSettings, isPlaying).catch(() => {});
 				}, 75);
 			}
 		}
@@ -130,10 +180,11 @@ function formatTitle(category: string, name: string, showCategory: boolean = fal
 @action({ UUID: "com.pdog1.rum-runner-rhapsody.playsound" })
 export class PlaySound extends SingletonAction<PlaySoundSettings> {
 	override async onWillAppear(ev: WillAppearEvent<PlaySoundSettings>): Promise<void> {
-		const { soundName, soundKey, soundCategory, showCategory } = ev.payload.settings;
+		const settings = ev.payload.settings;
+		const { soundName, soundKey, soundCategory, showCategory } = settings;
 		const keyAction = ev.action as KeyAction<PlaySoundSettings>;
-		activeActions.set(ev.action.id, { action: keyAction, soundKey: soundKey ?? "" });
-		await keyAction.setState(soundKey && currentlyPlaying.has(soundKey) ? 1 : 0);
+		activeActions.set(ev.action.id, { action: keyAction, soundKey: soundKey ?? "", settings });
+		await applyKeyImage(keyAction, settings, !!(soundKey && currentlyPlaying.has(soundKey))).catch(() => {});
 		await ev.action.setTitle(formatTitle(soundCategory || "", soundName || soundKey || "", showCategory ?? false));
 	}
 
@@ -142,19 +193,28 @@ export class PlaySound extends SingletonAction<PlaySoundSettings> {
 	}
 
 	override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<PlaySoundSettings>): Promise<void> {
-		const { soundName, soundKey, soundCategory, showCategory } = ev.payload.settings;
+		let settings = ev.payload.settings;
+		const { soundName, soundKey, soundCategory, showCategory } = settings;
 		const entry = activeActions.get(ev.action.id);
-		if (entry) entry.soundKey = soundKey ?? "";
+		if (entry) {
+			entry.soundKey = soundKey ?? "";
+			entry.settings = settings;
+		}
+		const keyAction = ev.action as KeyAction<PlaySoundSettings>;
+		const isPlaying = !!(soundKey && currentlyPlaying.has(soundKey));
+		// Run both independently — a failure in applyKeyImage must not prevent the title update
+		await applyKeyImage(keyAction, settings, isPlaying).catch(() => {});
 		await ev.action.setTitle(formatTitle(soundCategory || "", soundName || soundKey || "", showCategory ?? false));
 	}
 
 	override async onKeyDown(ev: KeyDownEvent<PlaySoundSettings>): Promise<void> {
-		const { soundKey } = ev.payload.settings;
+		const settings = ev.payload.settings;
+		const { soundKey } = settings;
 		if (!soundKey) return;
 		rrrClient.send({ type: "play-sound", key: soundKey });
 		// Prevent Stream Deck's auto-toggle by immediately setting correct state.
 		// The playing-status broadcast from RRR will update this properly once it arrives.
-		await ev.action.setState(currentlyPlaying.has(soundKey) ? 1 : 0);
+		await applyKeyImage(ev.action as KeyAction<PlaySoundSettings>, settings, currentlyPlaying.has(soundKey));
 	}
 
 	override onPropertyInspectorDidAppear(_ev: PropertyInspectorDidAppearEvent<PlaySoundSettings>): void {

@@ -99,7 +99,7 @@ const sections = computed<SoundSection[]>(() => buildSections())
         v-for="section in sections"
         :key="section.id"
         :class="{
-          'outline outline-2 outline-accent rounded-sm': dragOverSectionId === section.id && draggingSection?.id !== section.id,
+          'outline-2 outline-accent rounded-sm': dragOverSectionId === section.id && draggingSection?.id !== section.id,
           'opacity-50': draggingSection?.id === section.id,
         }"
         @dragover="onSectionWrapperDragOver($event, section.id)"

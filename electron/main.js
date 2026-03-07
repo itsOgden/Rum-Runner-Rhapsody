@@ -344,7 +344,7 @@ function buildWsSoundList() {
     });
   }
 
-  // Flatten to the { key, displayName, category } shape expected by the PI
+  // Flatten to the { key, displayName, category, categoryId } shape expected by the PI
   const result = [];
   for (const section of sections) {
     for (const sound of section.sounds) {
@@ -352,6 +352,7 @@ function buildWsSoundList() {
         key: sound.key,
         displayName: sound.name,
         category: section.displayName,
+        categoryId: section.id,
       });
     }
   }
@@ -380,7 +381,7 @@ function startWebSocketServer() {
   wss.on("connection", (ws) => {
     const folder = globalSettings.soundFolder;
     if (folder) {
-      ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode }));
+      ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {} }));
     } else {
       ws.send(JSON.stringify({ type: "folder-status", folderSelected: false }));
     }
@@ -392,7 +393,7 @@ function startWebSocketServer() {
       if (msg.type === "get-sounds") {
         const folder = globalSettings.soundFolder;
         if (folder) {
-          ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode }));
+          ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {} }));
         } else {
           ws.send(JSON.stringify({ type: "folder-status", folderSelected: false }));
         }
@@ -571,14 +572,14 @@ ipcMain.handle("save-settings", (_event, newSettings) => {
     applyAutoStart(newSettings.autoStart);
   }
   if (hasFolderKeys || "streamDeckButtonMode" in newSettings) {
-    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode });
+    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {} });
   }
   return { ...globalSettings, ...folderSettings };
 });
 
 ipcMain.handle("get-sounds", () => {
   const groups = discoverSounds(globalSettings.soundFolder);
-  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode });
+  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {} });
   return groups;
 });
 
@@ -606,7 +607,7 @@ ipcMain.handle("pick-folder", async () => {
   folderSettings = loadFolderSettings(newFolder);
 
   // Notify connected Stream Deck clients that the folder and sounds have changed.
-  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode });
+  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {} });
 
   return { folder: newFolder, folderSettings: { ...folderSettings } };
 });

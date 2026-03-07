@@ -25,7 +25,8 @@
       "Bash(cd \"N:/Repositories/Personal/Rum-Runner Rhapsody/packages/rrr-streamdeck\" && pnpm run build 2>&1)",
       "Bash(node:*)",
       "Bash(pnpm build:*)",
-      "Bash(pnpm remove:*)"
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm:*)"
     ]
   },
   "model": "sonnet"

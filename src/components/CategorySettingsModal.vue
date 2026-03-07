@@ -81,7 +81,14 @@ const idleImagePath = computed(() => imageEntry.value.idle || null)
 const playingImagePath = computed(() => imageEntry.value.playing || null)
 
 function saveImages(idle: string | null, playing: string | null): void {
-  const map = { ...(settings.value.categoryStreamDeckImages || {}) }
+  // Spread each entry value individually to produce fully plain objects — the values
+  // inside settings.value.categoryStreamDeckImages are reactive Proxies and cannot
+  // be serialized by Electron IPC (Structured Clone), so a shallow top-level spread
+  // is not enough.
+  const map: Record<string, { idle?: string; playing?: string }> = {}
+  for (const [k, v] of Object.entries(settings.value.categoryStreamDeckImages || {})) {
+    map[k] = { ...v }
+  }
   if (!idle && !playing) {
     delete map[props.section.id]
   } else {
@@ -159,6 +166,13 @@ function onPlayingImageChange(path: string | null): void {
             </div>
             <p class="settings-description">Hidden categories are not shown in the sound list</p>
           </div>
+
+          <div v-if="!section.isCustom" class="settings-section">
+            <hr class="section-divider" />
+            <div class="flex justify-end mt-3">
+              <button class="btn" @click="handleRestore">Restore defaults</button>
+            </div>
+          </div>
         </div>
 
         <!-- ── STREAM DECK tab ── -->
@@ -180,18 +194,9 @@ function onPlayingImageChange(path: string | null): void {
       </div>
     </div>
 
-    <!-- ── Footer: destructive / major action ── -->
-    <div class="modal-footer flex justify-end">
-      <button
-        v-if="!section.isCustom"
-        class="btn"
-        @click="handleRestore"
-      >Restore defaults</button>
-      <button
-        v-if="section.isCustom"
-        class="btn btn-danger"
-        @click="handleDelete"
-      >Delete category</button>
+    <!-- ── Footer: destructive action (custom categories only) ── -->
+    <div v-if="section.isCustom" class="modal-footer flex justify-end">
+      <button class="btn btn-danger" @click="handleDelete">Delete category</button>
     </div>
 
   </BaseModal>
@@ -281,6 +286,12 @@ function onPlayingImageChange(path: string | null): void {
 .modal-footer {
   padding: 12px 20px;
   border-top: 1px solid var(--color-border);
+}
+
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 0;
 }
 
 /* ---- Name input ---- */

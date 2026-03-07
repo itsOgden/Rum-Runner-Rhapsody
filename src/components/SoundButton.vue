@@ -17,6 +17,7 @@ import { CLIP_VOLUME_MAX_DB, setClipVolumeOffset } from '../composables/useAudio
 const props = defineProps<{
   sound: Sound
   sectionId?: string
+  density?: string
   animationDelay?: number
 }>()
 
@@ -24,6 +25,7 @@ const { playSound, playingPaths, previewSound, stopPreview, previewingPath } = u
 const { hideSound, restoreSound, moveSound, resetSound, getSoundCategory, getAvailableCategories, renameSound } = useSoundManagement()
 const { settings, saveSettings } = useSettings()
 
+const compact = computed(() => props.density === 'compact')
 const playCount = computed(() => settings.value.playCounts?.[props.sound.key] ?? 0)
 const playCountLabel = computed(() => {
   if (playCount.value === 0) return 'Never played'
@@ -213,13 +215,14 @@ function resetVolumeOffset(): void {
     <button
       v-else
       draggable="true"
-      class="relative w-full h-full bg-bg-raised border rounded-md px-3.5 py-4.5 font-sans text-[13px] font-medium cursor-pointer text-center break-words transition-all duration-[120ms] outline-none overflow-hidden hover:-translate-y-px hover:border-accent-dim hover:shadow-md active:translate-y-0 active:bg-bg-surface-active"
+      class="relative w-full h-full bg-bg-raised border rounded-md font-sans text-[13px] font-medium cursor-pointer text-center wrap-break-word transition-all duration-120 outline-none overflow-hidden hover:-translate-y-px hover:border-accent-dim hover:shadow-md active:translate-y-0 active:bg-bg-surface-active"
       :class="[
         isPlaying
           ? 'border-accent shadow-[0_0_20px_var(--color-accent-glow)] sound-btn-playing text-text-primary'
           : 'border-border text-text-primary',
         sound.isHidden ? 'opacity-40' : '',
         isDragging ? 'opacity-50' : '',
+        compact ? 'py-2.5 px-2 min-h-12' : 'px-3.5 py-4.5'
       ]"
       @click="handleClick"
       @dragstart="onDragStart"
