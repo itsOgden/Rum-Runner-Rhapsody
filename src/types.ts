@@ -75,7 +75,7 @@ export interface GlobalSettings extends FolderSettings {
   playbackMode: 'overlap' | 'restart' | 'stop'
   normalize: boolean
   streamDeckButtonMode: boolean
-  streamDeckDefaultImages: { idle?: string; playing?: string }
+  streamDeckDefaultImages: { idle?: string; playing?: string; stop?: string }
   closeToTray: boolean
   autoStart: boolean
   launchMinimized: boolean

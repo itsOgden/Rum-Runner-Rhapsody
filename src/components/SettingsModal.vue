@@ -107,21 +107,27 @@ function setTheme(e: Event) {
 
 const defaultIdlePath = computed(() => settings.value.streamDeckDefaultImages?.idle || null)
 const defaultPlayingPath = computed(() => settings.value.streamDeckDefaultImages?.playing || null)
+const defaultStopPath = computed(() => settings.value.streamDeckDefaultImages?.stop || null)
 
-function saveDefaultImages(idle: string | null, playing: string | null): void {
-  const entry: { idle?: string; playing?: string } = {}
+function saveDefaultImages(idle: string | null, playing: string | null, stop: string | null): void {
+  const entry: { idle?: string; playing?: string; stop?: string } = {}
   if (idle) entry.idle = idle
   if (playing) entry.playing = playing
+  if (stop) entry.stop = stop
   settings.value.streamDeckDefaultImages = entry
   saveSettings({ streamDeckDefaultImages: { ...entry } })
 }
 
 function onDefaultIdleChange(path: string | null): void {
-  saveDefaultImages(path, path ? defaultPlayingPath.value : null)
+  saveDefaultImages(path, path ? defaultPlayingPath.value : null, defaultStopPath.value)
 }
 
 function onDefaultPlayingChange(path: string | null): void {
-  saveDefaultImages(defaultIdlePath.value, path)
+  saveDefaultImages(defaultIdlePath.value, path, defaultStopPath.value)
+}
+
+function onDefaultStopChange(path: string | null): void {
+  saveDefaultImages(defaultIdlePath.value, defaultPlayingPath.value, path)
 }
 
 // ── Plugin install ──────────────────────────────────────────────────────────
@@ -320,10 +326,13 @@ async function handleInstallPlugin(): Promise<void> {
                   <StreamDeckImagePicker
                     :idle-path="defaultIdlePath"
                     :playing-path="defaultPlayingPath"
+                    :stop-path="defaultStopPath"
                     :default-idle-path="null"
                     :default-playing-path="null"
+                    :default-stop-path="null"
                     @update:idle-path="onDefaultIdleChange"
                     @update:playing-path="onDefaultPlayingChange"
+                    @update:stop-path="onDefaultStopChange"
                   />
                 </div>
               </div>

@@ -6,15 +6,19 @@ const props = defineProps<{
   playingPath: string | null
   defaultIdlePath: string | null
   defaultPlayingPath: string | null
+  stopPath?: string | null
+  defaultStopPath?: string | null
 }>()
 
 const emit = defineEmits<{
   'update:idlePath': [string | null]
   'update:playingPath': [string | null]
+  'update:stopPath': [string | null]
 }>()
 
 const previewIdle = ref<string | null>(null)
 const previewPlaying = ref<string | null>(null)
+const previewStop = ref<string | null>(null)
 
 async function loadBlobUrl(path: string | null): Promise<string | null> {
   if (!path) return null
@@ -45,9 +49,20 @@ watch(
   { immediate: true }
 )
 
+watch(
+  () => [props.stopPath ?? null, props.defaultStopPath ?? null] as const,
+  async ([path, fallback]) => {
+    const old = previewStop.value
+    previewStop.value = await loadBlobUrl(path ?? fallback)
+    if (old) URL.revokeObjectURL(old)
+  },
+  { immediate: true }
+)
+
 onUnmounted(() => {
   if (previewIdle.value) URL.revokeObjectURL(previewIdle.value)
   if (previewPlaying.value) URL.revokeObjectURL(previewPlaying.value)
+  if (previewStop.value) URL.revokeObjectURL(previewStop.value)
 })
 
 const playingDisabled = computed(() => !props.idlePath)
@@ -72,6 +87,16 @@ function clearIdle(e: MouseEvent): void {
 function clearPlaying(e: MouseEvent): void {
   e.stopPropagation()
   emit('update:playingPath', null)
+}
+
+async function pickStop(): Promise<void> {
+  const path = await window.api.pickImage()
+  if (path) emit('update:stopPath', path)
+}
+
+function clearStop(e: MouseEvent): void {
+  e.stopPropagation()
+  emit('update:stopPath', null)
 }
 </script>
 
@@ -104,6 +129,19 @@ function clearPlaying(e: MouseEvent): void {
       </div>
     </div>
 
+    <!-- Stop slot (optional — only rendered when stopPath prop is provided or explicitly null) -->
+    <div v-if="stopPath !== undefined || defaultStopPath !== undefined" class="slot">
+      <div class="slot-label">Stop</div>
+      <div class="slot-preview" role="button" tabindex="0" @click="pickStop" @keydown.enter="pickStop">
+        <img v-if="previewStop" :src="previewStop" class="preview-img" draggable="false" alt="" />
+        <div v-else class="preview-empty">
+          <span class="preview-empty-text">Select Icon</span>
+        </div>
+        <button v-if="stopPath" class="clear-btn" title="Clear override" @click="clearStop">×</button>
+        <div class="pick-overlay"><span>Change Icon</span></div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -111,7 +149,6 @@ function clearPlaying(e: MouseEvent): void {
 .picker {
   display: flex;
   gap: 20px;
-  max-width: 240px;
 }
 
 .slot {
