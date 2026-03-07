@@ -9,6 +9,10 @@ const showHidden = ref(false)
 // Signals which newly-created category should auto-enter rename mode
 const pendingRenameId = ref<string | null>(null)
 
+// Section IDs whose settings modal is currently open — kept in the rendered list
+// even when hidden so the modal component is not unmounted mid-interaction.
+const pinnedSectionIds = ref<Set<string>>(new Set())
+
 export function useSoundManagement() {
   const { settings, saveSettings, soundGroups } = useSettings()
 
@@ -301,7 +305,7 @@ export function useSoundManagement() {
     // Original folder sections (in discovery order)
     for (const group of soundGroups.value) {
       const isHidden = hiddenCategoriesSet.has(group.folderName)
-      if (!showing && isHidden) continue
+      if (!showing && isHidden && !pinnedSectionIds.value.has(group.folderName)) continue
 
       // Sounds originally in this group that haven't been moved away
       const nativeKeys = new Set(group.sounds.map(s => getSoundKey(s)))
@@ -337,7 +341,7 @@ export function useSoundManagement() {
     // Custom category sections (in creation order)
     for (const cat of customCats) {
       const isHidden = hiddenCategoriesSet.has(cat.id)
-      if (!showing && isHidden) continue
+      if (!showing && isHidden && !pinnedSectionIds.value.has(cat.id)) continue
 
       const sounds: Sound[] = Object.entries(sc)
         .filter(([, catId]) => catId === cat.id)
@@ -376,6 +380,7 @@ export function useSoundManagement() {
   return {
     showHidden,
     pendingRenameId,
+    pinnedSectionIds,
     resetSessionState,
     getAvailableCategories,
     getCategoryDisplayName,

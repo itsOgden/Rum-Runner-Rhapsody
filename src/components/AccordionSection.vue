@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import SoundButton from './SoundButton.vue'
 import Icon from '@/components/Icon.vue'
+import CategorySettingsModal from './CategorySettingsModal.vue'
 import { useSoundManagement } from '../composables/useSoundManagement'
-import { activeDropdownId } from '../dropdownState'
 import { draggingSound, draggingSection } from '../dragState'
 import type { SoundSection } from '../types'
 
@@ -14,15 +14,12 @@ const props = defineProps<{
 }>()
 
 const {
-  renameCategory,
-  deleteCategory,
+  showHidden,
   moveSound,
   isCollapsedSection,
   setCollapsedSection,
-  restoreSection,
-  hideSection,
-  unhideSection,
   pendingRenameId,
+  pinnedSectionIds,
   reorderSoundsInSection,
 } = useSoundManagement()
 
@@ -52,73 +49,21 @@ const visibleSounds = computed(() => {
   )
 })
 
-// ── Header ⋯ menu ───────────────────────────────────────────────────────────
+// ── Category settings modal ──────────────────────────────────────────────────
 
-const headerDropdownId = `section-${Math.random().toString(36).slice(2)}`
-const headerMenuOpen = ref(false)
-const headerMenuPos = ref({ x: 0, y: 0 })
+const categorySettingsOpen = ref(false)
 
-// Close when another dropdown opens
-watch(activeDropdownId, (id) => {
-  if (id !== headerDropdownId) headerMenuOpen.value = false
-})
-
-function openHeaderMenu(event: MouseEvent): void {
-  event.stopPropagation()
-  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-  headerMenuPos.value = { x: rect.right - 150, y: rect.bottom + 4 }
-  activeDropdownId.value = headerDropdownId
-  headerMenuOpen.value = true
-  const close = () => {
-    headerMenuOpen.value = false
-    document.removeEventListener('click', close)
+// While the modal is open, keep this section in the rendered list even if hidden,
+// so the modal component is not unmounted mid-interaction.
+watch(categorySettingsOpen, (open) => {
+  if (open) {
+    pinnedSectionIds.value = new Set([...pinnedSectionIds.value, props.section.id])
+  } else {
+    const next = new Set(pinnedSectionIds.value)
+    next.delete(props.section.id)
+    pinnedSectionIds.value = next
   }
-  document.addEventListener('click', close)
-}
-
-// ── Inline rename ───────────────────────────────────────────────────────────
-
-const isEditing = ref(false)
-const editingName = ref('')
-const renameInputEl = ref<HTMLInputElement | null>(null)
-
-function startRename(): void {
-  headerMenuOpen.value = false
-  editingName.value = props.section.displayName
-  isEditing.value = true
-  nextTick(() => renameInputEl.value?.select())
-}
-
-function confirmRename(): void {
-  if (editingName.value.trim()) renameCategory(props.section.id, editingName.value)
-  isEditing.value = false
-}
-
-function cancelRename(): void {
-  isEditing.value = false
-}
-
-// ── Section actions ─────────────────────────────────────────────────────────
-
-function handleDelete(): void {
-  headerMenuOpen.value = false
-  deleteCategory(props.section.id)
-}
-
-function handleRestoreSection(): void {
-  headerMenuOpen.value = false
-  restoreSection(props.section.id)
-}
-
-function handleHideSection(): void {
-  headerMenuOpen.value = false
-  hideSection(props.section.id)
-}
-
-function handleUnhideSection(): void {
-  headerMenuOpen.value = false
-  unhideSection(props.section.id)
-}
+})
 
 // ── Drag and drop ────────────────────────────────────────────────────────────
 
@@ -203,12 +148,12 @@ function onHeaderDragEnd(): void {
   draggingSection.value = null
 }
 
-// ── Auto-enter rename mode for newly-created categories ─────────────────────
+// ── Auto-open settings modal for newly-created categories ───────────────────
 
 onMounted(() => {
   if (pendingRenameId.value === props.section.id) {
     pendingRenameId.value = null
-    startRename()
+    categorySettingsOpen.value = true
   }
 })
 
@@ -217,10 +162,20 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
 
 <template>
   <!-- Always show sections with no filter active; hide only if filter produces no matches -->
+  <template v-if="!filter || visibleSounds.length > 0">
+
+  <!-- Modal lives outside v-show so Teleport keeps it visible even when section is hidden -->
+  <CategorySettingsModal
+    :open="categorySettingsOpen"
+    :section="section"
+    @close="categorySettingsOpen = false"
+  />
+
+  <!-- Section content: hidden when isHidden (unless showHidden is on); dimmed when shown-while-hidden -->
   <div
-    v-if="!filter || visibleSounds.length > 0"
+    v-show="!section.isHidden || showHidden"
     class="mb-3 transition-opacity"
-    :class="{ 'opacity-40': section.isHidden }"
+    :class="{ 'opacity-40': section.isHidden && showHidden }"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
@@ -245,71 +200,24 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
         :class="{ '-rotate-90': isCollapsed }"
       />
 
-      <!-- Title or rename input -->
-      <input
-        v-if="isEditing"
-        ref="renameInputEl"
-        v-model="editingName"
-        class="flex-1 bg-transparent text-[15px] text-accent font-display border-b border-accent outline-none"
-        @keydown.enter.prevent="confirmRename"
-        @keydown.escape.prevent="cancelRename"
-        @blur="confirmRename"
-        @click.stop
-        @dragstart.stop
-      />
-      <span v-else class="font-display text-[15px] text-accent flex-1">{{ section.displayName }}</span>
+      <!-- Title -->
+      <span class="font-display text-[15px] text-accent flex-1">{{ section.displayName }}</span>
 
       <span class="font-mono text-[11px] text-text-dim">{{ visibleSounds.length }}</span>
 
-      <!-- ⋯ button -->
-      <div class="relative" @click.stop @dragstart.stop>
-        <button
-          class="opacity-0 group-hover/hdr:opacity-100 text-text-secondary hover:text-text-primary px-1 leading-none transition-opacity"
-          @click="openHeaderMenu"
-          title="Category options"
-        ><Icon name="ellipsis-solid" /></button>
-      </div>
-    </div>
-
-    <!-- Header ⋯ menu (teleported to avoid overflow clipping) -->
-    <Teleport to="body">
+      <!-- Category settings button — collapses to zero width when not hovered -->
       <div
-        v-if="headerMenuOpen"
-        class="fixed bg-bg-raised border border-border rounded-md shadow-lg z-500 py-1 min-w-35"
-        :style="{ left: headerMenuPos.x + 'px', top: headerMenuPos.y + 'px' }"
+        class="w-0 overflow-hidden group-hover/hdr:w-4 transition-all duration-150 shrink-0"
         @click.stop
+        @dragstart.stop
       >
         <button
-          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
-          @click="startRename"
-        >Rename</button>
-
-        <!-- Hide / Unhide section (all sections) -->
-        <button
-          v-if="!section.isHidden"
-          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
-          @click="handleHideSection"
-        >Hide category</button>
-        <button
-          v-else
-          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary"
-          @click="handleUnhideSection"
-        >Unhide category</button>
-
-        <!-- Restore defaults — original folder sections only -->
-        <button
-          v-if="!section.isCustom"
-          class="w-full text-left px-3 py-1.5 text-[12px] text-text-secondary hover:bg-bg-surface hover:text-text-primary border-t border-border"
-          @click="handleRestoreSection"
-        >Restore defaults</button>
-        <!-- Delete — custom categories only -->
-        <button
-          v-if="section.isCustom"
-          class="w-full text-left px-3 py-1.5 text-[12px] text-danger hover:bg-bg-surface border-t border-border"
-          @click="handleDelete"
-        >Delete</button>
+          class="w-4 h-4 text-sm flex items-center cursor-pointer justify-center text-text-secondary hover:text-text-primary rounded opacity-0 group-hover/hdr:opacity-100 transition-opacity duration-150"
+          title="Category settings"
+          @click="categorySettingsOpen = true"
+        ><Icon name="gear-solid" /></button>
       </div>
-    </Teleport>
+    </div>
 
     <!-- Body -->
     <div v-show="!isCollapsed" class="pt-2">
@@ -337,4 +245,6 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
       </div>
     </div>
   </div>
+
+  </template>
 </template>
