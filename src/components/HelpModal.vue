@@ -24,10 +24,15 @@ interface ChangelogSection {
   items: string[]
 }
 
+interface ChangelogSubsection {
+  name: string
+  sections: ChangelogSection[]
+}
+
 interface ChangelogRelease {
   version: string
   date: string
-  sections: ChangelogSection[]
+  subsections: ChangelogSubsection[]
 }
 
 // Splits a text string on backtick pairs so inline code can be rendered as <code>.
@@ -50,18 +55,25 @@ function parseChangelog(md: string): ChangelogRelease[] {
     const match = header.match(/\[([^\]]+)\].*?(\d{4}-\d{2}-\d{2})/)
     if (!match) continue
     const [, version, date] = match
-    const sections: ChangelogSection[] = []
-    let current: ChangelogSection | null = null
+    const subsections: ChangelogSubsection[] = []
+    let currentSub: ChangelogSubsection | null = null
+    let currentSec: ChangelogSection | null = null
     for (const line of lines.slice(1)) {
       if (line.startsWith('### ')) {
-        if (current) sections.push(current)
-        current = { heading: line.slice(4).trim(), items: [] }
-      } else if (line.startsWith('- ') && current) {
-        current.items.push(line.slice(2))
+        if (currentSec && currentSub) currentSub.sections.push(currentSec)
+        currentSec = null
+        if (currentSub) subsections.push(currentSub)
+        currentSub = { name: line.slice(4).trim(), sections: [] }
+      } else if (line.startsWith('#### ')) {
+        if (currentSec && currentSub) currentSub.sections.push(currentSec)
+        currentSec = { heading: line.slice(5).trim(), items: [] }
+      } else if (line.startsWith('- ') && currentSec) {
+        currentSec.items.push(line.slice(2))
       }
     }
-    if (current) sections.push(current)
-    releases.push({ version, date, sections })
+    if (currentSec && currentSub) currentSub.sections.push(currentSec)
+    if (currentSub) subsections.push(currentSub)
+    releases.push({ version, date, subsections })
   }
   return releases
 }
@@ -116,23 +128,30 @@ onMounted(async () => {
                   class="cl-release"
                 >
                   <div class="cl-release-header">
-                    <span class="cl-version">v{{ release.version }}</span>
+                    <span class="cl-version"><span class="cl-version-v">v</span>{{ release.version }}</span>
                     <span class="cl-date">{{ release.date }}</span>
                   </div>
                   <div
-                    v-for="section in release.sections"
-                    :key="section.heading"
-                    class="cl-section"
+                    v-for="sub in release.subsections"
+                    :key="sub.name"
+                    class="cl-subsection"
                   >
-                    <div class="cl-section-heading">{{ section.heading }}</div>
-                    <ul class="cl-items">
-                      <li v-for="item in section.items" :key="item">
-                        <template v-for="(part, i) in parseInlineCode(item)" :key="i">
-                          <code v-if="part.code" class="cl-code">{{ part.text }}</code>
-                          <template v-else>{{ part.text }}</template>
-                        </template>
-                      </li>
-                    </ul>
+                    <div class="cl-subsection-name">{{ sub.name }}</div>
+                    <div
+                      v-for="section in sub.sections"
+                      :key="section.heading"
+                      class="cl-section"
+                    >
+                      <div class="cl-section-heading">{{ section.heading }}</div>
+                      <ul class="cl-items">
+                        <li v-for="item in section.items" :key="item">
+                          <template v-for="(part, i) in parseInlineCode(item)" :key="i">
+                            <code v-if="part.code" class="cl-code">{{ part.text }}</code>
+                            <template v-else>{{ part.text }}</template>
+                          </template>
+                        </li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -285,28 +304,50 @@ onMounted(async () => {
 }
 
 .cl-release-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
   margin-bottom: 14px;
 }
 
 .cl-version {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  font-family: var(--font-mono);
-  letter-spacing: -0.01em;
+  display: block;
+  font-size: 18px;
+  color: var(--color-accent);
+  font-family: var(--font-display);
+  line-height: 1.1;
+  text-transform: lowercase;
+}
+
+.cl-version-v {
+  font-size: 12px;
+  margin-right: 1px;
 }
 
 .cl-date {
+  display: block;
   font-size: 11px;
   color: var(--color-text-dim);
   font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.cl-subsection {
+  margin-bottom: 12px;
+}
+
+.cl-subsection:last-child {
+  margin-bottom: 0;
+}
+
+.cl-subsection-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .cl-section {
-  margin-bottom: 9px;
+  margin-bottom: 6px;
 }
 
 .cl-section:last-child {
