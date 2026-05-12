@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html>
+
+<head lang="en">
+    <title>Play Sound</title>
+    <meta charset="utf-8" />
+    <style>
+        @font-face {
+            font-family: 'TavernloreBB';
+            src: url('./fonts/TavernloreBB.woff') format('woff');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: transparent;
+            color: #f0ede6;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            font-size: 12px;
+            padding: 12px;
+            overflow: hidden;
+        }
+
+        /* ── State visibility ───────────────────────────────────────── */
+
+        .state { display: none; }
+
+        .state:not([hidden]) {
+            display: flex;
+            flex-direction: column;
+            animation: fadeIn 0.15s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+
+        /* ── State 1 — Connecting ───────────────────────────────────── */
+
+        #state-connecting {
+            align-items: center;
+            padding: 20px 0 16px;
+            gap: 10px;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid rgba(245, 168, 0, 0.2);
+            border-top-color: #F5A800;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .connecting-label {
+            color: #a09a8f;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        /* ── State 2 — No folder ────────────────────────────────────── */
+
+        #state-no-folder {
+            padding: 4px 0;
+        }
+
+        .warning-card {
+            background: rgba(245, 168, 0, 0.15);
+            border-radius: 6px;
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            text-align: center;
+        }
+
+        .warning-icon {
+            font-size: 20px;
+            color: #F5A800;
+            line-height: 1;
+        }
+
+        .warning-primary {
+            color: #f0ede6;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+
+        .warning-secondary {
+            color: #a09a8f;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        /* ── State 3a — Ready (dropdown) ────────────────────────────── */
+
+        #state-ready {
+            gap: 6px;
+            padding: 4px 0;
+        }
+
+        .select-label {
+            color: #a09a8f;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        select {
+            width: 100%;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            color: #f0ede6;
+            padding: 6px 8px;
+            font-size: 12px;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.15s ease;
+            appearance: auto;
+        }
+
+        select:focus {
+            border-color: #F5A800;
+        }
+
+        optgroup {
+            color: #F5A800;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: #2a2a2a;
+        }
+
+        option {
+            color: #f0ede6;
+            background: #2a2a2a;
+            font-size: 12px;
+            font-weight: normal;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+
+        /* ── State 3b — Ready (button grid) ─────────────────────────── */
+
+        #state-ready-buttons {
+            padding: 4px 0;
+            max-height: calc(100vh - 24px);
+            overflow: hidden;
+        }
+
+        #sounds-container {
+            overflow-y: auto;
+        }
+
+        #sounds-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #sounds-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #sounds-container::-webkit-scrollbar-thumb {
+            background: #3a3a3a;
+            border-radius: 3px;
+        }
+
+        #sounds-container::-webkit-scrollbar-thumb:hover {
+            background: #4a4a4a;
+        }
+
+        .btn-category-heading {
+            color: #F5A800;
+            font-size: 13px;
+            font-family: 'TavernloreBB', serif;
+            letter-spacing: 0.05em;
+            margin-top: 10px;
+            margin-bottom: 4px;
+        }
+
+        .btn-category-heading:first-child {
+            margin-top: 0;
+        }
+
+        .btn-category-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .sound-btn {
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            color: #f0ede6;
+            font-size: 11px;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            padding: 5px 8px;
+            cursor: pointer;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+        }
+
+        .sound-btn:hover {
+            background: #333333;
+            border-color: #F5A800;
+        }
+
+        .sound-btn.selected {
+            background: rgba(245, 168, 0, 0.15);
+            border-color: #F5A800;
+            color: #F5A800;
+        }
+    </style>
+</head>
+
+<body style="display: flex; flex-direction: column; gap: 10px;">
+
+    <!-- State 1: Not connected to RRR -->
+    <div id="state-connecting" class="state">
+        <div class="spinner"></div>
+        <span class="connecting-label">Connecting to Rum-Runner Rhapsody</span>
+    </div>
+
+    <!-- State 2: Connected but no folder selected -->
+    <div id="state-no-folder" class="state" hidden>
+        <div class="warning-card">
+            <span class="warning-icon">⚠</span>
+            <span class="warning-primary">Please select a sound clip folder</span>
+            <span class="warning-secondary">in Rum-Runner Rhapsody</span>
+        </div>
+    </div>
+
+    <!-- State 3a: Ready — dropdown mode -->
+    <div id="state-ready" class="state" hidden>
+        <span class="select-label">Sound Clip</span>
+        <select id="sound-select">
+            <option value="">— Select a sound —</option>
+        </select>
+    </div>
+
+    <!-- Shared: Show Category toggle — visible in both ready states -->
+    <div id="show-category-row" style="display:none; align-items:center; gap:10px; cursor:pointer;">
+        <div id="category-toggle" style="position:relative; width:36px; height:20px; cursor:pointer; flex-shrink:0;">
+            <input type="checkbox" id="showCategory" style="opacity:0; width:0; height:0; position:absolute;" />
+            <span id="category-toggle-track" style="position:absolute; inset:0; border-radius:10px; background:#3a3a3a; transition: background 0.2s;"></span>
+            <span id="category-toggle-thumb" style="position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:50%; background:#a09a8f; transition: transform 0.2s, background 0.2s;"></span>
+        </div>
+        <span style="font-size:12px; color:#a09a8f; user-select:none;">Show Category in Title</span>
+    </div>
+
+    <!-- State 3b: Ready — button grid mode -->
+    <div id="state-ready-buttons" class="state" hidden>
+        <div id="sounds-container"></div>
+    </div>
+
+    <script>
+        let _buttonMode = true;
+        let _categoryStreamDeckImages = {};
+
+        let _ws = null;
+        let _uuid = null;
+        let _action = null;
+        let _currentSettings = {};
+        let _retryInterval = null;
+        let _catImageRow = null; // DOM node when present, null when removed
+
+        // Show state-connecting on load without waiting for the websocket.
+        setState("connecting");
+
+        // Override sdpi-components' connectElgatoStreamDeckSocket so we fully
+        // control the websocket and can send/receive custom messages.
+        window.connectElgatoStreamDeckSocket = function (port, uuid, registerEvent, _info, actionInfo) {
+            _uuid = uuid;
+            _action = JSON.parse(actionInfo).action;
+
+            _ws = new WebSocket("ws://127.0.0.1:" + port);
+
+            _ws.onopen = () => {
+                _ws.send(JSON.stringify({ event: registerEvent, uuid }));
+                _ws.send(JSON.stringify({ event: "getSettings", context: uuid }));
+                sendToPlugin({ type: "requestSounds" });
+                startRetrying();
+            };
+
+            _ws.onclose = () => {
+                setState("connecting");
+                startRetrying();
+            };
+
+            _ws.onmessage = ({ data }) => {
+                const msg = JSON.parse(data);
+                if (msg.event === "sendToPropertyInspector") {
+                    handlePluginMessage(msg.payload);
+                } else if (msg.event === "didReceiveSettings") {
+                    _currentSettings = msg.payload?.settings ?? {};
+                    document.getElementById("showCategory").checked = !!_currentSettings.showCategory;
+                    updateToggleVisual(!!_currentSettings.showCategory);
+                    updateCategoryImageToggle();
+                }
+            };
+        };
+
+        function startRetrying() {
+            if (_retryInterval) return;
+            _retryInterval = setInterval(() => {
+                sendToPlugin({ type: "requestSounds" });
+            }, 3000);
+        }
+
+        function stopRetrying() {
+            if (_retryInterval) { clearInterval(_retryInterval); _retryInterval = null; }
+        }
+
+        function sendToPlugin(payload) {
+            if (_ws?.readyState === WebSocket.OPEN) {
+                _ws.send(JSON.stringify({
+                    action: _action,
+                    event: "sendToPlugin",
+                    context: _uuid,
+                    payload,
+                }));
+            }
+        }
+
+        function setSettings(settings) {
+            if (_ws?.readyState === WebSocket.OPEN) {
+                _ws.send(JSON.stringify({ event: "setSettings", context: _uuid, payload: settings }));
+            }
+        }
+
+        function setState(state) {
+            document.getElementById("state-connecting").hidden = state !== "connecting";
+            document.getElementById("state-no-folder").hidden = state !== "no-folder";
+            document.getElementById("state-ready").hidden = state !== "ready";
+            document.getElementById("state-ready-buttons").hidden = state !== "ready-buttons";
+            const ready = state === "ready" || state === "ready-buttons";
+            document.getElementById("show-category-row").style.display = ready ? "flex" : "none";
+        }
+
+        function populateSounds(sounds) {
+            if (_buttonMode) {
+                populateSoundsButtons(sounds);
+            } else {
+                populateSoundsDropdown(sounds);
+            }
+        }
+
+        function populateSoundsDropdown(sounds) {
+            setState("ready");
+
+            const select = document.getElementById("sound-select");
+            const saved = _currentSettings.soundKey ?? "";
+
+            if (!sounds || sounds.length === 0) {
+                select.innerHTML = '<option disabled>No sounds found in folder</option>';
+                return;
+            }
+
+            const groups = {};
+            for (const s of sounds) {
+                const cat = s.category || "";
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push(s);
+            }
+
+            const cats = Object.keys(groups);
+            const useGroups = cats.length > 1 || (cats.length === 1 && cats[0] !== "");
+
+            select.innerHTML = '<option value="">— Select a sound —</option>';
+            for (const [cat, items] of Object.entries(groups)) {
+                if (useGroups) {
+                    const grp = document.createElement("optgroup");
+                    grp.label = cat || "Uncategorized";
+                    for (const s of items) grp.appendChild(makeOption(s, saved));
+                    select.appendChild(grp);
+                } else {
+                    for (const s of items) select.appendChild(makeOption(s, saved));
+                }
+            }
+        }
+
+        function makeOption(sound, savedKey) {
+            const opt = document.createElement("option");
+            opt.value = sound.key;
+            opt.textContent = sound.displayName;
+            opt.dataset.categoryId = sound.categoryId || "";
+            opt.dataset.category = sound.category || "";
+            if (sound.key === savedKey) opt.selected = true;
+            return opt;
+        }
+
+        function populateSoundsButtons(sounds) {
+            setState("ready-buttons");
+
+            const container = document.getElementById("sounds-container");
+            container.innerHTML = "";
+
+            if (!sounds || sounds.length === 0) {
+                const msg = document.createElement("span");
+                msg.style.cssText = "color: #a09a8f; font-size: 11px;";
+                msg.textContent = "No sounds found in folder";
+                container.appendChild(msg);
+                return;
+            }
+
+            const saved = _currentSettings.soundKey ?? "";
+
+            const groups = {};
+            for (const s of sounds) {
+                const cat = s.category || "";
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push(s);
+            }
+
+            const cats = Object.keys(groups);
+            const useHeadings = cats.length > 1 || (cats.length === 1 && cats[0] !== "");
+
+            for (const [cat, items] of Object.entries(groups)) {
+                if (useHeadings) {
+                    const heading = document.createElement("div");
+                    heading.className = "btn-category-heading";
+                    heading.textContent = cat || "Uncategorized";
+                    container.appendChild(heading);
+                }
+
+                const row = document.createElement("div");
+                row.className = "btn-category-row";
+
+                for (const s of items) {
+                    const btn = document.createElement("button");
+                    btn.className = "sound-btn" + (s.key === saved ? " selected" : "");
+                    btn.textContent = s.displayName;
+                    btn.title = s.displayName;
+                    btn.dataset.key = s.key;
+                    btn.dataset.name = s.displayName;
+                    btn.addEventListener("click", () => selectSound(s.key, s.displayName, s.category, s.categoryId || ""));
+                    row.appendChild(btn);
+                }
+
+                container.appendChild(row);
+            }
+        }
+
+        function selectSound(soundKey, soundName, soundCategory, soundCategoryId) {
+            // Update highlight
+            document.querySelectorAll(".sound-btn").forEach(btn => {
+                btn.classList.toggle("selected", btn.dataset.key === soundKey);
+            });
+            const newSettings = { ..._currentSettings, soundKey, soundName, soundCategory, soundCategoryId };
+            setSettings(newSettings);
+            _currentSettings = newSettings;
+            updateCategoryImageToggle();
+        }
+
+        function handlePluginMessage(payload) {
+            if (!payload || payload.type !== "soundsList") return;
+            // Ignore partial messages that are missing required fields.
+            if (typeof payload.connected === "undefined" || typeof payload.folderSelected === "undefined") return;
+
+            // connected: false → reset to connecting and keep retrying
+            if (payload.connected === false) {
+                setState("connecting");
+                startRetrying();
+                return;
+            }
+
+            // Update button mode before rendering so populateSounds picks up the new value.
+            if (typeof payload.buttonMode !== "undefined") {
+                _buttonMode = payload.buttonMode;
+            }
+            if (typeof payload.categoryStreamDeckImages !== "undefined") {
+                _categoryStreamDeckImages = payload.categoryStreamDeckImages;
+            }
+
+            // connected: true, folderSelected: false → no folder selected
+            // connected: true, folderSelected: true → ready
+            stopRetrying();
+
+            if (payload.folderSelected === false) {
+                setState("no-folder");
+            } else {
+                populateSounds(payload.sounds);
+                updateCategoryImageToggle();
+            }
+        }
+
+        document.getElementById("sound-select").addEventListener("change", (e) => {
+            const soundKey = e.target.value;
+            const opt = e.target.options[e.target.selectedIndex];
+            const soundName = opt?.textContent ?? "";
+            const soundCategoryId = opt?.dataset?.categoryId ?? "";
+            const soundCategory = opt?.dataset?.category ?? "";
+            const newSettings = { ..._currentSettings, soundKey, soundName, soundCategory, soundCategoryId };
+            setSettings(newSettings);
+            _currentSettings = newSettings;
+            updateCategoryImageToggle();
+        });
+
+        document.getElementById("showCategory").addEventListener("change", (e) => {
+            const showCategory = e.target.checked;
+            const newSettings = { ..._currentSettings, showCategory };
+            setSettings(newSettings);
+            _currentSettings = newSettings;
+        });
+
+        function updateToggleVisual(checked) {
+            document.getElementById('category-toggle-track').style.background = checked ? '#F5A800' : '#3a3a3a';
+            document.getElementById('category-toggle-thumb').style.background = checked ? '#ffffff' : '#a09a8f';
+            document.getElementById('category-toggle-thumb').style.transform = checked ? 'translateX(16px)' : 'translateX(0)';
+        }
+
+        document.getElementById('show-category-row').addEventListener('click', () => {
+            const cb = document.getElementById('showCategory');
+            cb.checked = !cb.checked;
+            updateToggleVisual(cb.checked);
+            cb.dispatchEvent(new Event('change'));
+        });
+
+        function createCategoryImageRow() {
+            const row = document.createElement("div");
+            row.id = "use-category-image-row";
+            row.style.cssText = "display:flex; align-items:center; gap:10px; cursor:pointer;";
+
+            const toggle = document.createElement("div");
+            toggle.style.cssText = "position:relative; width:36px; height:20px; cursor:pointer; flex-shrink:0;";
+
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.id = "useCategoryImage";
+            cb.style.cssText = "opacity:0; width:0; height:0; position:absolute;";
+
+            const track = document.createElement("span");
+            track.id = "cat-img-toggle-track";
+            track.style.cssText = "position:absolute; inset:0; border-radius:10px; background:#3a3a3a; transition: background 0.2s;";
+
+            const thumb = document.createElement("span");
+            thumb.id = "cat-img-toggle-thumb";
+            thumb.style.cssText = "position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:50%; background:#a09a8f; transition: transform 0.2s, background 0.2s;";
+
+            toggle.appendChild(cb);
+            toggle.appendChild(track);
+            toggle.appendChild(thumb);
+
+            const label = document.createElement("span");
+            label.style.cssText = "font-size:12px; color:#a09a8f; user-select:none;";
+            label.textContent = "Use Category Image";
+
+            row.appendChild(toggle);
+            row.appendChild(label);
+
+            cb.addEventListener("change", (e) => {
+                const useCategoryImage = e.target.checked;
+                updateCatImageToggleVisual(useCategoryImage);
+                const newSettings = { ..._currentSettings, useCategoryImage };
+                setSettings(newSettings);
+                _currentSettings = newSettings;
+            });
+
+            row.addEventListener("click", (e) => {
+                if (e.target === cb) return;
+                cb.checked = !cb.checked;
+                updateCatImageToggleVisual(cb.checked);
+                cb.dispatchEvent(new Event("change"));
+            });
+
+            return row;
+        }
+
+        function updateCatImageToggleVisual(checked) {
+            const track = document.getElementById("cat-img-toggle-track");
+            const thumb = document.getElementById("cat-img-toggle-thumb");
+            if (!track || !thumb) return;
+            track.style.background = checked ? "#F5A800" : "#3a3a3a";
+            thumb.style.background = checked ? "#ffffff" : "#a09a8f";
+            thumb.style.transform = checked ? "translateX(16px)" : "translateX(0)";
+        }
+
+        function updateCategoryImageToggle() {
+            const catId = _currentSettings.soundCategoryId;
+            const hasImages = catId && _categoryStreamDeckImages[catId]?.idle;
+
+            if (hasImages) {
+                if (!_catImageRow) {
+                    _catImageRow = createCategoryImageRow();
+                    // Insert before the "Show Category in Title" row
+                    const showCatRow = document.getElementById("show-category-row");
+                    showCatRow.parentNode.insertBefore(_catImageRow, showCatRow);
+                }
+                // Sync checkbox state with current settings
+                const cb = document.getElementById("useCategoryImage");
+                if (cb) {
+                    const on = _currentSettings.useCategoryImage !== false;
+                    cb.checked = on;
+                    updateCatImageToggleVisual(on);
+                }
+            } else {
+                if (_catImageRow) {
+                    _catImageRow.remove();
+                    _catImageRow = null;
+                    // Clear the toggle setting if category no longer has images
+                    if (_currentSettings.useCategoryImage) {
+                        const newSettings = { ..._currentSettings, useCategoryImage: false };
+                        setSettings(newSettings);
+                        _currentSettings = newSettings;
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>

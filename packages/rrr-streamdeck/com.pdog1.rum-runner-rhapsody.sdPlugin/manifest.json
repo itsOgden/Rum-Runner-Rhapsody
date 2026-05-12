@@ -1,0 +1,68 @@
+{
+	"Name": "Rum-Runner Rhapsody",
+	"Version": "0.8.0.0",
+	"Author": "Pdog1",
+	"Actions": [
+		{
+			"Name": "Play Sound",
+			"UUID": "com.pdog1.rum-runner-rhapsody.playsound",
+			"Icon": "imgs/actions/play-sound/icon",
+			"Tooltip": "Play a sound in Rum-Runner Rhapsody.",
+			"PropertyInspectorPath": "ui/play-sound.html",
+			"DisableAutomaticStates": true,
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/play-sound/key",
+					"TitleAlignment": "middle"
+				},
+				{
+					"Image": "imgs/actions/play-sound/playing",
+					"TitleAlignment": "middle"
+				}
+			]
+		},
+		{
+			"Name": "Stop All",
+			"UUID": "com.pdog1.rum-runner-rhapsody.stopall",
+			"Icon": "imgs/actions/stop-all/icon",
+			"Tooltip": "Stop all sounds in Rum-Runner Rhapsody.",
+			"PropertyInspectorPath": "ui/stop-all.html",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/stop-all/key",
+					"TitleAlignment": "middle"
+				}
+			]
+		}
+	],
+	"Category": "Rum-Runner Rhapsody",
+	"CategoryIcon": "imgs/plugin/category-icon",
+	"CodePath": "bin/plugin.js",
+	"Description": "Control Rum-Runner Rhapsody from your Stream Deck",
+	"Icon": "imgs/plugin/marketplace",
+	"SDKVersion": 3,
+	"Software": {
+		"MinimumVersion": "6.9"
+	},
+	"OS": [
+		{
+			"Platform": "mac",
+			"MinimumVersion": "12"
+		},
+		{
+			"Platform": "windows",
+			"MinimumVersion": "10"
+		}
+	],
+	"Nodejs": {
+		"Version": "20",
+		"Debug": "enabled"
+	},
+	"UUID": "com.pdog1.rum-runner-rhapsody"
+}

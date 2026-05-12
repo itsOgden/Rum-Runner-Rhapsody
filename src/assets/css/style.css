@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('../fonts/Outfit.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'TavernloreBB';
+  src: url('../fonts/TavernloreBB.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --color-bg-deepest:        #1A1A1F;
+  --color-bg-base:           #1E1E23;
+  --color-bg-raised:         #242428;
+  --color-bg-surface:        #2B2B30;
+  --color-bg-surface-hover:  #323237;
+  --color-bg-surface-active: #393940;
+
+  --color-accent:            #F5A800;
+  --color-accent-dim:        #D48E00;
+  --color-accent-secondary:  #F56500;
+  --color-accent-glow:       rgba(245, 168, 0, 0.18);
+
+  --color-text-primary:      #F0EBE0;
+  --color-text-secondary:    #9A9080;
+  --color-text-dim:          #5A5550;
+  --color-text-on-accent:    #1A1A1F;
+
+  --color-danger:            #FF5040;
+  --color-danger-glow:       rgba(255, 80, 64, 0.15);
+  --color-warning:           #FFE566;
+
+  --color-border:            #2E2E34;
+  --color-border-light:      #3A3A42;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --font-sans: 'Outfit', -apple-system, sans-serif;
+  --font-mono: monospace;
+  --font-display: 'TavernloreBB', 'Outfit', serif;
+}
+
+/* ---- Base ---- */
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+* { box-sizing: border-box; }
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border-light); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-dim); }
+
+/* ---- Buttons ---- */
+.btn {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 16px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+.btn:hover {
+  background: var(--color-bg-surface-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-text-dim);
+}
+
+.btn-danger {
+  background: rgba(255, 77, 106, 0.1);
+  border-color: rgba(255, 77, 106, 0.3);
+  color: var(--color-danger);
+}
+.btn-danger:hover {
+  background: rgba(255, 77, 106, 0.2);
+  border-color: var(--color-danger);
+}
+
+.btn-accent {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-weight: 600;
+}
+.btn-accent:hover {
+  background: var(--color-accent-dim);
+  border-color: var(--color-accent-dim);
+}
+
+/* ---- Light mode ---- */
+/* All background/text/border tokens are overridden; accent shifts to
+   the amber-golden tone pulled from app-icon.png.                    */
+html.light {
+  --color-bg-deepest:       #DDD0B8;
+  --color-bg-base:          #F5EDD8;
+  --color-bg-raised:        #FFFFFF;
+  --color-bg-surface:       #EDE3CC;
+  --color-bg-surface-hover: #E5D9BE;
+  --color-bg-surface-active:#D8CCAE;
+
+  --color-accent:           #B86800;
+  --color-accent-dim:       #9A5500;
+  --color-accent-secondary: #C84800;
+  --color-accent-glow:      rgba(184, 104, 0, 0.18);
+
+  --color-text-primary:     #1A1200;
+  --color-text-secondary:   #5A3A10;
+  --color-text-dim:         #9A7840;
+  --color-text-on-accent:   #FFFFFF;
+
+  --color-danger:           #C81028;
+  --color-danger-glow:      rgba(200, 16, 40, 0.12);
+  --color-warning:          #B06000;
+
+  --color-border:           #D0C0A0;
+  --color-border-light:     #C0AE88;
+}

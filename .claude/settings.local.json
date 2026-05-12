@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm approve-builds:*)",
+      "Bash(pnpm install:*)",
+      "WebSearch",
+      "Bash(pnpm exec vite build:*)",
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\" && pnpm vue-tsc --noEmit 2>&1)",
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\" && pnpm vite build 2>&1)",
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\" && pnpm add -D chalk 2>&1)",
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\" && pnpm exec vue-tsc --noEmit 2>&1)",
+      "Bash(cd \"N:/Repositories/Personal/Rum-Runner Rhapsody\" && pnpm vue-tsc --noEmit 2>&1)",
+      "Bash(cd \"N:/Repositories/Personal/Rum-Runner Rhapsody/packages/rrr-streamdeck\" && node_modules/.bin/rollup -c 2>&1)",
+      "Bash(streamdeck restart:*)",
+      "Bash(cd \"N:/Repositories/Personal/Rum-Runner Rhapsody/packages/rrr-streamdeck\" && node_modules/.bin/rollup -c 2>&1 && streamdeck restart com.pdog1.rum-runner-rhapsody 2>&1)",
+      "Bash(cd \"N:/Repositories/Personal/Rum-Runner Rhapsody/packages/rrr-streamdeck\" && node build.js && node_modules/.bin/rollup -c 2>&1)",
+      "Bash(cd \"N:/Repositories/Personal/Rum-Runner Rhapsody\" && node_modules/.bin/streamdeck restart com.pdog1.rum-runner-rhapsody 2>&1)",
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\" && pnpm run streamdeck:build 2>&1)",
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\packages\\\\rrr-streamdeck\" && node build.js && rollup -c 2>&1)",
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\packages\\\\rrr-streamdeck\" && pnpm run build 2>&1)",
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\" && node_modules/.bin/rollup -c packages/rrr-streamdeck/rollup.config.mjs 2>&1)",
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\packages\\\\rrr-streamdeck\" && \"../../node_modules/.bin/rollup\" -c 2>&1)",
+      "Bash(cd \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\packages\\\\rrr-streamdeck\" && \"../../node_modules/.bin/rollup\" -c 2>&1 && streamdeck restart com.pdog1.rum-runner-rhapsody 2>&1)",
+      "Bash(cd \"N:/Repositories/Personal/Rum-Runner Rhapsody\" && pnpm run streamdeck:build 2>&1)",
+      "Bash(cd \"N:/Repositories/Personal/Rum-Runner Rhapsody/packages/rrr-streamdeck\" && pnpm run build 2>&1)",
+      "Bash(node:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm:*)"
+    ]
+  },
+  "model": "sonnet"
+}

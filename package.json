@@ -1,32 +1,95 @@
 {
   "name": "rum-runner-rhapsody",
-  "type": "module",
-  "version": "1.0.0",
-  "main": "main.js",
+  "version": "0.8.0",
+  "description": "Rum-Runner Rhapsody",
+  "main": "dist-electron/main.js",
   "author": "Pdog1",
-  "description": "A basic soundboard structured around the local filesystem. Heavily inspired by LoredCast/soundboard.",
   "scripts": {
-    "nuxt-build": "nuxt build",
-    "nuxt-dev": "nuxt dev",
-    "nuxt-generate": "nuxt generate",
-    "electron-start": "electron ."
+    "dev": "vite",
+    "typecheck": "vue-tsc --noEmit",
+    "build": "pnpm --filter @rrr/streamdeck build && vue-tsc --noEmit && vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win portable",
+    "build:installer": "vue-tsc --noEmit && vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win nsis",
+    "streamdeck:dev": "pnpm --filter @rrr/streamdeck build && streamdeck restart com.pdog1.rum-runner-rhapsody",
+    "streamdeck:link": "streamdeck link packages/rrr-streamdeck/com.pdog1.rum-runner-rhapsody.sdPlugin",
+    "streamdeck:unlink": "streamdeck unlink packages/rrr-streamdeck/com.pdog1.rum-runner-rhapsody.sdPlugin"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "vue": "^3.5.0",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^2.6.3",
-    "@pinia-plugin-persistedstate/nuxt": "^1.2.0",
-    "electron": "^30.0.2",
-    "eslint": "^8.56.0",
-    "nuxt": "^3.9.3",
-    "postcss": "^8.4.33",
-    "sass": "^1.70.0",
-    "tailwindcss": "^3.4.1",
-    "vue": "^3.4.14",
-    "vue-router": "^4.2.5"
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^25.3.0",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "chalk": "^5.6.2",
+    "cross-env": "^10.1.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.0.0",
+    "vite-plugin-electron": "^0.29.0",
+    "vue-tsc": "^3.2.5"
   },
-  "dependencies": {
-    "@pinia/nuxt": "^0.5.1",
-    "@vueuse/core": "^10.9.0",
-    "pinia": "^2.1.7",
-    "vue-final-modal": "^4.5.3"
-  }
+  "build": {
+    "appId": "com.pdog1.rum-runner-rhapsody",
+    "productName": "Rum-Runner Rhapsody",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "app-icon.png",
+      "signtoolOptions": {
+        "publisherName": "Pdog1"
+      },
+      "sign": false,
+      "signingHashAlgorithms": null
+    },
+    "portable": {
+      "artifactName": "Rum-Runner-Rhapsody.exe"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "artifactName": "RRR-Setup.exe"
+    },
+    "extraResources": [
+      {
+        "from": "app-icon.png",
+        "to": "app-icon.png"
+      },
+      {
+        "from": "CHANGELOG.md",
+        "to": "CHANGELOG.md"
+      },
+      {
+        "from": "packages/rrr-streamdeck/com.pdog1.rum-runner-rhapsody.sdPlugin",
+        "to": "streamdeck-plugin/com.pdog1.rum-runner-rhapsody.sdPlugin",
+        "filter": [
+          "**/*",
+          "!**/node_modules/**"
+        ]
+      }
+    ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
+  },
+  "packageManager": "pnpm@10.30.1+sha512.3590e550d5384caa39bd5c7c739f72270234b2f6059e13018f975c313b1eb9fefcc09714048765d4d9efe961382c312e624572c0420762bdc5d5940cdf9be73a"
 }
