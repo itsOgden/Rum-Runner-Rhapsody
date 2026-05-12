@@ -8,70 +8,81 @@
 ## Phase 0 — Research & Decisions
 *Things you need to decide before you can build. Do these in parallel with Phase 1.*
 
-### R1. Code Signing — Research & Purchase [#13]
+### R1. Code Signing — Decision: OV via Certum [#13]
 **What:** Get a code signing certificate so Windows doesn't show SmartScreen "Unknown Publisher" warnings to users.
 
-**Key decision — OV vs EV:**
-- **OV (Organization Validation):** ~$100–150/year (Certum, Sectigo, DigiCert). Cheaper, no hardware token needed. SmartScreen reputation builds over time with enough downloads.
-- **EV (Extended Validation):** ~$300–500/year. Requires a hardware USB token. SmartScreen reputation is **immediate** — no waiting period.
+**Decision: OV only.** As of August 2024, Microsoft dropped the EV advantage — EV no longer bypasses the SmartScreen reputation queue. There is no reason to pay EV prices. OV is the correct choice.
 
-**Recommendation:** For a first commercial release, start with OV from Certum or Sectigo. They're the most affordable reputable CAs for indie devs. If early users complain about SmartScreen warnings, upgrade to EV. EV is the right long-term choice but is a significant yearly cost to absorb before you know your revenue.
+**SmartScreen reality:** Even with OV signing, first-time users will see a "Windows protected your PC" warning with a "More info → Run anyway" flow until Microsoft builds reputation for the certificate. This is not avoidable at launch and is a known pain point for every indie Windows dev. It resolves as installs accumulate (typically a few hundred). Your trial model actually helps here — more people running the app = faster reputation. Set expectations accordingly.
 
-**What to avoid:** SignPath Foundation (referenced in CLAUDE.md) requires the project to be open source, which conflicts with selling it.
+**Where to buy:** Certum OV via a reseller (sslmentor.com, sslcertshop.com). Certum's "SimplySign" option provides cloud-based signing — no USB hardware token, works directly with signtool.exe. Estimated ~$120–170/year through a reseller. Note: as of February 2026, max certificate lifespan changed to ~459 days, so all certs are now effectively annual.
+
+**What to avoid:** SignPath Foundation requires open-source projects. EV is not worth the cost.
 
 **Blocks:** Phase 5 distribution setup. Sign the builds before hosting them.
 
 ---
 
-### R2. Licensing Model — Strategy Decision [#3]
+### R2. Licensing Model — Decision: One-Time Purchase via LemonSqueezy [#3]
 **What:** Decide how you'll sell the app and how you'll enforce it.
 
-**Key decisions:**
-1. **One-time purchase vs. subscription** — One-time is easier to sell to streamers ("pay once, own it forever"). Subscription is better recurring revenue but harder to justify without ongoing content/features. Recommend one-time with optional upgrade pricing for major versions.
-2. **Trial structure** — Time-based trial (e.g., 14 days free, no feature limits) is simpler and less frustrating than feature-gated trials. Recommend 14 days.
-3. **What platform handles payment + license keys:**
-   - **LemonSqueezy** — Best developer experience, has a proper license key API, good for Electron apps. Webhook support for real-time validation.
-   - **Gumroad** — Simpler, smaller cut, but worse API/license key support.
-   - **Paddle** — More enterprise-y, overkill for starting out.
-   - **Recommendation: LemonSqueezy.** It generates license keys you can validate in-app via their API, supports webhooks, and handles EU VAT automatically.
+**Decisions made:**
+1. **One-time purchase.** No subscription. "Pay once, own it forever." Launch with a discounted early-access price, raise to full price after. Sales and time-limited offers handled via LemonSqueezy discount codes (percentage or fixed, with optional expiry date and usage caps — all built in, no extra work).
+2. **Trial:** 14 days, no feature limits. Blocking modal on expiry with "Buy Now" and "Enter License Key" options.
+3. **Platform: LemonSqueezy.**
+   - Handles payment, license key generation, EU VAT/GST in 100+ countries, customer portal, and webhooks.
+   - Has hosted product pages — you link/redirect to LS checkout from your own website, or embed their checkout widget. You keep your brand throughout.
+   - Better API and lower fees (~3.5% + $0.30) vs Gumroad (flat 10%). Gumroad's marketplace discovery advantage doesn't apply to desktop software where you drive your own traffic.
+   - Built specifically for software/SaaS; Gumroad is better for digital art/ebooks.
+   - Requires account approval (~1 week wait time — apply early).
 4. **Validation approach:**
-   - Validate the license key against LemonSqueezy's API on first activation.
-   - Cache the result locally (encrypted) so the app works offline.
-   - Re-validate periodically (e.g., once a week) when internet is available.
-   - Don't require internet on every launch — that's the #1 complaint about licensed software.
+   - Validate license key against LemonSqueezy API on first activation.
+   - Cache result locally via Electron's `safeStorage` (OS keychain — encrypted).
+   - Re-validate periodically (once a week) when online.
+   - Never require internet on every launch.
 
-**Piracy resistance:** This doesn't need to be Fort Knox. Your audience is streamers who value reputation. A reasonable license check + offline grace period is enough. Don't spend weeks on DRM.
+**Piracy resistance:** Reasonable license check + offline grace period is enough. Streamers value reputation. Don't spend weeks on DRM.
 
-**Blocks:** Phase 5 licensing UI build [#17].
+**Distribution channels:**
+- **Primary:** Own website → LemonSqueezy checkout. All paid transactions here.
+- **itch.io:** List the trial as a free download for discovery. When trial expires, app points users to the website to buy. Do NOT also sell on itch — bridging two separate license key systems requires a custom backend and isn't worth it at this stage. Itch = top-of-funnel only.
+- **Microsoft Store, Steam:** Post-v1 consideration only. Both have technical and financial overhead not worth taking on at launch.
+- **Product Hunt:** Plan a single launch-day post for awareness. Not a storefront, just a spike driver.
+
+**Blocks:** Phase 5 licensing system build [#17].
 
 ---
 
-### R3. Per-Sound Keyboard Shortcuts — Feasibility & Market Research [#19]
+### R3. Per-Sound Keyboard Shortcuts — Decision: Build It [#19]
 **What:** Can keyboard shortcuts trigger sounds even when the app is in the background?
 
-**Feasibility:** Yes. Electron's `globalShortcut` module registers OS-level hotkeys that fire regardless of app focus or minimized state. This is already how your Stop All hotkey works. Per-sound shortcuts are architecturally the same — just more of them.
+**Decision: Yes, build it.** Electron's `globalShortcut` module registers OS-level hotkeys that fire regardless of app focus or minimized state — same as the existing Stop All hotkey. Competitors (Voicemod, Resanance, EXP Soundboard, Soundpad) all support this. Proceed to Phase 3.6 implementation.
 
-**Concerns to research:**
-- Conflict management: Users assigning `F1` would break browser help. You need a conflict-warning system.
-- How many shortcuts can realistically be registered? (Practically unlimited, but UX gets unwieldy past ~20.)
-- What do competitors do? Research: Voicemod, Resanance, EXP Soundboard, Soundpad. All support global hotkeys. Most use the same `globalShortcut` pattern. Some let you assign per-button, some use a dedicated hotkey manager screen.
-
-**Recommendation after research:** Assign shortcuts per-sound button via the existing context menu. Show a hotkey badge on the button. Include a "Hotkeys" section in settings that lists all assigned shortcuts and allows bulk management.
+**Implementation notes for Phase 3.6:**
+- Store shortcuts in `FolderSettings` (`soundHotkeys: Record<string, string>`) so they travel with the library.
+- Assign via context menu: "Set Shortcut" → key-capture input.
+- Show hotkey badge on the button face.
+- Settings → Shortcuts tab: list all assigned shortcuts, allow bulk management and clearing.
+- Conflict detection: warn if a combo is already assigned to another sound or to the Stop All hotkey. Warn on known system shortcuts (`F1`, `Ctrl+C`, `Alt+F4`, `Win+*`) — no API exists to query all OS-registered shortcuts, so best-effort warning is fine.
+- Unregister/re-register all shortcuts on settings change.
 
 ---
 
-### R4. View Modes — Design Exploration [#12]
-**What:** Should users be able to "solo" a category so it fills the whole grid without accordion chrome?
+### R4. View Modes — Decision: Build Flat Grid Mode [#12]
+**What:** Add an alternate view mode alongside the current accordion layout.
 
-**Options to consider:**
-1. **Current:** Accordion sections, sidebar scrolls to category.
-2. **Solo mode:** Click sidebar → that category fills the grid, no accordion, just title + buttons. Sidebar gets "All" at top to return to full view.
-3. **Tab mode:** Category names as tabs across the top (works for small numbers of categories, breaks with many).
-4. **Flat grid:** No categories visible, all buttons in one grid, sidebar filters to category (hides all others).
+**Decision: Build flat grid mode as a toggleable view option.** The current accordion view remains the default. A view toggle in FolderBar switches between modes.
 
-**Recommendation:** Solo mode (option 2) is the most useful addition. It's great for live use — when you're mid-stream and want fast access to one category. All mode keeps the accordion experience. Implement as a toggle per sidebar click: first click scrolls (current behavior), second click solos. Or make it a view toggle button.
+**Flat grid mode behavior:**
+- All buttons rendered in one continuous grid, no category section headers, no accordions.
+- Sidebar gets "All" at the top — shows every button.
+- Clicking a sidebar category filters to just that category's buttons (no headers, just buttons).
+- Drag-and-drop disabled in flat mode (meaningless without section context).
+- Category colors (Phase 3.2) still apply to button tinting.
 
-This one is worth prototyping before committing to the full build.
+**Tabs and permanent-replacement flat views:** Not building these. The toggle approach is cleaner.
+
+**May be hidden/disabled before v1.0 release** if it feels unpolished — that's acceptable, build it and evaluate.
 
 ---
 
@@ -306,7 +317,7 @@ This is a 30-minute task. Do it whenever you have a small window.
 - Add the certificate to the electron-builder config in `package.json`.
 - Test the signing flow locally first.
 - Verify SmartScreen no longer shows "Unknown Publisher."
-- EV: requires the hardware token to be present during build — document this in the build process.
+- Certum SimplySign works as a virtual smart card — no hardware token needed during build.
 
 **Sign both:** the portable `.exe` and the NSIS installer `.exe`.
 
@@ -367,6 +378,56 @@ This is a 30-minute task. Do it whenever you have a small window.
 - Consider a first-run wizard: if no VB-Cable device is detected and it's the first launch, proactively surface the guide.
 
 **Tie-in with shadow recording:** The VB-Cable guide should also mention that VB-Cable is needed for shadow recording other people's audio. Connect those dots for the user.
+
+---
+
+### 5.5 Legal Documents
+**What:** Required before public launch. Not optional.
+
+**Privacy Policy — legally required.**
+The app phones home for license validation and auto-update checks, which means you're processing personal data (email addresses, IP addresses). GDPR applies to EU users; CCPA applies to California users. Generate using [Termly](https://termly.io) or [iubenda](https://www.iubenda.com) — boilerplate from a generator is fine for launch. Publish on the website and link to it from the app's Settings → License tab.
+
+Key things it must cover:
+- What data is collected (email for licensing, IP incidental to server calls)
+- That LemonSqueezy processes payments (they have their own privacy policy as MoR)
+- That auto-update checks ping your server
+- No analytics collected (Cloudflare aggregate stats only — no user-level tracking)
+
+**EULA (End User License Agreement) — strongly recommended.**
+Establishes: they're buying a license, not ownership. They cannot redistribute, resell, or reverse engineer the app. Limitation of liability. Embed in the NSIS installer as the "I agree" checkbox (electron-builder supports this natively). Also publish on the website above the purchase button. Use a software EULA template and adapt it — no lawyer needed at launch.
+
+**Refund Policy — 30 days.**
+Decision: 30-day full refund, no questions asked. Generous given the free trial, but friendly and chargeback-resistant. Specify in LemonSqueezy store settings and on the website.
+
+**Cookie/analytics policy — not needed.** No user-level analytics. Cloudflare aggregate stats don't require disclosure.
+
+---
+
+### 5.6 Support Infrastructure
+**What:** Set up support channels before public launch so users have somewhere to go.
+
+**Discord server:**
+- Create a server for Rum-Runner Rhapsody.
+- Channels to start: `#announcements` (post-only), `#support`, `#bug-reports`, `#feedback`, `#general`.
+- Link from the app (Help modal or Settings) and from the website.
+- This is your primary support channel — streamers already live here.
+
+**Support email:**
+- Address: `support@rumrunner.app`
+- Forward to your personal Gmail so you're not managing a separate inbox.
+- Used for: license issues, refunds, users who won't use Discord.
+- See domain/email note below for where to set this up.
+
+**In-app support links:**
+- Help modal: link to Discord + support email.
+- Trial expired modal: include a support link so confused users don't just bounce.
+- License activation failure: "Having trouble? Contact support" link.
+
+**Domain & email setup (do this when registering the website domain):**
+- **Domain: `rumrunner.app`** — registered via Cloudflare Registrar ($14.20/year). `.app` requires HTTPS by default. Do not use GoDaddy for anything.
+- For email: use **Zoho Mail free tier**. Supports custom domains, up to 5 mailboxes, 5GB each. Set MX records to point to Zoho, create `support@` address, forward to personal Gmail. Free, professional, no ongoing cost.
+- Hover is fine if you prefer to keep things consolidated there, but Cloudflare + Zoho is cheaper and the setup is a one-time 20 minutes.
+- Do NOT use a `@gmail.com` address for support — it looks unprofessional for a paid product.
 
 ---
 
@@ -465,3 +526,19 @@ R4 (View Mode Design) ───────────────────�
 | 8.1 Website + copy | 5–10 days (separate project) |
 
 **Rough total (app only, excluding website):** 30–50 days of focused work.
+
+---
+
+## Post-v1 Backlog — Deferred Until User Demand Warrants
+
+### Mac Build
+- **Decision: Defer.** Available Mac hardware is 8-10 years old and may not support Electron 33 (requires macOS 10.15+). The right solution when demand arrives is **GitHub Actions macOS runners** — CI builds and notarizes automatically on push, no manual hardware steps. Also requires: Apple Developer Program ($99/year), notarization setup in electron-builder, and a Mac-specific VB-Cable tutorial (equivalent: BlackHole, free). Add when users request it.
+
+### Linux Build
+- **Decision: Defer.** No Linux test environment currently available. electron-builder supports `.AppImage` and `.deb` with minimal extra config, and no signing is required. The blocker is testing, not building. Once CI is set up for Mac (or separately), adding Linux as an additional target is low effort. Add when users request it.
+
+### Microsoft Store
+- **Decision: Defer.** Free registration as of 2026, 15% cut. Requires MSIX packaging and moving settings storage from next to the exe to `%APPDATA%` (sandbox requirement). Non-trivial code change. Worth revisiting if organic growth plateaus.
+
+### Steam
+- **Decision: Defer.** $100 listing fee, 30% cut. Meaningful discovery for the streamer market but not worth the overhead at launch.
