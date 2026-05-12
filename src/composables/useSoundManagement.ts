@@ -53,13 +53,14 @@ export function useSoundManagement() {
   // Optionally excludes the section the sound currently lives in.
   function getAvailableCategories(excludeId: string | null = null): Array<{ id: string; name: string }> {
     const cats: Array<{ id: string; name: string }> = []
+    const sectionRenames = settings.value.sectionRenames || {}
     soundGroups.value.forEach(g => {
       if (g.folderName !== excludeId)
-        cats.push({ id: g.folderName, name: getCategoryDisplayName(g.folderName, g.folderName) })
+        cats.push({ id: g.folderName, name: sectionRenames[g.folderName] ?? g.folderName })
     })
     ;(settings.value.customCategories || []).forEach(c => {
       if (c.id !== excludeId)
-        cats.push({ id: c.id, name: getCategoryDisplayName(c.id) })
+        cats.push({ id: c.id, name: c.name })
     })
     return cats
   }
@@ -67,15 +68,26 @@ export function useSoundManagement() {
   // ── Category display names ─────────────────────────────────────────────────
 
   function getCategoryDisplayName(sectionId: string, fallback = sectionId): string {
-    return (settings.value.categoryNames || {})[sectionId] ?? fallback
+    const customCat = (settings.value.customCategories || []).find(c => c.id === sectionId)
+    if (customCat) return customCat.name
+    return (settings.value.sectionRenames || {})[sectionId] ?? fallback
   }
 
   function renameCategory(sectionId: string, newName: string): void {
     const trimmed = newName.trim()
     if (!trimmed) return
-    const names = { ...(settings.value.categoryNames || {}), [sectionId]: trimmed }
-    settings.value.categoryNames = names
-    saveSettings({ categoryNames: names })
+    const isCustom = (settings.value.customCategories || []).some(c => c.id === sectionId)
+    if (isCustom) {
+      const cats = (settings.value.customCategories || []).map(c =>
+        c.id === sectionId ? { ...c, name: trimmed } : c
+      )
+      settings.value.customCategories = cats
+      saveSettings({ customCategories: cats })
+    } else {
+      const renames = { ...(settings.value.sectionRenames || {}), [sectionId]: trimmed }
+      settings.value.sectionRenames = renames
+      saveSettings({ sectionRenames: renames })
+    }
   }
 
   // ── Sound display names ────────────────────────────────────────────────────
@@ -125,71 +137,54 @@ export function useSoundManagement() {
 
   function addCategory(): string {
     const id = `cat_${Date.now()}`
-    const cats = [...(settings.value.customCategories || []), { id, sounds: [] }]
-    const names = { ...(settings.value.categoryNames || {}), [id]: 'New Category' }
+    const cats = [...(settings.value.customCategories || []), { id, name: 'New Category' }]
     settings.value.customCategories = cats
-    settings.value.categoryNames = names
-    saveSettings({ customCategories: cats, categoryNames: names })
+    saveSettings({ customCategories: cats })
     pendingRenameId.value = id
     return id
   }
 
   function deleteCategory(categoryId: string): boolean {
-    const sc = settings.value.soundCategories || {}
+    const sc = settings.value.movedSounds || {}
     if (Object.values(sc).some(v => v === categoryId)) {
       showToast('Cannot delete a non-empty category. Move or reset its sounds first.')
       return false
     }
     const cats = (settings.value.customCategories || []).filter(c => c.id !== categoryId)
-    const names = { ...(settings.value.categoryNames || {}) }
-    delete names[categoryId]
     const hiddenCats = (settings.value.hiddenCategories || []).filter(id => id !== categoryId)
+    const catOrder = (settings.value.categoryOrder || []).filter(id => id !== categoryId)
     settings.value.customCategories = cats
-    settings.value.categoryNames = names
     settings.value.hiddenCategories = hiddenCats
-    saveSettings({ customCategories: cats, categoryNames: names, hiddenCategories: hiddenCats })
+    settings.value.categoryOrder = catOrder
+    saveSettings({ customCategories: cats, hiddenCategories: hiddenCats, categoryOrder: catOrder })
     return true
   }
 
   // ── Sound categories (move / reset) ────────────────────────────────────────
 
   function moveSound(key: string, targetCategoryId: string): void {
-    const sc = { ...(settings.value.soundCategories || {}), [key]: targetCategoryId }
-    settings.value.soundCategories = sc
-    // Keep customCategories.sounds arrays in sync (only relevant for custom targets)
-    const cats = (settings.value.customCategories || []).map(c => ({
-      ...c,
-      sounds: c.id === targetCategoryId
-        ? [...new Set([...c.sounds, key])]
-        : c.sounds.filter(k => k !== key),
-    }))
-    settings.value.customCategories = cats
-    saveSettings({ soundCategories: sc, customCategories: cats })
+    const movedSounds = { ...(settings.value.movedSounds || {}), [key]: targetCategoryId }
+    settings.value.movedSounds = movedSounds
+    saveSettings({ movedSounds })
   }
 
   function resetSound(key: string): void {
-    const sc = { ...(settings.value.soundCategories || {}) }
-    delete sc[key]
-    const cats = (settings.value.customCategories || []).map(c => ({
-      ...c,
-      sounds: c.sounds.filter(k => k !== key),
-    }))
+    const movedSounds = { ...(settings.value.movedSounds || {}) }
+    delete movedSounds[key]
     const hidden = (settings.value.hiddenSounds || []).filter(k => k !== key)
-    // Clear the key from every section's soundOrder so it reverts to alphabetical
     const soundOrder = { ...(settings.value.soundOrder || {}) }
     for (const sectionId of Object.keys(soundOrder)) {
       soundOrder[sectionId] = soundOrder[sectionId].filter(k => k !== key)
       if (soundOrder[sectionId].length === 0) delete soundOrder[sectionId]
     }
-    settings.value.soundCategories = sc
-    settings.value.customCategories = cats
+    settings.value.movedSounds = movedSounds
     settings.value.hiddenSounds = hidden
     settings.value.soundOrder = soundOrder
-    saveSettings({ soundCategories: sc, customCategories: cats, hiddenSounds: hidden, soundOrder })
+    saveSettings({ movedSounds, hiddenSounds: hidden, soundOrder })
   }
 
   function getSoundCategory(key: string): string | null {
-    return (settings.value.soundCategories || {})[key] ?? null
+    return (settings.value.movedSounds || {})[key] ?? null
   }
 
   // ── Section restore ────────────────────────────────────────────────────────
@@ -202,32 +197,25 @@ export function useSoundManagement() {
 
     const soundKeys = group.sounds.map(s => getSoundKey(s))
 
-    const sc = { ...(settings.value.soundCategories || {}) }
-    soundKeys.forEach(k => delete sc[k])
+    const movedSounds = { ...(settings.value.movedSounds || {}) }
+    soundKeys.forEach(k => delete movedSounds[k])
 
     const hidden = (settings.value.hiddenSounds || []).filter(k => !soundKeys.includes(k))
 
-    const cats = (settings.value.customCategories || []).map(c => ({
-      ...c,
-      sounds: c.sounds.filter(k => !soundKeys.includes(k)),
-    }))
-
-    const names = { ...(settings.value.categoryNames || {}) }
-    delete names[sectionId]
+    const sectionRenames = { ...(settings.value.sectionRenames || {}) }
+    delete sectionRenames[sectionId]
 
     const hiddenCats = (settings.value.hiddenCategories || []).filter(id => id !== sectionId)
 
-    // Clear this section's manual sound order so sounds revert to alphabetical
     const soundOrder = { ...(settings.value.soundOrder || {}) }
     delete soundOrder[sectionId]
 
-    settings.value.soundCategories = sc
+    settings.value.movedSounds = movedSounds
     settings.value.hiddenSounds = hidden
-    settings.value.customCategories = cats
-    settings.value.categoryNames = names
+    settings.value.sectionRenames = sectionRenames
     settings.value.hiddenCategories = hiddenCats
     settings.value.soundOrder = soundOrder
-    saveSettings({ soundCategories: sc, hiddenSounds: hidden, customCategories: cats, categoryNames: names, hiddenCategories: hiddenCats, soundOrder })
+    saveSettings({ movedSounds, hiddenSounds: hidden, sectionRenames, hiddenCategories: hiddenCats, soundOrder })
   }
 
   // ── Collapse state ─────────────────────────────────────────────────────────
@@ -292,11 +280,11 @@ export function useSoundManagement() {
   }
 
   function buildSections(): SoundSection[] {
-    const sc = settings.value.soundCategories || {}
+    const sc = settings.value.movedSounds || {}
     const hiddenSet = new Set(settings.value.hiddenSounds || [])
     const hiddenCategoriesSet = new Set(settings.value.hiddenCategories || [])
     const customCats = settings.value.customCategories || []
-    const catNames = settings.value.categoryNames || {}
+    const sectionRenames = settings.value.sectionRenames || {}
     const soundNames = settings.value.soundNames || {}
     const showing = showHidden.value
     const soundMap = getAllSoundsMap()
@@ -330,7 +318,7 @@ export function useSoundManagement() {
 
       result.push({
         id: group.folderName,
-        displayName: catNames[group.folderName] ?? group.folderName,
+        displayName: sectionRenames[group.folderName] ?? group.folderName,
         isCustom: false,
         isHidden,
         folderPath: group.folderPath,
@@ -354,7 +342,7 @@ export function useSoundManagement() {
 
       result.push({
         id: cat.id,
-        displayName: catNames[cat.id] ?? cat.id,
+        displayName: cat.name,
         isCustom: true,
         isHidden,
         sounds,

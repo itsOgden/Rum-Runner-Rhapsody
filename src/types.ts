@@ -38,26 +38,26 @@ export interface SoundSection {
 // ── Device settings ────────────────────────────────────────────────────────
 
 export interface DeviceSettings {
-  id: string       // device ID used by setSinkId()
-  label: string    // human-readable name, used for cross-session matching
+  label: string    // human-readable name, used for cross-session matching via useAudioDevices
   volume: number   // 0–1
   enabled: boolean
 }
 
 // ── Settings ───────────────────────────────────────────────────────────────
 
-// Per-folder soundboard settings — stored in rrr-soundboard.json inside the sounds folder
+// Per-folder soundboard settings — stored in rrr-soundboard.json inside the sounds folder.
+// playCounts lives in rrr-stats.json but is merged into this type for renderer transparency.
 export interface FolderSettings {
   hiddenSounds: string[]
   hiddenCategories: string[]
-  categoryNames: Record<string, string>
-  customCategories: Array<{ id: string; sounds: string[] }>
-  soundCategories: Record<string, string>
+  sectionRenames: Record<string, string>                 // display-name overrides for folder sections
+  customCategories: Array<{ id: string; name: string }>  // user-created categories
+  movedSounds: Record<string, string>                    // soundKey → categoryId for sounds moved from their default section
   soundNames: Record<string, string>
   soundOrder: Record<string, string[]>
   categoryOrder: string[]
   collapsedCategories: string[]
-  playCounts: Record<string, number>
+  playCounts: Record<string, number>                     // stored in rrr-stats.json
   soundVolumes: Record<string, number>
   categoryStreamDeckImages: Record<string, { idle?: string; playing?: string }>
 }

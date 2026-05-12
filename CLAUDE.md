@@ -113,7 +113,7 @@ pnpm streamdeck:unlink      # remove the symlink
 
 ## Settings Architecture
 
-### Two files, two scopes:
+### Three files, three scopes:
 
 **`rrr-settings.json`** (next to the exe, global):
 ```typescript
@@ -124,7 +124,7 @@ interface GlobalSettings {
   theme: 'dark' | 'light'
   masterVolume: number
   density: 'loose' | 'compact'
-  devices: Array<{ id: string, label: string, volume: number, enabled: boolean }>
+  devices: Array<{ label: string, volume: number, enabled: boolean }>
   hotkeys: { stop: string }
   playbackMode: 'stop' | 'restart' | 'overlap'
   normalize: boolean
@@ -143,20 +143,44 @@ interface GlobalSettings {
 interface FolderSettings {
   hiddenSounds: string[]
   hiddenCategories: string[]
-  categoryNames: Record<string, string>
-  customCategories: Array<{ id: string; sounds: string[] }>  // name is in categoryNames
-  soundCategories: Record<string, string>
+  sectionRenames: Record<string, string>           // display-name overrides for folder sections
+  customCategories: Array<{ id: string; name: string }>
+  movedSounds: Record<string, string>              // soundKey → categoryId
   collapsedCategories: string[]
   soundNames: Record<string, string>
   soundOrder: Record<string, string[]>
   categoryOrder: string[]
-  playCounts: Record<string, number>
-  soundVolumes: Record<string, number>       // dB offset, -20 to +20
+  soundVolumes: Record<string, number>             // dB offset, -20 to +20
   categoryStreamDeckImages: Record<string, { idle?: string, playing?: string }>
+  playCounts: Record<string, number>               // actually stored in rrr-stats.json; merged into FolderSettings on load
 }
 ```
 
-**Important**: `GlobalSettings extends FolderSettings` in TypeScript — all folder keys are present in the global type. The main process separates them by comparing against `GLOBAL_KEYS` (the keys of `DEFAULT_GLOBAL_SETTINGS`).
+**`rrr-stats.json`** (inside the selected sound folder, separate from soundboard settings):
+```typescript
+// Kept separate so stats writes don't dirty the soundboard settings file.
+{ playCounts: Record<string, number> }
+```
+
+**Important**: `GlobalSettings extends FolderSettings` in TypeScript — all folder keys are present in the global type. The main process routes save keys using `GLOBAL_KEYS` (keys of `DEFAULT_GLOBAL_SETTINGS`) and `STATS_KEYS` (keys of `DEFAULT_STATS`); everything else goes to `rrr-soundboard.json`.
+
+### Modifying settings — required checklist
+
+**Any time you add, remove, or rename a settings field**, you must update ALL of the following:
+
+1. **`DEFAULT_GLOBAL_SETTINGS` / `DEFAULT_FOLDER_SETTINGS` / `DEFAULT_STATS`** in `electron/main.js` — add/remove the key with its default value. This also controls routing: global keys go in `rrr-settings.json`, stats keys go in `rrr-stats.json`, everything else goes in `rrr-soundboard.json`.
+
+2. **`src/types.ts`** — update `GlobalSettings`, `FolderSettings`, or the inline stats type to match.
+
+3. **`src/composables/useSettings.ts`** — update the initial `settings` ref value to include the new key with its default.
+
+4. **Write a migration** if renaming or removing a field that exists in user save files:
+   - Add a migration function (`_migrateGlobalV0toV1`, etc.) to `electron/main.js`
+   - Append it to the relevant `_*_MIGRATIONS` array (index 0 = v1→v2, index 1 = v2→v3, etc.)
+   - Increment the relevant `GLOBAL_VERSION` / `FOLDER_VERSION` / `STATS_VERSION` constant
+   - Simply adding a new key with a default does NOT require a migration (defaults handle it)
+
+5. **Update this file** if the change is significant enough to affect the architecture docs above.
 
 ### Critical IPC pattern — Reactive Proxy Bug
 **Never pass Vue reactive Proxy objects through IPC.** The Structured Clone Algorithm can't serialize them. Always spread into a plain object first:

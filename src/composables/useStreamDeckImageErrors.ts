@@ -18,7 +18,8 @@ export function useStreamDeckImageErrors() {
     if (di?.stop)    checks.push({ path: di.stop,    source: 'Default' })
 
     for (const [id, entry] of Object.entries(settings.categoryStreamDeckImages || {})) {
-      const name = settings.categoryNames?.[id] ?? id
+      const customCat = (settings.customCategories || []).find(c => c.id === id)
+      const name = customCat?.name ?? (settings.sectionRenames || {})[id] ?? id
       if (entry?.idle)    checks.push({ path: entry.idle,    source: name })
       if (entry?.playing) checks.push({ path: entry.playing, source: name })
     }

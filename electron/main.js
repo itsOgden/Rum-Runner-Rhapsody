@@ -4,6 +4,93 @@ const fs = require("fs");
 const os = require("os");
 const { exec } = require("child_process");
 const { WebSocketServer } = require("ws");
+// ---------------------------------------------------------------------------
+// Schema migrations
+// ---------------------------------------------------------------------------
+// Each settings file tracks its own version independently.
+// Files without a settingsVersion field are treated as v0 (pre-migration).
+// To add a migration: append a function to the relevant array and increment
+// the corresponding VERSION constant. The runner chains v0→v1→v2→... automatically.
+
+const GLOBAL_VERSION = 1;
+const FOLDER_VERSION = 1;
+const STATS_VERSION  = 1;
+
+// v0 → v1: remove devices[].id (opaque browser hash; label is used for matching)
+function _migrateGlobalV0toV1(s) {
+  return { ...s, settingsVersion: 1, devices: (s.devices || []).map(({ id, ...rest }) => rest) };
+}
+const _GLOBAL_MIGRATIONS = [_migrateGlobalV0toV1];
+
+function migrateGlobalSettings(settings) {
+  let s = { ...settings };
+  const start = s.settingsVersion ?? 0;
+  for (let v = start; v < GLOBAL_VERSION; v++) s = _GLOBAL_MIGRATIONS[v](s);
+  return s;
+}
+
+// v0 → v1:
+//   soundCategories  → movedSounds
+//   categoryNames    → sectionRenames (folder sections only; custom cat names move onto the object)
+//   customCategories: { id, sounds[] } → { id, name }
+//   playCounts       → extracted to rrr-stats.json (returned separately)
+function _migrateFolderV0toV1(s) {
+  const customCatIds = new Set((s.customCategories || []).map(c => c.id));
+  const sectionRenames = {};
+  for (const [k, v] of Object.entries(s.categoryNames || {})) {
+    if (!customCatIds.has(k)) sectionRenames[k] = v;
+  }
+  const customCategories = (s.customCategories || []).map(c => ({
+    id: c.id,
+    name: (s.categoryNames || {})[c.id] ?? c.id,
+  }));
+  return {
+    settingsVersion: 1,
+    hiddenSounds:             s.hiddenSounds             ?? [],
+    hiddenCategories:         s.hiddenCategories         ?? [],
+    sectionRenames,
+    customCategories,
+    movedSounds:              s.soundCategories          ?? {},
+    collapsedCategories:      s.collapsedCategories      ?? [],
+    soundNames:               s.soundNames               ?? {},
+    soundOrder:               s.soundOrder               ?? {},
+    categoryOrder:            s.categoryOrder            ?? [],
+    soundVolumes:             s.soundVolumes             ?? {},
+    categoryStreamDeckImages: s.categoryStreamDeckImages ?? {},
+  };
+}
+// v0→v1 is special-cased in migrateFolderSettings (it also extracts playCounts).
+// Future migrations go here: _FOLDER_MIGRATIONS[0] = v1→v2, [1] = v2→v3, etc.
+const _FOLDER_MIGRATIONS = [];
+
+// Returns { folder: migratedSettings, extractedStats: { playCounts } | null }
+function migrateFolderSettings(settings) {
+  let s = { ...settings };
+  let extractedStats = null;
+  const start = s.settingsVersion ?? 0;
+  if (start < 1) {
+    extractedStats = { playCounts: s.playCounts ?? {} };
+    s = _migrateFolderV0toV1(s);
+  }
+  // _FOLDER_MIGRATIONS[0] = v1→v2, so array index = version - 1
+  for (let v = Math.max(start, 1); v < FOLDER_VERSION; v++) s = _FOLDER_MIGRATIONS[v - 1](s);
+  return { folder: s, extractedStats };
+}
+
+// rrr-stats.json starts at v1. _STATS_MIGRATIONS[0] = v1→v2, [1] = v2→v3, etc.
+const _STATS_MIGRATIONS = [];
+
+function migrateStats(settings) {
+  let s = { ...settings };
+  const start = s.settingsVersion ?? 1;
+  for (let v = start; v < STATS_VERSION; v++) s = _STATS_MIGRATIONS[v - 1](s);
+  return s;
+}
+
+function getStatsFilePath(folderPath) {
+  return path.join(folderPath, "rrr-stats.json");
+}
+// ---------------------------------------------------------------------------
 
 // ─── STREAMDECK TEST OVERRIDES (set to false for production) ────────────────
 const TEST_SD_STREAM_DECK_NOT_FOUND = false;  // simulates StreamDeck.exe not found (install succeeds, no auto-restart)
@@ -45,8 +132,8 @@ const DEFAULT_GLOBAL_SETTINGS = {
   masterVolume: 1.0,
   density: "loose",
   devices: [
-    { id: "", label: "", volume: 1.0, enabled: true },
-    { id: "", label: "", volume: 1.0, enabled: true },
+    { label: "", volume: 1.0, enabled: true },
+    { label: "", volume: 1.0, enabled: true },
   ],
   hotkeys: { stop: "Escape" },
   playbackMode: "stop",
@@ -65,19 +152,26 @@ const FOLDER_SETTINGS_FILENAME = "rrr-soundboard.json";
 const DEFAULT_FOLDER_SETTINGS = {
   hiddenSounds: [],
   hiddenCategories: [],
-  categoryNames: {},
-  customCategories: [],
-  soundCategories: {},
+  sectionRenames: {},             // display-name overrides for folder sections
+  customCategories: [],           // Array<{ id: string, name: string }>
+  movedSounds: {},                // soundKey → categoryId for sounds moved from their default section
   collapsedCategories: [],
   soundNames: {},
   soundOrder: {},
   categoryOrder: [],
-  playCounts: {},
   soundVolumes: {},
   categoryStreamDeckImages: {},
 };
 
+// Stats are stored in rrr-stats.json alongside rrr-soundboard.json.
+// They are merged into the settings object returned to the renderer so
+// the renderer sees playCounts as a normal settings field.
+const DEFAULT_STATS = {
+  playCounts: {},
+};
+
 const GLOBAL_KEYS = new Set(Object.keys(DEFAULT_GLOBAL_SETTINGS));
+const STATS_KEYS  = new Set(Object.keys(DEFAULT_STATS));
 
 function applyAutoStart(enabled) {
   // PORTABLE_EXECUTABLE_FILE is set by electron-builder's portable NSIS wrapper
@@ -98,7 +192,26 @@ function loadGlobalSettings() {
   try {
     if (fs.existsSync(GLOBAL_SETTINGS_FILE)) {
       const raw = fs.readFileSync(GLOBAL_SETTINGS_FILE, "utf-8");
-      return { ...DEFAULT_GLOBAL_SETTINGS, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      const migrated = migrateGlobalSettings(parsed);
+      if ((parsed.settingsVersion ?? 0) < GLOBAL_VERSION) {
+        saveGlobalSettings(migrated);
+        debugLog("Migrated global settings to v" + GLOBAL_VERSION);
+      }
+      const merged = { ...DEFAULT_GLOBAL_SETTINGS, ...migrated };
+      // Deep-merge nested objects so new sub-keys added to defaults in a future
+      // version are not silently dropped when loading settings from an older save.
+      merged.hotkeys = { ...DEFAULT_GLOBAL_SETTINGS.hotkeys, ...(migrated.hotkeys || {}) };
+      merged.streamDeckDefaultImages = { ...DEFAULT_GLOBAL_SETTINGS.streamDeckDefaultImages, ...(migrated.streamDeckDefaultImages || {}) };
+      // Normalize device entries so any fields missing from older saves get correct defaults.
+      if (Array.isArray(merged.devices)) {
+        merged.devices = merged.devices.map(d => ({
+          label: d.label ?? "",
+          volume: d.volume ?? 1.0,
+          enabled: d.enabled ?? true,
+        }));
+      }
+      return merged;
     }
   } catch (e) {
     console.warn("Could not load global settings:", e.message);
@@ -108,9 +221,9 @@ function loadGlobalSettings() {
 
 function saveGlobalSettings(gs) {
   try {
-    // Only write the global keys
     const toSave = {};
     for (const k of GLOBAL_KEYS) toSave[k] = gs[k];
+    toSave.settingsVersion = GLOBAL_VERSION;
     fs.writeFileSync(GLOBAL_SETTINGS_FILE, JSON.stringify(toSave, null, 2), "utf-8");
   } catch (e) {
     console.warn("Could not save global settings:", e.message);
@@ -128,10 +241,23 @@ function loadFolderSettings(folder) {
     if (fs.existsSync(filePath)) {
       const raw = fs.readFileSync(filePath, "utf-8");
       const parsed = JSON.parse(raw);
-      // Only keep folder-specific keys — ignores any stray global fields.
+      const { folder: migrated, extractedStats } = migrateFolderSettings(parsed);
+      if ((parsed.settingsVersion ?? 0) < FOLDER_VERSION) {
+        saveFolderSettings(folder, migrated);
+        debugLog("Migrated folder settings to v" + FOLDER_VERSION);
+      }
+      // If migration extracted playCounts, write them to rrr-stats.json
+      if (extractedStats) {
+        const statsPath = getStatsFilePath(folder);
+        if (!fs.existsSync(statsPath)) {
+          const toSave = { ...extractedStats, settingsVersion: STATS_VERSION };
+          fs.writeFileSync(statsPath, JSON.stringify(toSave, null, 2), "utf-8");
+          debugLog("Created rrr-stats.json from migrated playCounts");
+        }
+      }
       const folderOnly = {};
       for (const k of Object.keys(DEFAULT_FOLDER_SETTINGS)) {
-        if (k in parsed) folderOnly[k] = parsed[k];
+        if (k in migrated) folderOnly[k] = migrated[k];
       }
       return { ...DEFAULT_FOLDER_SETTINGS, ...folderOnly };
     }
@@ -145,14 +271,43 @@ function saveFolderSettings(folder, fs_settings) {
   if (!folder) return;
   try {
     const filePath = getFolderSettingsPath(folder);
-    // Only write the folder keys
     const toSave = {};
     for (const k of Object.keys(DEFAULT_FOLDER_SETTINGS)) {
       toSave[k] = fs_settings[k];
     }
+    toSave.settingsVersion = FOLDER_VERSION;
     fs.writeFileSync(filePath, JSON.stringify(toSave, null, 2), "utf-8");
   } catch (e) {
     console.warn("Could not save folder settings:", e.message);
+  }
+}
+
+function loadStats(folder) {
+  if (!folder) return { ...DEFAULT_STATS };
+  try {
+    const statsPath = getStatsFilePath(folder);
+    if (fs.existsSync(statsPath)) {
+      const raw = fs.readFileSync(statsPath, "utf-8");
+      const parsed = JSON.parse(raw);
+      const migrated = migrateStats(parsed);
+      return { ...DEFAULT_STATS, ...migrated };
+    }
+  } catch (e) {
+    console.warn("Could not load stats:", e.message);
+  }
+  return { ...DEFAULT_STATS };
+}
+
+function saveStats(folder, statsObj) {
+  if (!folder) return;
+  try {
+    const statsPath = getStatsFilePath(folder);
+    const toSave = {};
+    for (const k of Object.keys(DEFAULT_STATS)) toSave[k] = statsObj[k];
+    toSave.settingsVersion = STATS_VERSION;
+    fs.writeFileSync(statsPath, JSON.stringify(toSave, null, 2), "utf-8");
+  } catch (e) {
+    console.warn("Could not save stats:", e.message);
   }
 }
 
@@ -232,6 +387,7 @@ let tray = null;
 let isQuitting = false;
 let globalSettings = loadGlobalSettings();
 let folderSettings = loadFolderSettings(globalSettings.soundFolder);
+let stats = loadStats(globalSettings.soundFolder);
 let wss = null;
 
 // ---------------------------------------------------------------------------
@@ -242,11 +398,11 @@ function buildWsSoundList() {
   if (!folder) return [];
 
   const groups = discoverSounds(folder);
-  const sc = folderSettings.soundCategories || {};
+  const sc = folderSettings.movedSounds || {};
   const hiddenSet = new Set(folderSettings.hiddenSounds || []);
   const hiddenCategoriesSet = new Set(folderSettings.hiddenCategories || []);
   const customCats = folderSettings.customCategories || [];
-  const catNames = folderSettings.categoryNames || {};
+  const sectionRenames = folderSettings.sectionRenames || {};
   const soundNames = folderSettings.soundNames || {};
   const soundOrder = folderSettings.soundOrder || {};
   const categoryOrder = folderSettings.categoryOrder || [];
@@ -312,7 +468,7 @@ function buildWsSoundList() {
 
     sections.push({
       id: group.folderName,
-      displayName: catNames[group.folderName] ?? group.folderName,
+      displayName: sectionRenames[group.folderName] ?? group.folderName,
       sounds,
     });
   }
@@ -331,7 +487,7 @@ function buildWsSoundList() {
 
     sections.push({
       id: cat.id,
-      displayName: catNames[cat.id] ?? cat.id,
+      displayName: cat.name,
       sounds,
     });
   }
@@ -469,6 +625,7 @@ function createWindow() {
   mainWindow.on("closed", () => {
     saveGlobalSettings(globalSettings);
     saveFolderSettings(globalSettings.soundFolder, folderSettings);
+    saveStats(globalSettings.soundFolder, stats);
     mainWindow = null;
   });
 }
@@ -545,6 +702,7 @@ app.on("before-quit", () => {
   if (mainWindow) {
     saveGlobalSettings(globalSettings);
     saveFolderSettings(globalSettings.soundFolder, folderSettings);
+    saveStats(globalSettings.soundFolder, stats);
   }
 });
 
@@ -566,28 +724,33 @@ ipcMain.handle("get-changelog", () => {
 
 ipcMain.handle("get-settings", () => {
   debugLog("get-settings: autoStart=" + globalSettings.autoStart + " closeToTray=" + globalSettings.closeToTray + " launchMinimized=" + globalSettings.launchMinimized);
-  return { ...globalSettings, ...folderSettings };
+  return { ...globalSettings, ...folderSettings, ...stats };
 });
 
 ipcMain.handle("save-settings", (_event, newSettings) => {
-  let hasFolderKeys = false;
+  let globalDirty = false, folderDirty = false, statsDirty = false;
   for (const [k, v] of Object.entries(newSettings)) {
     if (GLOBAL_KEYS.has(k)) {
       globalSettings[k] = v;
+      globalDirty = true;
+    } else if (STATS_KEYS.has(k)) {
+      stats[k] = v;
+      statsDirty = true;
     } else {
       folderSettings[k] = v;
-      hasFolderKeys = true;
+      folderDirty = true;
     }
   }
-  saveGlobalSettings(globalSettings);
-  saveFolderSettings(globalSettings.soundFolder, folderSettings);
+  if (globalDirty) saveGlobalSettings(globalSettings);
+  if (folderDirty) saveFolderSettings(globalSettings.soundFolder, folderSettings);
+  if (statsDirty) saveStats(globalSettings.soundFolder, stats);
   if ("autoStart" in newSettings) {
     applyAutoStart(newSettings.autoStart);
   }
-  if (hasFolderKeys || "streamDeckButtonMode" in newSettings || "streamDeckDefaultImages" in newSettings) {
+  if (folderDirty || "streamDeckButtonMode" in newSettings || "streamDeckDefaultImages" in newSettings) {
     broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} });
   }
-  return { ...globalSettings, ...folderSettings };
+  return { ...globalSettings, ...folderSettings, ...stats };
 });
 
 ipcMain.handle("get-sounds", () => {
@@ -615,14 +778,15 @@ ipcMain.handle("pick-folder", async () => {
   globalSettings.soundFolder = newFolder;
   saveGlobalSettings(globalSettings);
 
-  // Load per-folder soundboard settings from the new folder (or defaults if none saved yet).
+  // Load per-folder soundboard settings and stats from the new folder.
   // Device, hotkey, and playback settings are global and unaffected by folder changes.
   folderSettings = loadFolderSettings(newFolder);
+  stats = loadStats(newFolder);
 
   // Notify connected Stream Deck clients that the folder and sounds have changed.
   broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} });
 
-  return { folder: newFolder, folderSettings: { ...folderSettings } };
+  return { folder: newFolder, folderSettings: { ...folderSettings, ...stats } };
 });
 
 ipcMain.handle("pick-image", async () => {

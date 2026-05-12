@@ -37,12 +37,12 @@ watch(audioDevices, () => {
   selectedDeviceId.value = findMatchingDeviceId(settings.value.devices[props.index]?.label ?? '', props.index)
 })
 
-// Strips reactive Proxy wrappers by enumerating only the 4 plain fields.
+// Strips reactive Proxy wrappers by enumerating only the plain fields.
 // Vue re-wraps every assigned object as a reactive Proxy, so spreading { ...d }
 // and passing d directly both produce Proxy objects that the Electron IPC
 // structured-clone serializer cannot serialize.
-function plainDevice(d: { id: string; label: string; volume: number; enabled: boolean }) {
-  return { id: d.id, label: d.label, volume: d.volume, enabled: d.enabled }
+function plainDevice(d: { label: string; volume: number; enabled: boolean }) {
+  return { label: d.label, volume: d.volume, enabled: d.enabled }
 }
 
 // Debounce only for the volume slider (fires on every pixel of movement).
@@ -72,7 +72,7 @@ function onDeviceChange(): void {
   const newLabel = getDeviceLabel(selectedDeviceId.value)
   const updated = settings.value.devices.map((d, i) =>
     i === props.index
-      ? { id: selectedDeviceId.value, label: newLabel, volume: d.volume, enabled: d.enabled }
+      ? { label: newLabel, volume: d.volume, enabled: d.enabled }
       : plainDevice(d)
   )
   settings.value.devices = updated
@@ -82,7 +82,7 @@ function onDeviceChange(): void {
 function onVolumeInput(): void {
   settings.value.devices = settings.value.devices.map((d, i) =>
     i === props.index
-      ? { id: d.id, label: d.label, volume: volumePercent.value / 100, enabled: d.enabled }
+      ? { label: d.label, volume: volumePercent.value / 100, enabled: d.enabled }
       : plainDevice(d)
   )
 }
@@ -90,7 +90,7 @@ function onVolumeInput(): void {
 function onVolumeChange(): void {
   settings.value.devices = settings.value.devices.map((d, i) =>
     i === props.index
-      ? { id: d.id, label: d.label, volume: volumePercent.value / 100, enabled: d.enabled }
+      ? { label: d.label, volume: volumePercent.value / 100, enabled: d.enabled }
       : plainDevice(d)
   )
   debouncedSave()
@@ -99,7 +99,7 @@ function onVolumeChange(): void {
 function onEnabledChange(): void {
   const updated = settings.value.devices.map((d, i) =>
     i === props.index
-      ? { id: d.id, label: d.label, volume: d.volume, enabled: enabled.value }
+      ? { label: d.label, volume: d.volume, enabled: enabled.value }
       : plainDevice(d)
   )
   settings.value.devices = updated

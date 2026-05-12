@@ -1,0 +1,37 @@
+{
+  "soundFolder": "D:\\Dropbox (Personal)\\Stream Deck\\Audio Clips\\Soundboard",
+  "windowWidth": 1888,
+  "windowHeight": 1096,
+  "theme": "dark",
+  "masterVolume": 0.4,
+  "density": "compact",
+  "devices": [
+    {
+      "id": "fd4f8b39ce0f1d60bdc348b35d809863da2cc6bd42c1d0cb2e8713ad82a1dee0",
+      "label": "Headphones (Realtek USB Audio)",
+      "volume": 1,
+      "enabled": true
+    },
+    {
+      "id": "ac1c451aeb1ac994875c14f1db0e3cac5d16fb26ae669c3c62afe4b76e6a4366",
+      "label": "Microphone RRR (VB-Audio Virtual Cable B)",
+      "volume": 1,
+      "enabled": true
+    }
+  ],
+  "hotkeys": {
+    "stop": "Escape"
+  },
+  "playbackMode": "stop",
+  "normalize": true,
+  "streamDeckButtonMode": false,
+  "streamDeckDefaultImages": {
+    "idle": "D:\\Dropbox (Personal)\\Stream Deck\\icons v2\\SFX.png",
+    "playing": "D:\\Dropbox (Personal)\\Stream Deck\\icons v2\\SFX_folder.png",
+    "stop": "D:\\Dropbox (Personal)\\Stream Deck\\icons v2\\Recycle Bin.png"
+  },
+  "showCategorySidebar": true,
+  "closeToTray": false,
+  "autoStart": true,
+  "launchMinimized": true
+}
