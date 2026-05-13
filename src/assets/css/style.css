@@ -27,7 +27,6 @@
 
   --color-accent:            #F5A800;
   --color-accent-dim:        #D48E00;
-  --color-accent-secondary:  #F56500;
   --color-accent-glow:       rgba(245, 168, 0, 0.18);
 
   --color-text-primary:      #F0EBE0;
@@ -36,8 +35,6 @@
   --color-text-on-accent:    #1A1A1F;
 
   --color-danger:            #FF5040;
-  --color-danger-glow:       rgba(255, 80, 64, 0.15);
-  --color-warning:           #FFE566;
 
   --color-border:            #2E2E34;
   --color-border-light:      #3A3A42;
@@ -128,7 +125,6 @@ html.light {
 
   --color-accent:           #B86800;
   --color-accent-dim:       #9A5500;
-  --color-accent-secondary: #C84800;
   --color-accent-glow:      rgba(184, 104, 0, 0.18);
 
   --color-text-primary:     #1A1200;
@@ -137,8 +133,6 @@ html.light {
   --color-text-on-accent:   #FFFFFF;
 
   --color-danger:           #C81028;
-  --color-danger-glow:      rgba(200, 16, 40, 0.12);
-  --color-warning:          #B06000;
 
   --color-border:           #D0C0A0;
   --color-border-light:     #C0AE88;
