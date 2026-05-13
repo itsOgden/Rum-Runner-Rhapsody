@@ -54,6 +54,23 @@ function computeNormGain(buffer: AudioBuffer): number {
   return peak >= 0.001 ? 0.9 / peak : 1.0
 }
 
+// Stop active sources on a device when it's toggled off mid-playback
+watch(
+  () => settings.value.devices.map(d => d.enabled ? 1 : 0).join(','),
+  (newVal, oldVal) => {
+    if (!oldVal) return
+    const newStates = newVal.split(',').map(Number)
+    const oldStates = oldVal.split(',').map(Number)
+    newStates.forEach((enabled, i) => {
+      if (!enabled && oldStates[i]) {
+        activeSources
+          .filter(e => e.deviceIndex === i)
+          .forEach(e => { try { e.source.stop() } catch {} })
+      }
+    })
+  }
+)
+
 // Live volume update — fires when masterVolume or any device volume/enabled changes
 watch(
   () => [settings.value.masterVolume, settings.value.devices],

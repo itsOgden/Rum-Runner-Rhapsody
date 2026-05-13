@@ -392,7 +392,10 @@ async function handleInstallPlugin(): Promise<void> {
               </div>
             </div>
           </div>
-          <button class="btn mt-3" :disabled="!canAddDevice" :class="{ 'opacity-40 cursor-default': !canAddDevice }" @click="addDevice">+ Add Device</button>
+          <div class="flex items-center gap-3 mt-3">
+            <button class="btn" :disabled="!canAddDevice" :class="{ 'opacity-40 cursor-default': !canAddDevice }" @click="addDevice">+ Add Device</button>
+            <span v-if="!canAddDevice" class="text-[12px] text-text-dim">No unused devices available</span>
+          </div>
         </div>
 
         <!-- ── STREAM DECK tab ── -->
