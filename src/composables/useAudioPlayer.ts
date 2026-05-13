@@ -165,8 +165,6 @@ export function useAudioPlayer() {
 
     // Read settings fresh after the async IPC call
     const s = settings.value
-    const primaryDeviceId = findMatchingDeviceId(s.devices[0]?.label ?? '', 0)
-    const secondaryDeviceId = findMatchingDeviceId(s.devices[1]?.label ?? '', 1)
     const masterVol = s.masterVolume ?? 1.0
 
     statusText.value = `Playing: ${sound.name}`
@@ -175,11 +173,14 @@ export function useAudioPlayer() {
 
     const promises: Promise<void>[] = []
 
-    if ((s.devices[0]?.enabled ?? true) && primaryDeviceId) {
-      promises.push(playSoundOnDevice(arrayBuffer.slice(0), primaryDeviceId, (s.devices[0]?.volume ?? 1.0) * masterVol, sound.path, 0, sound.name, sound.key))
-    }
-    if ((s.devices[1]?.enabled ?? true) && secondaryDeviceId) {
-      promises.push(playSoundOnDevice(arrayBuffer.slice(0), secondaryDeviceId, (s.devices[1]?.volume ?? 1.0) * masterVol, sound.path, 1, sound.name, sound.key))
+    for (let i = 0; i < s.devices.length; i++) {
+      const dev = s.devices[i]
+      if (dev.enabled ?? true) {
+        const deviceId = findMatchingDeviceId(dev.label ?? '', i)
+        if (deviceId) {
+          promises.push(playSoundOnDevice(arrayBuffer.slice(0), deviceId, (dev.volume ?? 1.0) * masterVol, sound.path, i, sound.name, sound.key))
+        }
+      }
     }
 
     Promise.all(promises)

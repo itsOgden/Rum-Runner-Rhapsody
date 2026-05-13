@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed, onUnmounted } from 'vue'
+import Icon from './Icon.vue'
 
 const props = defineProps<{
   idlePath: string | null
@@ -153,12 +154,12 @@ function clearStop(e: MouseEvent): void {
       >
         <img v-if="previewIdle" :src="previewIdle" class="preview-img" draggable="false" alt="" />
         <div v-else-if="idleError" class="preview-error-content">
-          <span class="preview-error-icon">⚠</span>
+          <Icon name="triangle-exclamation" class="text-[22px] text-danger" />
         </div>
         <div v-else class="preview-empty">
           <span class="preview-empty-text">Select Icon</span>
         </div>
-        <button v-if="idlePath" class="clear-btn" title="Clear override" @click="clearIdle">×</button>
+        <button v-if="idlePath" class="clear-btn" title="Clear override" @click="clearIdle"><Icon name="xmark-solid" /></button>
         <div class="pick-overlay"><span>Change Icon</span></div>
       </div>
       <div v-if="idleError" class="slot-error-msg">File not found: {{ idleError }}</div>
@@ -177,12 +178,12 @@ function clearStop(e: MouseEvent): void {
       >
         <img v-if="previewPlaying" :src="previewPlaying" class="preview-img" draggable="false" alt="" />
         <div v-else-if="playingError" class="preview-error-content">
-          <span class="preview-error-icon">⚠</span>
+          <Icon name="triangle-exclamation" class="text-[22px] text-danger" />
         </div>
         <div v-else class="preview-empty">
           <span class="preview-empty-text">{{ playingDisabled ? 'Select Idle First' : 'Select Icon' }}</span>
         </div>
-        <button v-if="playingPath" class="clear-btn" title="Clear override" @click="clearPlaying">×</button>
+        <button v-if="playingPath" class="clear-btn" title="Clear override" @click="clearPlaying"><Icon name="xmark-solid" /></button>
         <div v-if="!playingDisabled" class="pick-overlay"><span>Change Icon</span></div>
       </div>
       <div v-if="playingError" class="slot-error-msg">File not found: {{ playingError }}</div>
@@ -200,12 +201,12 @@ function clearStop(e: MouseEvent): void {
       >
         <img v-if="previewStop" :src="previewStop" class="preview-img" draggable="false" alt="" />
         <div v-else-if="stopError" class="preview-error-content">
-          <span class="preview-error-icon">⚠</span>
+          <Icon name="triangle-exclamation" class="text-[22px] text-danger" />
         </div>
         <div v-else class="preview-empty">
           <span class="preview-empty-text">Select Icon</span>
         </div>
-        <button v-if="stopPath" class="clear-btn" title="Clear override" @click="clearStop">×</button>
+        <button v-if="stopPath" class="clear-btn" title="Clear override" @click="clearStop"><Icon name="xmark-solid" /></button>
         <div class="pick-overlay"><span>Change Icon</span></div>
       </div>
       <div v-if="stopError" class="slot-error-msg">File not found: {{ stopError }}</div>
@@ -299,10 +300,6 @@ function clearStop(e: MouseEvent): void {
   justify-content: center;
 }
 
-.preview-error-icon {
-  font-size: 22px;
-  color: var(--color-danger);
-}
 
 .slot-error-msg {
   font-size: 11px;

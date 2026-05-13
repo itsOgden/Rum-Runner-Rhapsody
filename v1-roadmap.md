@@ -90,44 +90,48 @@
 *Do these before adding any new features. They prevent technical debt from compounding.*
 
 ### 1.1 Data Storage Review [#16]
+**Status: Audited 2026-05-13.**
+
 **What:** Audit `rrr-settings.json` and `rrr-soundboard.json` for structural issues before going to production.
 
-**Things to verify:**
-- All keys have sane defaults and migration handles missing keys gracefully.
-- No settings that should be per-folder are currently global (or vice versa).
-- The `GLOBAL_KEYS` split in main.js is complete and correct.
-- No Proxy objects are being serialized through IPC (the known bug pattern is documented in CLAUDE.md — audit for any new cases added since).
-- Device IDs are stored alongside labels for cross-session matching — verify this is robust.
-- `playCounts` and `soundVolumes` don't accumulate stale entries for deleted sounds indefinitely.
-- Verify `categoryOrder` and `soundOrder` handle category/sound deletion cleanly.
+**Findings:**
+- ✅ All keys have sane defaults; migration handles missing keys via object spread with defaults.
+- ✅ Global/folder/stats split is correct. `GLOBAL_KEYS` is auto-derived from `DEFAULT_GLOBAL_SETTINGS`, so it can never drift.
+- ✅ Devices matched by label (not ID) — v0→v1 migration strips the opaque browser `id`. Correct and intentional.
+- ✅ `GLOBAL_KEYS`/`STATS_KEYS` routing in `save-settings` is complete and covers all current fields.
+- ✅ **Stale entry accumulation:** `playCounts`, `soundVolumes`, `movedSounds`, `soundOrder`, and `categoryOrder` retain entries for sounds/categories that no longer exist on disk. This is intentional — if a user temporarily moves a file away and moves it back, their volume offsets, play counts, and ordering are all preserved. No cleanup needed.
+- ✅ **Proxy serialization:** Fixed — `useSettings.saveSettings` now wraps the payload in `toRaw()` before IPC, so callers no longer need to manually spread reactive objects. The nested-object spread pattern in CLAUDE.md still applies when *constructing* the value passed to `saveSettings`.
 
-**New settings to plan for (from this roadmap):**
+**New settings to plan for (from this roadmap) — not yet added:**
 - Shadow record: output folder, duration, device, auto-open trim sidebar
 - Clip trimming: delete after export (bool), clips folder path
-- Multiple sound folders: list of paths, active folder
-- Per-sound keyboard shortcuts: stored in folder settings
-- Category colors: stored in folder settings
-- User accent color: stored in global settings
-- Trial start date / license key: stored in global settings (separately, not mixed with audio settings)
-
-Plan the schema additions now even if you implement them later.
+- Multiple sound folders: list of paths, active folder index
+- Per-sound keyboard shortcuts: `soundHotkeys: Record<string, string>` in `FolderSettings`
+- Category colors: `categoryColors: Record<string, string>` in `FolderSettings`
+- User accent color: `accentColor?: string` in `GlobalSettings`
+- Trial start date / license key: separate from audio settings in `GlobalSettings` (e.g. `trialStartDate`, `licenseKey`)
 
 ---
 
 ### 1.2 Stream Deck Update Flow Review [#15]
+**Status: Audited 2026-05-13 — all clear.**
+
 **What:** Verify that Stream Deck plugin updates are seamless — no manual steps for the user.
 
-**Things to check:**
-- Does the app correctly detect when a newer plugin version is bundled vs. what's installed?
-- Is the version comparison correct (4-part semver)?
-- Does the update flow handle the case where Stream Deck is running vs. stopped?
-- Does it handle the case where the plugin is installed but the app hasn't been run yet?
-- What happens if Stream Deck software isn't installed at all?
-- Test the TEST_ flag scenarios in main.js to verify error states are surfaced correctly.
+**Findings:**
+- ✅ Version detection reads both bundled and installed `manifest.json` files and compares with `compareVersions`.
+- ✅ `compareVersions` handles 4-part semver correctly (pads shorter versions with 0).
+- ✅ SD running: `taskkill /F /IM StreamDeck.exe` kills it, then relaunches after a 1.5s delay if the exe path is found.
+- ✅ SD stopped or not running: `taskkill` fails silently, copy still succeeds, `restartingStreamDeck: false` returned to UI.
+- ✅ SD not installed: `pluginsDir` existence check returns a clear user-facing error message before attempting copy.
+- ✅ All four `TEST_` flags (`TEST_SD_NOT_INSTALLED`, `TEST_SD_UPDATE_AVAILABLE`, `TEST_SD_INSTALL_FAIL`, `TEST_SD_STREAM_DECK_NOT_FOUND`) are wired up and cover all major error states.
+- ✅ If installed manifest can't be parsed, `needsUpdate` conservatively returns `false` rather than forcing an update.
 
 ---
 
 ### 1.3 Audio Device Settings Overhaul [#6]
+**Status: Done.**
+
 **What:** Move device configuration out of the main layout and into Settings. Remove the 2-device cap. Let users add as many output devices as they want.
 
 **Changes:**

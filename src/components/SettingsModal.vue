@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useSettings } from '../composables/useSettings'
-import { settingsModalOpen } from '../modalState'
+import { useAudioDevices } from '../composables/useAudioDevices'
+import { settingsModalOpen, helpModalOpen, helpModalInitialTab } from '../modalState'
 import { useStreamDeckImageErrors } from '../composables/useStreamDeckImageErrors'
+import { showToast } from '../toastState'
 import BaseModal from './BaseModal.vue'
 import StreamDeckImagePicker from './StreamDeckImagePicker.vue'
+import Icon from "@/components/Icon.vue";
 
 const { settings, saveSettings } = useSettings()
+const { audioDevices, findMatchingDeviceId, cleanDeviceLabel, getDeviceLabel } = useAudioDevices()
 const { brokenSources } = useStreamDeckImageErrors()
 
 // Track errors reported by the picker while the Stream Deck tab is open.
@@ -16,12 +20,13 @@ const hasStreamDeckErrors = computed(() =>
   pickerErrorCount.value > 0 || brokenSources.value.includes('Default')
 )
 
-type Tab = 'app' | 'playback' | 'streamdeck'
+type Tab = 'app' | 'playback' | 'devices' | 'streamdeck'
 const activeTab = ref<Tab>('app')
 
 const tabs: { id: Tab; label: string }[] = [
   { id: 'app',         label: 'App'          },
   { id: 'playback',    label: 'Playback'     },
+  { id: 'devices',     label: 'Audio Devices'},
   { id: 'streamdeck',  label: 'Stream Deck'  },
 ]
 
@@ -59,7 +64,100 @@ async function checkPluginStatus() {
   }
 }
 
-watch(settingsModalOpen, (open) => { if (open) checkPluginStatus() })
+watch(settingsModalOpen, (open) => {
+  if (open) {
+    checkPluginStatus()
+    syncAllDeviceState()
+  }
+})
+
+// ── Device management ───────────────────────────────────────────────────────
+
+const deviceSelectedIds = ref<string[]>([])
+const deviceVolumes = ref<number[]>([])
+
+function plainDevice(d: { label: string; volume: number; enabled: boolean }) {
+  return { label: d.label, volume: d.volume, enabled: d.enabled }
+}
+
+function syncAllDeviceState() {
+  deviceSelectedIds.value = settings.value.devices.map((d, i) => findMatchingDeviceId(d.label, i))
+  deviceVolumes.value = settings.value.devices.map(d => Math.round((d.volume ?? 1.0) * 100))
+}
+
+function syncDeviceIds() {
+  deviceSelectedIds.value = settings.value.devices.map((d, i) => findMatchingDeviceId(d.label, i))
+}
+
+watch(() => settings.value.devices.map(d => d.label).join('|'), syncDeviceIds)
+watch(audioDevices, syncDeviceIds)
+watch(() => settings.value.devices.length, syncAllDeviceState)
+
+function onDeviceChange(idx: number): void {
+  const newId = deviceSelectedIds.value[idx]
+  if (audioDevices.value.length > 1) {
+    for (let i = 0; i < settings.value.devices.length; i++) {
+      if (i === idx) continue
+      if (newId === findMatchingDeviceId(settings.value.devices[i].label, i)) {
+        showToast(`That device is already used as Output ${i + 1}. Choose a different device.`, 'info')
+        deviceSelectedIds.value[idx] = findMatchingDeviceId(settings.value.devices[idx].label, idx)
+        return
+      }
+    }
+  }
+  const newLabel = getDeviceLabel(newId)
+  const updated = settings.value.devices.map((d, i) =>
+    i === idx ? { label: newLabel, volume: d.volume, enabled: d.enabled } : plainDevice(d)
+  )
+  settings.value.devices = updated
+  saveSettings({ devices: updated })
+}
+
+function onDeviceEnabled(idx: number, val: boolean): void {
+  const updated = settings.value.devices.map((d, i) =>
+    i === idx ? { label: d.label, volume: d.volume, enabled: val } : plainDevice(d)
+  )
+  settings.value.devices = updated
+  saveSettings({ devices: updated })
+}
+
+function onVolumeInput(idx: number): void {
+  const vol = (deviceVolumes.value[idx] ?? 100) / 100
+  settings.value.devices = settings.value.devices.map((d, i) =>
+    i === idx ? { label: d.label, volume: vol, enabled: d.enabled } : plainDevice(d)
+  )
+}
+
+let deviceVolSaveTimeout: ReturnType<typeof setTimeout> | null = null
+function onVolumeChange(idx: number): void {
+  onVolumeInput(idx)
+  if (deviceVolSaveTimeout) clearTimeout(deviceVolSaveTimeout)
+  deviceVolSaveTimeout = setTimeout(() => {
+    saveSettings({ devices: settings.value.devices.map(plainDevice) })
+  }, 200)
+}
+
+function addDevice(): void {
+  const usedIds = new Set(deviceSelectedIds.value)
+  const unused = audioDevices.value.find(d => !usedIds.has(d.deviceId))
+  const newLabel = unused ? cleanDeviceLabel(unused.label) : (audioDevices.value[0] ? cleanDeviceLabel(audioDevices.value[0].label) : '')
+  const updated = [...settings.value.devices.map(plainDevice), { label: newLabel, volume: 1.0, enabled: true }]
+  settings.value.devices = updated
+  saveSettings({ devices: updated })
+}
+
+function removeDevice(idx: number): void {
+  if (settings.value.devices.length <= 1) return
+  const updated = settings.value.devices.filter((_, i) => i !== idx).map(plainDevice)
+  settings.value.devices = updated
+  saveSettings({ devices: updated })
+}
+
+function openVbCableHelp(): void {
+  helpModalInitialTab.value = 'audio-setup'
+  settingsModalOpen.value = false
+  helpModalOpen.value = true
+}
 
 // ── Auto-save handlers ──────────────────────────────────────────────────────
 
@@ -167,10 +265,10 @@ async function handleInstallPlugin(): Promise<void> {
 </script>
 
 <template>
-  <BaseModal :open="settingsModalOpen" title="Settings" width="560px" @close="settingsModalOpen = false">
+  <BaseModal :open="settingsModalOpen" title="Settings" width="600px" @close="settingsModalOpen = false">
 
     <!-- ── Body: tab list + content ──────────────────────────────────── -->
-    <div class="flex">
+    <div class="flex flex-1 min-h-0">
 
           <!-- Tab list -->
           <nav class="tab-list">
@@ -181,7 +279,7 @@ async function handleInstallPlugin(): Promise<void> {
               :class="{ 'tab-btn-active': activeTab === tab.id }"
               @click="activeTab = tab.id"
             >
-              {{ tab.label }}<span v-if="tab.id === 'streamdeck' && hasStreamDeckErrors" class="tab-error-badge">⚠</span>
+              {{ tab.label }}<Icon v-if="tab.id === 'streamdeck' && hasStreamDeckErrors" name="triangle-exclamation" class="text-[10px] text-danger ml-1" />
             </button>
           </nav>
 
@@ -292,6 +390,54 @@ async function handleInstallPlugin(): Promise<void> {
               </div>
             </div>
 
+            <!-- ── DEVICES tab ── -->
+            <div v-else-if="activeTab === 'devices'">
+              <div class="bg-bg-surface border border-border rounded-md p-3 mb-4">
+                <p class="text-[12px] text-text-secondary leading-relaxed">
+                  Sounds play on all enabled devices at the same time. Typically you'll add your headphones or speakers to hear sounds locally, and a virtual cable to route audio into Discord, OBS, or any other app.
+                </p>
+                <button class="btn mt-2 flex items-center gap-1.5 text-[12px] self-start" @click="openVbCableHelp">
+                  How to set up a virtual cable
+                  <Icon name="chevron-down-solid" class="text-[10px] -rotate-90" />
+                </button>
+              </div>
+              <div class="settings-section">
+                <div class="device-list">
+                  <div v-for="(device, idx) in settings.devices" :key="idx" class="device-row">
+                    <div class="device-row-top">
+                      <label class="toggle">
+                        <input type="checkbox" :checked="device.enabled" @change="(e) => onDeviceEnabled(idx, (e.target as HTMLInputElement).checked)" />
+                        <span class="toggle-track"></span>
+                        <span class="toggle-thumb"></span>
+                      </label>
+                      <select class="device-select" v-model="deviceSelectedIds[idx]" @change="onDeviceChange(idx)">
+                        <option v-for="d in audioDevices" :key="d.deviceId" :value="d.deviceId">
+                          {{ cleanDeviceLabel(d.label || `Device ${d.deviceId.slice(0, 8)}`) }}
+                        </option>
+                      </select>
+                      <button
+                        class="device-remove-btn"
+                        :disabled="settings.devices.length <= 1"
+                        @click="removeDevice(idx)"
+                        title="Remove device"
+                      ><Icon name="xmark-solid" /></button>
+                    </div>
+                    <div class="device-row-vol">
+                      <input
+                        type="range" min="0" max="100"
+                        v-model.number="deviceVolumes[idx]"
+                        @input="onVolumeInput(idx)"
+                        @change="onVolumeChange(idx)"
+                        class="device-vol-slider"
+                      />
+                      <span class="device-vol-value">{{ deviceVolumes[idx] ?? 100 }}%</span>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn mt-3" @click="addDevice">+ Add Device</button>
+              </div>
+            </div>
+
             <!-- ── STREAM DECK tab ── -->
             <div v-else-if="activeTab === 'streamdeck'">
 
@@ -378,6 +524,7 @@ async function handleInstallPlugin(): Promise<void> {
   background: var(--color-bg-surface);
   border-right: 1px solid var(--color-border);
   padding: 8px 0;
+  overflow-y: auto;
 }
 
 .tab-btn {
@@ -411,7 +558,8 @@ async function handleInstallPlugin(): Promise<void> {
 .tab-content {
   flex: 1;
   padding: 20px 24px 28px;
-  min-height: 280px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* First section header in a tab panel needs no top margin */
@@ -517,14 +665,6 @@ async function handleInstallPlugin(): Promise<void> {
 }
 .modal-select:focus { border-color: var(--color-accent); }
 
-/* ---- Tab error badge ---- */
-.tab-error-badge {
-  font-size: 10px;
-  color: var(--color-danger);
-  margin-left: 4px;
-  line-height: 1;
-  vertical-align: middle;
-}
 
 /* ---- Plugin install button states ---- */
 .plugin-btn-muted {
@@ -547,4 +687,100 @@ async function handleInstallPlugin(): Promise<void> {
 @keyframes btn-spin {
   to { transform: rotate(360deg); }
 }
+
+/* ---- Device list ---- */
+.device-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.device-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.device-row:last-child { border-bottom: none; }
+
+.device-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.device-row-vol {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 44px; /* indent to align under the select */
+}
+
+.device-select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 28px 6px 10px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238891a8'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+.device-select:focus { border-color: var(--color-accent); }
+.device-select option { background: var(--color-bg-surface); color: var(--color-text-primary); }
+
+.device-vol-slider {
+  -webkit-appearance: none;
+  flex: 1;
+  height: 4px;
+  background: var(--color-bg-surface);
+  border-radius: 2px;
+  outline: none;
+}
+.device-vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--color-accent-glow);
+  transition: box-shadow 0.15s;
+}
+.device-vol-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 12px var(--color-accent-glow);
+}
+
+.device-vol-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  min-width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.device-remove-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-dim);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.device-remove-btn:hover:not(:disabled) { color: var(--color-danger); }
+.device-remove-btn:disabled { opacity: 0.25; cursor: default; }
+
 </style>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, computed } from 'vue'
 import BaseModal from './BaseModal.vue'
+import Icon from './Icon.vue'
 import StreamDeckImagePicker from './StreamDeckImagePicker.vue'
 import { useSoundManagement } from '../composables/useSoundManagement'
 import { useSettings } from '../composables/useSettings'
@@ -126,7 +127,7 @@ function onPlayingImageChange(path: string | null): void {
   <BaseModal :open="open" :title="editingName || section.displayName" width="480px" @close="handleClose">
 
     <!-- ── Body: tab list + content ── -->
-    <div class="flex">
+    <div class="flex flex-1 min-h-0">
 
       <!-- Tab list -->
       <nav class="tab-list">
@@ -137,7 +138,7 @@ function onPlayingImageChange(path: string | null): void {
           :class="{ 'tab-btn-active': activeTab === tab.id }"
           @click="activeTab = tab.id"
         >
-          {{ tab.label }}<span v-if="tab.id === 'streamdeck' && hasStreamDeckErrors" class="tab-error-badge">⚠</span>
+          {{ tab.label }}<Icon v-if="tab.id === 'streamdeck' && hasStreamDeckErrors" name="triangle-exclamation" class="text-[10px] text-danger ml-1" />
         </button>
       </nav>
 
@@ -206,7 +207,7 @@ function onPlayingImageChange(path: string | null): void {
     </div>
 
     <!-- ── Footer: destructive action (custom categories only) ── -->
-    <div v-if="section.isCustom" class="modal-footer flex justify-end">
+    <div v-if="section.isCustom" class="modal-footer flex justify-end shrink-0">
       <button class="btn btn-danger" @click="handleDelete">Delete category</button>
     </div>
 
@@ -221,6 +222,7 @@ function onPlayingImageChange(path: string | null): void {
   background: var(--color-bg-surface);
   border-right: 1px solid var(--color-border);
   padding: 8px 0;
+  overflow-y: auto;
 }
 
 .tab-btn {
@@ -254,7 +256,8 @@ function onPlayingImageChange(path: string | null): void {
 .tab-content {
   flex: 1;
   padding: 20px 24px 28px;
-  min-height: 200px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* ---- Section layout ---- */
@@ -319,14 +322,6 @@ function onPlayingImageChange(path: string | null): void {
 .modal-input:focus { border-color: var(--color-accent); }
 .name-input { width: 160px; }
 
-/* ---- Tab error badge ---- */
-.tab-error-badge {
-  font-size: 10px;
-  color: var(--color-danger);
-  margin-left: 4px;
-  line-height: 1;
-  vertical-align: middle;
-}
 
 /* ---- Toggle switch ---- */
 .toggle { position: relative; width: 36px; height: 20px; cursor: pointer; display: inline-block; }

@@ -8,7 +8,6 @@ import { useStreamDeckImageErrors } from './composables/useStreamDeckImageErrors
 import { filterQuery } from './filterState'
 import appIcon from '../app-icon.png'
 import TitleBar from './components/TitleBar.vue'
-import DevicePanel from './components/DevicePanel.vue'
 import FolderBar from './components/FolderBar.vue'
 import SoundGrid from './components/SoundGrid.vue'
 import StatusBar from './components/StatusBar.vue'
@@ -103,7 +102,6 @@ onUnmounted(() => {
 
     <!-- ── Normal app chrome ─────────────────────────────────────────────── -->
     <template v-else>
-      <DevicePanel />
       <FolderBar />
       <SoundGrid />
       <StatusBar />

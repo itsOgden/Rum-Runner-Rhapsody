@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue'
+import Icon from './Icon.vue'
 
 const props = withDefaults(defineProps<{
   title: string
@@ -39,14 +40,16 @@ onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
         @click.self="emit('close')"
       >
         <div
-          class="modal-container bg-bg-raised border border-border rounded-lg shadow-lg overflow-hidden"
+          class="modal-container bg-bg-raised border border-border rounded-lg shadow-lg overflow-hidden flex flex-col max-h-[calc(100vh-48px)]"
           :style="{ width }"
         >
-          <div class="flex items-center justify-between px-5 py-3.5 border-b border-border">
+          <div class="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
             <div class="text-lg font-bold text-text-primary">{{ title }}</div>
-            <button class="close-btn" @click="emit('close')">×</button>
+            <button class="close-btn" @click="emit('close')"><Icon name="xmark-solid" class="text-[16px]" /></button>
           </div>
-          <slot />
+          <div class="flex-1 min-h-0 flex flex-col">
+            <slot />
+          </div>
         </div>
       </div>
     </Transition>

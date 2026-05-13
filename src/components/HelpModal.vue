@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { helpModalOpen } from '../modalState'
+import { ref, watch, onMounted } from 'vue'
+import { helpModalOpen, helpModalInitialTab } from '../modalState'
 import BaseModal from './BaseModal.vue'
 
 type Tab = 'patch-notes' | 'audio-setup'
 const activeTab = ref<Tab>('patch-notes')
+
+watch(helpModalOpen, (open) => {
+  if (open && helpModalInitialTab.value) {
+    activeTab.value = helpModalInitialTab.value as Tab
+    helpModalInitialTab.value = null
+  }
+})
 
 const tabs: { id: Tab; label: string }[] = [
   { id: 'patch-notes', label: 'Patch Notes' },
@@ -95,7 +102,7 @@ onMounted(async () => {
   <BaseModal :open="helpModalOpen" title="Help" width="600px" @close="helpModalOpen = false">
 
     <!-- ── Body: tab list + content ─────────────────────────────────── -->
-    <div class="flex">
+    <div class="flex flex-1 min-h-0">
 
           <!-- Tab list -->
           <nav class="tab-list">
@@ -247,6 +254,7 @@ onMounted(async () => {
   background: var(--color-bg-surface);
   border-right: 1px solid var(--color-border);
   padding: 8px 0;
+  overflow-y: auto;
 }
 
 .tab-btn {
@@ -281,7 +289,6 @@ onMounted(async () => {
   flex: 1;
   padding: 20px 24px 28px;
   overflow-y: auto;
-  max-height: 480px;
 }
 
 /* ── Patch notes ──────────────────────────────────────────────────── */

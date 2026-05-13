@@ -1,5 +1,21 @@
 # Rum-Runner Rhapsody — Claude Project Document
 
+## Keeping This File Current
+
+**This file is the source of truth for how RRR works. Keep it up to date.**
+
+**Updating this document is the last step of every task.** Do not consider a task complete until the relevant section(s) reflect the current state. This is not optional — a task that changes the codebase without updating the doc is an incomplete task.
+
+After completing any phase of work or making any non-trivial change, update the relevant section(s) before closing out. This includes:
+- Architecture changes (new files, renamed fields, new IPC handlers, new composables)
+- Settings schema changes (covered separately in the Modifying settings checklist)
+- New components, new behaviors, or changes to existing ones
+- Anything that would mislead a future Claude session if left stale
+
+If you finish a task and nothing in the doc needed to change, that's fine — but check first.
+
+---
+
 ## What This Project Is
 
 Rum-Runner Rhapsody (RRR) is a **dual-output Windows soundboard application** built with Electron, Vue 3, and TypeScript. It plays audio simultaneously to two output devices — typically headphones and a virtual audio cable (VB-Cable) — so streamers can hear sounds locally while routing them to Discord, OBS, or any other app.
@@ -24,6 +40,25 @@ Tailwind v4 is used for layout/spacing utility classes. Design tokens (colors, r
 
 ---
 
+## Code Style Rules
+
+### Keep it DRY — extract components and composables
+Before writing logic inline in a component, check whether a composable already handles it. Before writing UI inline, check whether a component already exists for it or whether the new piece is reusable enough to extract. Duplicating logic or markup across components is a bug, not a shortcut.
+
+### Tailwind-first — almost never write raw CSS
+Priority order:
+1. **Existing Tailwind utilities** — `flex`, `gap-2`, `text-sm`, `bg-bg-raised`, `text-text-dim`, etc.
+2. **New `@utility` in `style.css`** — when a pattern is used in 3+ places and no utility covers it
+3. **Arbitrary values** — `w-[300px]`, `text-[13px]`, `mt-[5px]` for one-off sizes
+4. **Raw CSS only** — for things Tailwind genuinely cannot express: pseudo-elements (`::-webkit-slider-thumb`), `@keyframes`, complex attribute selectors, `-webkit-app-region`
+
+When you catch yourself writing a `<style scoped>` block full of custom class definitions, stop and convert to Tailwind classes in the template instead.
+
+### No text icons or emoji — use `<Icon>` only
+Never use Unicode characters, emoji, or text glyphs as icons (e.g. `×`, `→`, `⚠`, `+`, `✓`). Always use `<Icon name="..." />`. If the icon you need doesn't exist in `src/assets/icons/`, stop, document what's needed, and tell the user to add the SVG before continuing.
+
+---
+
 ## Project Structure
 
 ```
@@ -32,12 +67,12 @@ Rum-Runner Rhapsody/
 │   ├── main.js                  — Main process, IPC handlers, WebSocket server
 │   └── preload.js               — IPC bridge (contextIsolation: true)
 ├── src/
-│   ├── App.vue                  — Root component, layout (TitleBar + DevicePanel + FolderBar + SoundGrid + StatusBar)
+│   ├── App.vue                  — Root component, layout (TitleBar + FolderBar + SoundGrid + StatusBar)
 │   ├── components/
 │   │   ├── TitleBar.vue         — Custom frameless titlebar (40px)
 │   │   ├── TopBar.vue           — Alternate top bar (unused; kept as reference)
-│   │   ├── DevicePanel.vue      — Two-slot device panel wrapper (renders two DeviceCards)
-│   │   ├── DeviceCard.vue       — Single output device: enable toggle, device picker, volume slider
+│   │   ├── DevicePanel.vue      — Unused; superseded by Devices tab in SettingsModal
+│   │   ├── DeviceCard.vue       — Unused; superseded by Devices tab in SettingsModal
 │   │   ├── FolderBar.vue        — Folder path, search input, show-hidden toggle, density toggle, Browse, Refresh
 │   │   ├── SoundGrid.vue        — Main grid: category quick-nav sidebar, accordion sections, drag-and-drop, empty states
 │   │   ├── AccordionSection.vue — Category header (collapsible, draggable) + sound button grid + DnD
@@ -182,14 +217,14 @@ interface FolderSettings {
 
 5. **Update this file** if the change is significant enough to affect the architecture docs above.
 
-### Critical IPC pattern — Reactive Proxy Bug
-**Never pass Vue reactive Proxy objects through IPC.** The Structured Clone Algorithm can't serialize them. Always spread into a plain object first:
+### Reactive Proxy and IPC
+`useSettings.saveSettings` wraps its payload in `toRaw()` before sending over IPC, so top-level reactive objects are safe to pass directly. However, `toRaw()` is shallow — nested reactive objects (e.g. a Proxy inside a Proxy) are not unwrapped. When constructing a value that contains a nested object from `settings.value`, always spread it into a new plain object first:
 
 ```typescript
-// WRONG
-saveSettings({ playCounts: settings.value.playCounts })
+// Safe — toRaw handles the top-level ref
+saveSettings({ theme: settings.value.theme })
 
-// CORRECT
+// Still required — nested object must be spread to avoid a nested Proxy
 const newCounts = { ...settings.value.playCounts, [key]: value }
 settings.value.playCounts = newCounts
 saveSettings({ playCounts: newCounts })
@@ -256,7 +291,7 @@ These files hold reactive state at module scope (not inside composables), so the
 | `filterState.ts` | `filterQuery: Ref<string>` | Search box value; shared between FolderBar and SoundGrid |
 | `dragState.ts` | `draggingSound: Ref<DraggingSound \| null>`, `draggingSection: Ref<DraggingSection \| null>` | Active DnD state; read by AccordionSection/SoundGrid |
 | `toastState.ts` | `toast: Ref<Toast \| null>`, `showToast(msg, type?)` | 4-second auto-dismiss toast; shown by Toast.vue |
-| `modalState.ts` | `settingsModalOpen: Ref<boolean>`, `helpModalOpen: Ref<boolean>` | Controls SettingsModal and HelpModal visibility |
+| `modalState.ts` | `settingsModalOpen: Ref<boolean>`, `helpModalOpen: Ref<boolean>`, `helpModalInitialTab: Ref<string \| null>` | Controls modal visibility; set `helpModalInitialTab` before opening HelpModal to land on a specific tab |
 | `dropdownState.ts` | `activeDropdownId: Ref<string \| null>` | Ensures only one SoundButton context menu is open at a time |
 
 ---
@@ -290,9 +325,10 @@ Sound buttons and category headers are both draggable.
 - Emits: `close`
 - Escape key closes; enter animation scales 0.95→1 + translateY; leave 0.15s
 
-**SettingsModal.vue** — three side-tabs:
+**SettingsModal.vue** — four side-tabs:
 - **App**: Theme, Stop All hotkey, Close to tray, Start with Windows, Launch minimized, Show category sidebar
 - **Playback**: Playback mode, Normalize volumes
+- **Devices**: N-device output list (enable toggle, device picker, volume slider, add/remove); description links to VB-Cable help tab
 - **Stream Deck**: Grid mode, Install/Update plugin, Default Button Icons (idle/playing/stop via StreamDeckImagePicker)
 
 **HelpModal.vue** — two side-tabs:

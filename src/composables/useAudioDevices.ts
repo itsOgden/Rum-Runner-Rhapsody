@@ -90,13 +90,10 @@ export function useAudioDevices() {
       // This covers the case where a device was disconnected, or the only
       // saved entry was a "Default - X" alias with no real match remaining.
       const { settings } = useSettings()
-      const slots = [
-        { label: settings.value.devices[0]?.label ?? '', role: 'Monitor' },
-        { label: settings.value.devices[1]?.label ?? '', role: 'Output' },
-      ]
-      for (const { label, role } of slots) {
+      for (let i = 0; i < settings.value.devices.length; i++) {
+        const label = settings.value.devices[i]?.label ?? ''
         if (label && !_findSpecificMatch(label, outputs)) {
-          showToast(`${role} device "${label}" not found — please reselect.`, 'info')
+          showToast(`Output ${i + 1} "${label}" not found — please reselect.`, 'info')
         }
       }
     } catch (e) {

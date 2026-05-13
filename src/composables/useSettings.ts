@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, toRaw } from 'vue'
 import type { GlobalSettings, SoundGroup, FolderChangeResult } from '../types'
 
 const settings = ref<GlobalSettings>({
@@ -59,7 +59,7 @@ export function useSettings() {
   }
 
   async function saveSettings(partial: Partial<GlobalSettings>): Promise<void> {
-    await window.api.saveSettings(partial)
+    await window.api.saveSettings(toRaw(partial))
   }
 
   async function onFolderChanged(result: FolderChangeResult): Promise<void> {

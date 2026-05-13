@@ -26,7 +26,10 @@
       "Bash(node:*)",
       "Bash(pnpm build:*)",
       "Bash(pnpm remove:*)",
-      "Bash(pnpm:*)"
+      "Bash(pnpm:*)",
+      "Bash(findstr /i \"arrow\\\\|chevron\")",
+      "Bash(Get-ChildItem -Path \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\src\\\\assets\\\\icons\" -Recurse -File)",
+      "Bash(Select-Object FullName)"
     ]
   },
   "model": "sonnet"
