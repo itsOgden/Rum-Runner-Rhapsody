@@ -89,20 +89,13 @@ function updateActiveSection(): void {
     if (el.getBoundingClientRect().top <= containerTop + 32) active = section.id
   }
   const natural = active ?? (navSections.value[0]?.id ?? null)
-  // Safety net: if there is a pending manual selection and natural tracking
-  // disagrees (e.g. the section couldn't reach the top), preserve the clicked
-  // highlight rather than overriding it with the wrong entry.
   if (manualActiveSection.value && natural !== manualActiveSection.value) return
-  // Natural tracking has converged with the manual selection (or no manual
-  // selection is active) — accept it and clear the override.
   manualActiveSection.value = null
   activeSectionId.value = natural
 }
 
 function onScroll(): void {
   if (scrollLocked) {
-    // Each scroll event restarts the idle timer; when scroll has been stable
-    // for 300ms the lock releases and scroll-based tracking resumes.
     if (scrollIdleTimer) clearTimeout(scrollIdleTimer)
     scrollIdleTimer = setTimeout(() => {
       scrollLocked = false
@@ -111,8 +104,6 @@ function onScroll(): void {
     }, 300)
     return
   }
-  // User is scrolling manually — clear any pending manual override so natural
-  // tracking can take over immediately.
   manualActiveSection.value = null
   updateActiveSection()
 }
@@ -148,16 +139,18 @@ watch(navSections, () => nextTick(updateActiveSection))
 <template>
   <div class="flex flex-1 min-h-0">
 
-    <!-- Category quick-nav — outside the scroll container so it never scrolls with content -->
+    <!-- Category quick-nav — fixed sibling outside scroll container -->
     <nav
       v-if="settings.showCategorySidebar && !filterQuery && !isLoadingSounds && soundCount > 0"
-      class="category-nav"
+      class="w-[110px] shrink-0 py-4 pl-1.5 pr-1 border-r border-border overflow-y-auto"
     >
       <button
         v-for="section in navSections"
         :key="section.id"
-        class="category-nav-entry"
-        :class="{ 'category-nav-entry-active': activeSectionId === section.id }"
+        class="block w-full px-1.5 py-[3px] text-left text-[11px] bg-transparent border-none rounded-sm cursor-pointer truncate leading-[1.7] transition-colors"
+        :class="activeSectionId === section.id
+          ? 'text-accent font-semibold hover:text-accent'
+          : 'text-text-dim hover:text-text-secondary hover:bg-bg-surface-hover'"
         :title="section.displayName"
         @click="scrollToSection(section.id)"
       >{{ section.displayName }}</button>
@@ -171,7 +164,7 @@ watch(navSections, () => nextTick(updateActiveSection))
         v-if="isLoadingSounds"
         class="flex flex-col items-center justify-center h-full text-text-dim gap-3"
       >
-        <div class="spinner"></div>
+        <div class="w-[22px] h-[22px] rounded-full border-2 border-border-light border-t-accent animate-spin" />
         <span class="text-[13px]">Scanning folder…</span>
       </div>
 
@@ -198,7 +191,6 @@ watch(navSections, () => nextTick(updateActiveSection))
 
       <!-- Sound grid -->
       <div v-else class="px-5 py-4">
-        <!-- Wrapper div provides category-reorder drop target and drag opacity feedback -->
         <div
           v-for="section in sections"
           :key="section.id"
@@ -231,61 +223,3 @@ watch(navSections, () => nextTick(updateActiveSection))
 
   </div>
 </template>
-
-<style scoped>
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.spinner {
-  width: 22px;
-  height: 22px;
-  border: 2px solid var(--color-border-light);
-  border-top-color: var(--color-accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-/* ── Category quick-nav sidebar ─────────────────────────────────────────── */
-
-.category-nav {
-  width: 110px;
-  flex-shrink: 0;
-  padding: 16px 4px 16px 6px;
-  border-right: 1px solid var(--color-border);
-  overflow-y: auto;
-}
-
-.category-nav-entry {
-  display: block;
-  width: 100%;
-  padding: 3px 6px;
-  text-align: left;
-  font-size: 11px;
-  font-family: var(--font-sans);
-  color: var(--color-text-dim);
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.7;
-  transition: color 0.1s, background 0.1s;
-}
-
-.category-nav-entry:hover {
-  color: var(--color-text-secondary);
-  background: var(--color-bg-surface-hover);
-}
-
-.category-nav-entry-active {
-  color: var(--color-accent);
-  font-weight: 600;
-}
-
-.category-nav-entry-active:hover {
-  color: var(--color-accent);
-}
-</style>

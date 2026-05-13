@@ -1,19 +1,22 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
+import {ref, watch, onUnmounted, computed} from 'vue'
 import Icon from './Icon.vue'
 
 const props = withDefaults(defineProps<{
   title: string
-  width?: string
+  size?: 'sm' | 'md' | 'lg'
   open?: boolean
 }>(), {
-  width: '560px',
+  size: 'md',
   open: false,
 })
 
 const emit = defineEmits<{
   close: []
 }>()
+
+const width = computed(() => props.size === 'sm' ? '35rem' : props.size === 'lg' ? '50rem' : '40rem')
+const maxHeight = computed(() => props.size === 'sm' ? '26rem' : props.size === 'lg' ? '48rem' : '32rem')
 
 const visible = ref(false)
 
@@ -40,12 +43,17 @@ onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
         @click.self="emit('close')"
       >
         <div
-          class="modal-container bg-bg-raised border border-border rounded-lg shadow-lg overflow-hidden flex flex-col max-h-[calc(100vh-48px)]"
-          :style="{ width }"
+          class="modal-container bg-bg-raised border border-border rounded-lg shadow-lg overflow-hidden flex flex-col h-[calc(100vh-4rem)]"
+          :style="{ width, maxHeight }"
         >
           <div class="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
             <div class="text-lg font-bold text-text-primary">{{ title }}</div>
-            <button class="close-btn" @click="emit('close')"><Icon name="xmark-solid" class="text-[16px]" /></button>
+            <button
+              class="text-text-dim text-[20px] leading-none cursor-pointer p-0.5 rounded bg-transparent border-none transition-colors hover:text-text-primary"
+              @click="emit('close')"
+            >
+              <Icon name="xmark-solid" class="text-[16px]" />
+            </button>
           </div>
           <div class="flex-1 min-h-0 flex flex-col">
             <slot />
@@ -57,19 +65,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
 </template>
 
 <style scoped>
-.close-btn {
-  background: none;
-  border: none;
-  color: var(--color-text-dim);
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0 2px;
-  border-radius: 4px;
-  transition: color 0.15s;
-}
-.close-btn:hover { color: var(--color-text-primary); }
-
 /* ── Enter animation ── */
 .modal-enter-active {
   transition: opacity 0.2s ease;

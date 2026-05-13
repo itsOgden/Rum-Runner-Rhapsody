@@ -70,15 +70,13 @@ Rum-Runner Rhapsody/
 │   ├── App.vue                  — Root component, layout (TitleBar + FolderBar + SoundGrid + StatusBar)
 │   ├── components/
 │   │   ├── TitleBar.vue         — Custom frameless titlebar (40px)
-│   │   ├── TopBar.vue           — Alternate top bar (unused; kept as reference)
-│   │   ├── DevicePanel.vue      — Unused; superseded by Devices tab in SettingsModal
-│   │   ├── DeviceCard.vue       — Unused; superseded by Devices tab in SettingsModal
 │   │   ├── FolderBar.vue        — Folder path, search input, show-hidden toggle, density toggle, Browse, Refresh
 │   │   ├── SoundGrid.vue        — Main grid: category quick-nav sidebar, accordion sections, drag-and-drop, empty states
 │   │   ├── AccordionSection.vue — Category header (collapsible, draggable) + sound button grid + DnD
 │   │   ├── SoundButton.vue      — Individual sound button + context menu + preview
 │   │   ├── BaseModal.vue        — Reusable modal wrapper with animations
-│   │   ├── SettingsModal.vue    — Settings (side-tab: App / Playback / Stream Deck)
+│   │   ├── ModalTabs.vue        — Shared left-sidebar tab nav used by all modals (v-model activeTab, badge support)
+│   │   ├── SettingsModal.vue    — Settings (side-tab: App / Playback / Devices / Stream Deck)
 │   │   ├── HelpModal.vue        — Help (side-tab: Patch Notes / VB-Cable guide)
 │   │   ├── CategorySettingsModal.vue — Per-category settings (General / Stream Deck tabs)
 │   │   ├── StreamDeckImagePicker.vue — Reusable image picker for SD button images
@@ -87,7 +85,12 @@ Rum-Runner Rhapsody/
 │   │   ├── Icon.vue             — SVG icon component (wraps generated icon CSS classes)
 │   │   ├── SquareButton.vue     — 36×36px icon button; props: icon, title, active, disabled, variant ('default'|'danger')
 │   │   ├── CircleButton.vue     — 20×20px circle icon button; prop: noColors to skip accent styling
-│   │   └── ToggleCircleButton.vue — Circle button with enabled state (accent bg when enabled, hover-reveal when not)
+│   │   ├── ToggleCircleButton.vue — Circle button with enabled state (accent bg when enabled, hover-reveal when not)
+│   │   ├── ToggleSwitch.vue     — Reusable boolean toggle switch (v-model); used in all settings modals
+│   │   ├── SettingRow.vue       — Label + control + optional description row; used in all settings modals (props: label, description)
+│   │   ├── MenuItem.vue         — Context menu button row; default slot for content, prop: topBorder
+│   │   ├── ImagePickerSlot.vue  — Single image picker card (label, preview, error, clear); used in StreamDeckImagePicker
+│   │   └── InstructionStep.vue  — Numbered step with accent badge, title, slot body; used in HelpModal VB-Cable guide
 │   ├── composables/
 │   │   ├── useAudioDevices.ts   — Device enumeration, label cleaning, cross-session matching, hotplug
 │   │   ├── useAudioPlayer.ts    — Audio playback, gain, playing state tracking, preview playback
@@ -324,6 +327,11 @@ Sound buttons and category headers are both draggable.
 - Props: `title: string`, `width: string`
 - Emits: `close`
 - Escape key closes; enter animation scales 0.95→1 + translateY; leave 0.15s
+
+**ModalTabs.vue** — shared left-sidebar tab nav:
+- Props: `tabs: Array<{ id, label, badge? }>`, `modelValue: string`
+- Emits: `update:modelValue`
+- Fully inline Tailwind; optional `badge` prop shows warning icon on the tab
 
 **SettingsModal.vue** — four side-tabs:
 - **App**: Theme, Stop All hotkey, Close to tray, Start with Windows, Launch minimized, Show category sidebar
@@ -572,6 +580,19 @@ Light mode is toggled by adding the `light` class to `<html>`. All background, t
 - `.btn` — base button style
 - `.btn-accent` — amber filled button (Browse, confirm actions)
 - `.btn-danger` — red tinted button (destructive actions)
+
+### Global utilities (in `style.css`):
+- `app-region-drag` / `app-region-no-drag` — `-webkit-app-region` for Electron drag regions (`@utility`)
+- `animate-fade-in` — `fadeIn 0.25s ease forwards`; keyframe defined in `@theme` as `--animate-fade-in`
+- `animate-playing-bar` — `playing-bar 0.8s ease-in-out infinite alternate`; keyframe defined in `@theme`
+- `guide-bullet` — accent-bullet list item for `<li>` in guides (14px indent, `•` in accent color)
+
+### Global base styles (`@layer base` in `style.css`):
+- `body` — font, background, overflow, user-select, app-region reset
+- `input[type="range"]` — shared slider track + `::webkit-slider-thumb` thumb styles; applies to all range inputs
+
+### Global component classes (`@layer components` in `style.css`):
+- `.btn`, `.btn-accent`, `.btn-danger` — button variants used across the app
 
 ### Fonts:
 - Body: **Outfit**
