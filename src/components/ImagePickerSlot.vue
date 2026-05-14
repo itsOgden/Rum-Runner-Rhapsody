@@ -18,7 +18,7 @@ const emit = defineEmits<{
 
 <template>
   <div class="flex-1 min-w-0 flex flex-col gap-1.5" :class="{ 'opacity-45 pointer-events-none': disabled }">
-    <div class="text-sm font-semibold uppercase text-text-dim tracking-[0.04em]">{{ label }}</div>
+    <div class="text-sm font-semibold uppercase text-text-secondary tracking-[0.04em]">{{ label }}</div>
     <div
       class="group/slot relative w-full aspect-square rounded-sm overflow-hidden border cursor-pointer outline-none"
       :class="error

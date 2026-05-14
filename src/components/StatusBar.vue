@@ -23,15 +23,15 @@ const brokenWarning = computed(() => {
 </script>
 
 <template>
-  <div class="flex items-center justify-between px-5 py-1.5 bg-bg-deepest border-t border-border shrink-0">
+  <div class="flex items-center justify-between px-5 py-1.5 bg-bg-deepest border-t border-border-light shrink-0">
     <div class="flex items-center gap-3">
-      <span class="text-xs text-text-dim">{{ statusText }}</span>
+      <span class="text-xs text-text-secondary">{{ statusText }}</span>
       <span v-if="brokenWarning" class="flex items-center gap-1 text-xs text-danger">
         <Icon name="triangle-exclamation" class="shrink-0" />
         {{ brokenWarning }}
       </span>
     </div>
-    <span class="text-xs text-text-dim flex items-center gap-2">
+    <span class="text-xs text-text-secondary flex items-center gap-2">
       <span>
         <span class="text-accent mx-0.5">{{ soundCount }}</span>
         sounds

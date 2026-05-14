@@ -193,14 +193,14 @@ function resetVolumeOffset(): void {
   <!-- Outer wrapper: provides the hover group, full height, and fade-in animation -->
   <div
     class="group/btn relative animate-fade-in h-full sbtn"
-    :class="{ 'z-[2]': isPlaying }"
+    :class="{ 'z-2': isPlaying, 'sbtn-playing': isPlaying }"
     :style="{ animationDelay: `${animationDelay ?? 0}ms` }"
     @mouseleave="handleMouseLeave"
   >
     <!-- Inline rename input (replaces button label) -->
     <div
       v-if="isRenaming"
-      class="w-full h-full bg-bg-raised border border-accent rounded-sm px-3.5 py-2 flex items-center"
+      class="w-full h-full bg-bg-raised border border-accent px-3.5 py-2 flex items-center"
       @click.stop
     >
       <input
@@ -215,11 +215,11 @@ function resetVolumeOffset(): void {
 
     <!-- Spinning comet ring (DOM-first so button stacks on top) + button -->
     <template v-else>
-      <div v-if="isPlaying" class="rounded-sm btn-spin-ring pointer-events-none" />
+      <div v-if="isPlaying" class="btn-spin-ring pointer-events-none" />
 
       <button
         draggable="true"
-        class="relative w-full h-full rounded-sm bg-bg-raised font-sans text-sm cursor-pointer text-center wrap-break-word transition-all duration-120 outline-none"
+        class="relative w-full h-full bg-bg-raised font-sans text-sm cursor-pointer text-center wrap-break-word transition-all duration-120 outline-none"
         :class="btnClasses"
         @click="handleClick"
         @dragstart="onDragStart"
@@ -252,7 +252,7 @@ function resetVolumeOffset(): void {
     <Teleport to="body">
       <div
         v-if="menuOpen"
-        class="fixed bg-bg-raised border border-border rounded-md shadow-lg z-500 py-1 min-w-45"
+        class="fixed bg-bg-raised border border-border shadow-lg z-500 py-1 min-w-45"
         :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }"
         @click.stop
       >
@@ -306,7 +306,7 @@ function resetVolumeOffset(): void {
           />
           <button
             v-if="localVolumeOffset !== 0"
-            class="mt-1.5 px-2.5 py-0.75 text-sm bg-bg-surface-active border border-border rounded text-text-secondary cursor-pointer transition-colors hover:border-accent hover:text-text-primary"
+            class="mt-1.5 px-2.5 py-0.75 text-sm bg-bg-surface-active border border-border-light text-text-secondary cursor-pointer transition-colors hover:border-accent hover:text-text-primary"
             @click="resetVolumeOffset"
           >Reset</button>
         </div>
@@ -378,6 +378,22 @@ function resetVolumeOffset(): void {
   );
   animation: btn-spin-rotate 2.5s linear infinite;
 }
+/* Ambient gold halo — extends 12px outside, blurred, pulses in sync with btn-spin-glow */
+.sbtn-playing::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  background: rgb(from var(--color-accent) r g b / 0.14);
+  filter: blur(22px);
+  z-index: -1;
+  pointer-events: none;
+  animation: btn-ambient-pulse 5s ease-in-out infinite;
+}
+@keyframes btn-ambient-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+
 @keyframes btn-spin-rotate {
   /* Peak starts at bottom (6 o'clock). Top/bottom edges are ~2× faster than the
      sides so the comet cruises across the wide face and eases through the corners.

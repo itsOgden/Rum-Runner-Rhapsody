@@ -43,13 +43,13 @@ onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
         @click.self="emit('close')"
       >
         <div
-          class="modal-container bg-bg-raised border border-border rounded-lg shadow-lg overflow-hidden flex flex-col h-[calc(100vh-4rem)]"
+          class="modal-container bg-bg-raised border border-border-light rounded-lg shadow-lg overflow-hidden flex flex-col h-[calc(100vh-4rem)]"
           :style="{ width, maxHeight }"
         >
-          <div class="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
-            <div class="text-lg font-bold text-text-primary">{{ title }}</div>
+          <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-light shrink-0">
+            <div class="font-display text-lg text-text-primary">{{ title }}</div>
             <button
-              class="text-text-dim text-xl leading-none cursor-pointer p-0.5 rounded bg-transparent border-none transition-colors hover:text-text-primary"
+              class="text-text-dim text-xl leading-none cursor-pointer p-0.5 bg-transparent border-none transition-colors hover:text-text-primary"
               @click="emit('close')"
             >
               <Icon name="xmark-solid" class="text-[16px]" />

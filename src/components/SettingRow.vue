@@ -11,6 +11,6 @@ defineProps<{
       <div class="text-sm text-text-primary">{{ label }}</div>
       <slot />
     </div>
-    <p v-if="description" class="mt-1 text-xs text-text-dim">{{ description }}</p>
+    <p v-if="description" class="mt-1 text-xs text-text-secondary">{{ description }}</p>
   </div>
 </template>

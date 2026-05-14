@@ -35,7 +35,8 @@
       "Bash(Write-Output \"Deleted\")",
       "PowerShell(Remove-Item *)",
       "WebFetch(domain:fonts.google.com)",
-      "WebFetch(domain:www.typewolf.com)"
+      "WebFetch(domain:www.typewolf.com)",
+      "Skill(frontend-design)"
     ]
   },
   "model": "sonnet"

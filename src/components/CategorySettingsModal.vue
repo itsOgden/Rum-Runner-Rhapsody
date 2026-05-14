@@ -144,11 +144,11 @@ function onPlayingImageChange(path: string | null): void {
               <div class="text-sm text-text-primary">Hide</div>
               <ToggleSwitch :modelValue="section.isHidden" @update:modelValue="handleToggleHide" />
             </div>
-            <p class="text-xs text-text-dim">Hidden categories are not shown in the sound list</p>
+            <p class="text-xs text-text-secondary">Hidden categories are not shown in the sound list</p>
           </div>
 
           <template v-if="!section.isCustom">
-            <hr class="border-border" />
+            <hr class="border-border-light" />
             <div class="flex justify-end">
               <button class="btn" @click="handleRestore">Restore defaults</button>
             </div>
@@ -158,7 +158,7 @@ function onPlayingImageChange(path: string | null): void {
         <!-- ── STREAM DECK tab ── -->
         <div v-else-if="activeTab === 'streamdeck'" class="space-y-3">
           <div class="text-sm text-text-primary">Custom Icons</div>
-          <p class="text-xs text-text-dim">Optional icons for this category's Stream Deck buttons.</p>
+          <p class="text-xs text-text-secondary">Optional icons for this category's Stream Deck buttons.</p>
           <StreamDeckImagePicker
             :idle-path="idleImagePath"
             :playing-path="playingImagePath"
@@ -174,7 +174,7 @@ function onPlayingImageChange(path: string | null): void {
     </div>
 
     <!-- Footer: destructive action (custom categories only) -->
-    <div v-if="section.isCustom" class="flex justify-end shrink-0 px-5 py-3 border-t border-border">
+    <div v-if="section.isCustom" class="flex justify-end shrink-0 px-5 py-3 border-t border-border-light">
       <button class="btn btn-danger" @click="handleDelete">Delete category</button>
     </div>
 

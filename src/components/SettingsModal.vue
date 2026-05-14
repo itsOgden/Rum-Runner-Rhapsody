@@ -281,7 +281,7 @@ async function handleInstallPlugin(): Promise<void> {
           <div class="space-y-3">
             <SettingRow label="Theme">
               <select
-                class="px-2 py-1.5 text-xs min-w-[140px] bg-bg-surface text-text-primary border border-border-light rounded-sm outline-none cursor-pointer focus:border-accent"
+                class="px-2 py-1.5 text-sm min-w-[140px] bg-bg-surface text-text-primary border border-border-light outline-none cursor-pointer focus:border-accent"
                 :value="settings.theme"
                 @change="setTheme"
               >
@@ -308,11 +308,11 @@ async function handleInstallPlugin(): Promise<void> {
           </div>
 
           <div>
-            <h3 class="text-sm font-semibold uppercase text-text-dim mb-3 pb-0 border-b border-border">Keybinds</h3>
+            <h3 class="font-display text-sm text-text-secondary mb-3 pb-1.5 border-b border-border-light">Keybinds</h3>
             <SettingRow label="Stop All">
               <input
                 type="text"
-                class="w-[100px] px-2 py-1.5 text-xs bg-bg-surface text-text-primary border border-border-light rounded-sm outline-none text-center focus:border-accent"
+                class="w-[100px] px-2 py-1.5 text-sm bg-bg-surface text-text-primary border border-border-light outline-none text-center focus:border-accent"
                 placeholder="Escape"
                 v-model="settings.hotkeys.stop"
                 @input="onHotkeyInput"
@@ -330,7 +330,7 @@ async function handleInstallPlugin(): Promise<void> {
               <button class="flex-1 btn" :class="{ 'btn-accent': settings.playbackMode === 'restart' }" @click="setPlaybackMode('restart')">Restart</button>
               <button class="flex-1 btn" :class="{ 'btn-accent': settings.playbackMode === 'overlap' }" @click="setPlaybackMode('overlap')">Overlap</button>
             </div>
-            <p class="text-xs text-text-dim mt-1">
+            <p class="text-xs text-text-secondary mt-1">
               <template v-if="settings.playbackMode === 'overlap'">Clicking a playing sound adds a new simultaneous instance.</template>
               <template v-else-if="settings.playbackMode === 'restart'">Clicking a playing sound restarts it.</template>
               <template v-else>Clicking a playing sound stops it. Clicking it again restarts it.</template>
@@ -344,7 +344,7 @@ async function handleInstallPlugin(): Promise<void> {
 
         <!-- ── DEVICES tab ── -->
         <div v-else-if="activeTab === 'devices'">
-          <div class="bg-bg-surface border border-border rounded-md p-3 mb-4">
+          <div class="bg-bg-surface border border-border-light p-3 mb-4">
             <p class="text-xs text-text-secondary leading-relaxed">
               Sounds play on all enabled devices at the same time. Typically you'll add your headphones or speakers to hear sounds locally, and a virtual cable to route audio into Discord, OBS, or any other app.
             </p>
@@ -358,7 +358,7 @@ async function handleInstallPlugin(): Promise<void> {
             <div
               v-for="(device, idx) in settings.devices"
               :key="idx"
-              class="flex flex-col gap-[5px] py-2 border-b border-border last:border-b-0"
+              class="flex flex-col gap-[5px] py-2 border-b border-border-light last:border-b-0"
             >
               <div class="flex items-center gap-2">
                 <ToggleSwitch
@@ -393,7 +393,7 @@ async function handleInstallPlugin(): Promise<void> {
             </div>
           </div>
           <div class="flex items-center gap-3 mt-3">
-            <button class="btn" :disabled="!canAddDevice" :class="{ 'opacity-40 cursor-default': !canAddDevice }" @click="addDevice">+ Add Device</button>
+            <button class="btn flex items-center gap-1.5" :disabled="!canAddDevice" :class="{ 'opacity-40 cursor-default': !canAddDevice }" @click="addDevice"><Icon name="plus" /> Add Device</button>
             <span v-if="!canAddDevice" class="text-xs text-text-dim">No unused devices available</span>
           </div>
         </div>
@@ -429,7 +429,7 @@ async function handleInstallPlugin(): Promise<void> {
               <template v-else>Install Plugin</template>
             </button>
             <span
-              class="text-xs text-text-dim"
+              class="text-xs text-text-secondary"
               :class="{ 'text-danger!': pluginState === 'error' }"
             >
               <template v-if="pluginState === 'error'">{{ pluginErrorMessage }}</template>
@@ -438,7 +438,7 @@ async function handleInstallPlugin(): Promise<void> {
             </span>
           </div>
 
-          <hr class="border-border" />
+          <hr class="border-border-light" />
 
           <div class="space-y-3">
             <SettingRow label="Grid Mode" description="Show sounds as a grid in the Stream Deck Plugin">
@@ -447,7 +447,7 @@ async function handleInstallPlugin(): Promise<void> {
 
             <div class="mt-4">
               <h3 class="text-sm text-text-primary mb-1">Default Icons</h3>
-              <p class="text-xs text-text-dim mb-3">Override the icons for all Stream Deck buttons. Category icons always take priority when set and enabled.</p>
+              <p class="text-xs text-text-secondary mb-3">Override the icons for all Stream Deck buttons. Category icons always take priority when set and enabled.</p>
               <StreamDeckImagePicker
                 :idle-path="defaultIdlePath"
                 :playing-path="defaultPlayingPath"

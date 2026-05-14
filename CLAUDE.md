@@ -57,6 +57,9 @@ When you catch yourself writing a `<style scoped>` block full of custom class de
 ### No text icons or emoji — use `<Icon>` only
 Never use Unicode characters, emoji, or text glyphs as icons (e.g. `×`, `→`, `⚠`, `+`, `✓`). Always use `<Icon name="..." />`. If the icon you need doesn't exist in `src/assets/icons/`, stop, document what's needed, and tell the user to add the SVG before continuing.
 
+### `text-text-dim` is for decoration only
+The global body font is weight 300. At this weight, `text-text-dim` (#5A5550) is genuinely hard to read. Reserve it for placeholders, empty-state hints, and purely decorative labels. All functional body copy — descriptions, helper text, labels that a user needs to read — must use `text-text-secondary` (#C0B6AA) or higher.
+
 ---
 
 ## Project Structure
@@ -70,9 +73,9 @@ Rum-Runner Rhapsody/
 │   ├── App.vue                  — Root component, layout (TitleBar + FolderBar + SoundGrid + StatusBar)
 │   ├── components/
 │   │   ├── TitleBar.vue         — Custom frameless titlebar (40px)
-│   │   ├── FolderBar.vue        — Folder path, search input, show-hidden toggle, density toggle, Browse, Refresh
+│   │   ├── FolderBar.vue        — Sound library bar: Browse (btn-accent), folder basename, Refresh; center search; right text density toggle (Loose · Compact) + Show Hidden toggle
 │   │   ├── SoundGrid.vue        — Main grid: category quick-nav sidebar, accordion sections, drag-and-drop, empty states
-│   │   ├── AccordionSection.vue — Category header (collapsible, draggable) + sound button grid + DnD
+│   │   ├── AccordionSection.vue — Category header (collapsible, draggable, right-click opens settings) + sound button grid + DnD
 │   │   ├── SoundButton.vue      — Individual sound button + context menu + preview
 │   │   ├── BaseModal.vue        — Reusable modal wrapper with animations
 │   │   ├── ModalTabs.vue        — Shared left-sidebar tab nav used by all modals (v-model activeTab, badge support)
@@ -273,16 +276,15 @@ Audio and image files are loaded via `window.api.readSoundFile(path)` (IPC → `
 
 ## Custom Titlebar
 
-The window is **frameless** (`frame: false`). TitleBar.vue renders a 40px bar with:
-- Left: full brandmark SVG (`src/assets/images/wordmark.svg`, 34px tall, auto width) — replaces the old icon + text combo
-- Bar height increased from 40px to 48px (`h-12`) to accommodate the brandmark
-- Center: master volume slider (max-width 280px)
-- Right-A: Stop All (red, visible only when sounds are playing), Help (circle-question icon), Settings gear — all `.wc-btn` style
-- Divider: 1px vertical
-- Right-B: Minimize, Maximize/Restore, Close (hover red)
+The window is **frameless** (`frame: false`). TitleBar.vue uses a `grid grid-cols-3` layout so all three columns share equal width — this aligns the center master volume slider with FolderBar's center search input.
 
-All buttons use `.wc-btn`: 32×40px, transparent bg, hover `rgba(255,255,255,0.08)`.
-Titlebar has `-webkit-app-region: drag`, interactive elements have `-webkit-app-region: no-drag`.
+- **Left (1/3)**: brandmark SVG (`src/assets/images/wordmark.svg`, 34px tall) — `-webkit-app-region: drag` on the bar, `no-drag` on interactive elements
+- **Center (1/3)**: master volume slider in a `w-[260px] mx-auto` wrapper — matches FolderBar search width
+- **Right (1/3)**: Stop All (danger, visible when playing) + Help + Settings gear, then a 1px divider, then Minimize / Maximize / Close
+
+App control buttons (Stop All, Help, Settings) use `.wc-btn` scoped style: 32×40px, transparent, `rgba(255,255,255,0.08)` on hover. Window control buttons (Minimize, Maximize, Close) share the same class; Close additionally turns red on hover.
+
+Bar height: `h-12` (48px). Titlebar has `-webkit-app-region: drag`; all buttons have `-webkit-app-region: no-drag`.
 
 ---
 
@@ -294,7 +296,7 @@ These files hold reactive state at module scope (not inside composables), so the
 |---|---|---|
 | `filterState.ts` | `filterQuery: Ref<string>` | Search box value; shared between FolderBar and SoundGrid |
 | `dragState.ts` | `draggingSound: Ref<DraggingSound \| null>`, `draggingSection: Ref<DraggingSection \| null>` | Active DnD state; read by AccordionSection/SoundGrid |
-| `toastState.ts` | `toast: Ref<Toast \| null>`, `showToast(msg, type?)` | 4-second auto-dismiss toast; shown by Toast.vue |
+| `toastState.ts` | `toast: Ref<Toast \| null>`, `showToast(msg, type?)` | 4-second auto-dismiss toast; shown by Toast.vue; positioned `bottom-9` (36px) to clear the StatusBar |
 | `modalState.ts` | `settingsModalOpen: Ref<boolean>`, `helpModalOpen: Ref<boolean>`, `helpModalInitialTab: Ref<string \| null>` | Controls modal visibility; set `helpModalInitialTab` before opening HelpModal to land on a specific tab |
 | `dropdownState.ts` | `activeDropdownId: Ref<string \| null>` | Ensures only one SoundButton context menu is open at a time |
 
@@ -328,11 +330,13 @@ Sound buttons and category headers are both draggable.
 - Props: `title: string`, `width: string`
 - Emits: `close`
 - Escape key closes; enter animation scales 0.95→1 + translateY; leave 0.15s
+- Container has `border border-border-light` (no border-radius — matches 0px radius design system)
 
 **ModalTabs.vue** — shared left-sidebar tab nav:
 - Props: `tabs: Array<{ id, label, badge? }>`, `modelValue: string`
 - Emits: `update:modelValue`
 - Fully inline Tailwind; optional `badge` prop shows warning icon on the tab
+- Sidebar uses `bg-bg-base` (#0C0C0C) so it recedes behind the `bg-bg-raised` (#161616) content area — not `bg-bg-surface`
 
 **SettingsModal.vue** — four side-tabs:
 - **App**: Theme, Stop All hotkey, Close to tray, Start with Windows, Launch minimized, Show category sidebar
@@ -344,7 +348,7 @@ Sound buttons and category headers are both draggable.
 - **Patch Notes** (first tab): Reads `CHANGELOG.md` via `get-changelog` IPC, parses and renders with version heading in TavernloreBB, date below it, App/Stream Deck subsections
 - **VB-Cable**: Setup guide with screenshots
 
-**CategorySettingsModal.vue** — two side-tabs, opened via cog icon on category headers:
+**CategorySettingsModal.vue** — two side-tabs, opened by right-clicking a category header (no visible gear icon):
 - **General**: Category rename (drives live modal title), hide/show toggle, Restore Defaults button
 - **Stream Deck**: StreamDeckImagePicker for per-category idle/playing images
 - Modal stays open when hide is toggled; hidden categories remain mounted while modal is open
@@ -543,13 +547,13 @@ All design tokens are defined via Tailwind v4's `@theme` in `src/assets/css/styl
 --color-bg-surface-active /* #333333 — active/pressed surface */
 
 /* Accent (brand gold) */
---color-accent            /* #F9B71D — buttons, active states, badges, category headers */
+--color-accent            /* #F9B71D — buttons, active states, badges */
 --color-accent-dim        /* #D49A00 — hover state for accent elements */
 --color-accent-glow       /* rgba(249,183,29,0.18) — box-shadow glow on sliders */
 
 /* Text */
 --color-text-primary      /* #F0EBE0 — main text */
---color-text-secondary    /* #9A9080 — muted/description text */
+--color-text-secondary    /* #C0B6AA — muted/description text */
 --color-text-dim          /* #5A5550 — very muted text (labels, placeholders) */
 --color-text-on-accent    /* #000000 — text on gold accent background */
 
@@ -559,16 +563,16 @@ All design tokens are defined via Tailwind v4's `@theme` in `src/assets/css/styl
 --color-warning           /* #FFE566 — warnings */
 
 /* Borders */
---color-border            /* #1E1E1E — dividers, section borders */
---color-border-light      /* #282828 — input borders, card outlines */
+--color-border            /* #1E1E1E — structural/background-level separators only */
+--color-border-light      /* #282828 — all visible UI borders: inputs, cards, modals, dividers, context menus */
 
 /* Radii */
---radius-sm               /* 6px */
---radius-md               /* 10px */
---radius-lg               /* 14px */
+--radius-sm               /* 0px — sharp; matches logo angular geometry */
+--radius-md               /* 0px — sharp */
+--radius-lg               /* 8px — modals and large floating elements only */
 
 /* Fonts */
---font-sans               /* 'Outfit', -apple-system, sans-serif */
+--font-sans               /* 'Outfit', -apple-system, sans-serif — weight 300 set on body */
 --font-mono               /* monospace */
 --font-display            /* 'TavernloreBB', 'Outfit', serif — branding/headers */
 ```
@@ -586,6 +590,7 @@ Light mode is toggled by adding the `light` class to `<html>`. All background, t
 - `animate-fade-in` — `fadeIn 0.25s ease forwards`; keyframe defined in `@theme` as `--animate-fade-in`
 - `animate-playing-bar` — `playing-bar 0.8s ease-in-out infinite alternate`; keyframe defined in `@theme`
 - `guide-bullet` — accent-bullet list item for `<li>` in guides (14px indent, `•` in accent color)
+- `toolbar-icon-btn` — 32×36px transparent borderless icon button; `text-text-dim` at rest, steps up to `text-text-primary` + `bg-bg-surface` on hover; used for FolderBar utility icons (Refresh, etc.) where no border is wanted
 
 ### Global base styles (`@layer base` in `style.css`):
 - `body` — font, background, overflow, user-select, app-region reset
@@ -595,7 +600,7 @@ Light mode is toggled by adding the `light` class to `<html>`. All background, t
 - `.btn`, `.btn-accent`, `.btn-danger` — button variants used across the app
 
 ### Fonts:
-- Body: **Outfit**
+- Body: **Outfit** (variable, 100–900, local woff2 at `src/assets/fonts/Outfit.woff2`) — rendered at weight 300 globally
 - Headers/branding: **TavernloreBB** (used for version headings in patch notes, titlebar app name, category section headers)
 
 ---

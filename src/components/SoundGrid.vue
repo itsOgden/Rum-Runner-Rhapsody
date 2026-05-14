@@ -142,15 +142,15 @@ watch(navSections, () => nextTick(updateActiveSection))
     <!-- Category quick-nav — fixed sibling outside scroll container -->
     <nav
       v-if="settings.showCategorySidebar && !filterQuery && !isLoadingSounds && soundCount > 0"
-      class="w-[110px] shrink-0 py-4 pl-1.5 pr-1 border-r border-border overflow-y-auto"
+      class="w-36 shrink-0 py-2 border-r border-border-light overflow-y-auto"
     >
       <button
         v-for="section in navSections"
         :key="section.id"
-        class="block w-full px-1.5 py-[3px] text-left text-xs bg-transparent border-none rounded-sm cursor-pointer truncate leading-[1.7] transition-colors"
+        class="block w-full py-1.5 pr-2 pl-3 text-left text-xs cursor-pointer truncate leading-[1.6] transition-colors duration-100 border-l-2"
         :class="activeSectionId === section.id
-          ? 'text-accent font-semibold hover:text-accent'
-          : 'text-text-dim hover:text-text-secondary hover:bg-bg-surface-hover'"
+          ? 'text-accent font-medium border-accent bg-accent/10'
+          : 'text-text-secondary border-transparent hover:text-text-primary hover:bg-bg-raised'"
         :title="section.displayName"
         @click="scrollToSection(section.id)"
       >{{ section.displayName }}</button>
@@ -164,7 +164,7 @@ watch(navSections, () => nextTick(updateActiveSection))
         v-if="isLoadingSounds"
         class="flex flex-col items-center justify-center h-full text-text-dim gap-3"
       >
-        <div class="w-[22px] h-[22px] rounded-full border-2 border-border-light border-t-accent animate-spin" />
+        <div class="w-5.5 h-5.5 rounded-full border-2 border-border-light border-t-accent animate-spin" />
         <span class="text-sm">Scanning folder…</span>
       </div>
 
@@ -173,9 +173,9 @@ watch(navSections, () => nextTick(updateActiveSection))
         v-else-if="soundCount === 0"
         class="flex flex-col items-center justify-center h-full text-text-dim text-center gap-3 px-10"
       >
-        <div class="text-5xl opacity-30">&#x1F3B5;</div>
+        <Icon name="folder-open" class="text-[40px] text-text-dim opacity-40" />
         <div class="text-base font-semibold text-text-secondary">No sounds loaded</div>
-        <div class="text-sm max-w-xs leading-relaxed">
+        <div class="text-sm text-text-secondary max-w-xs leading-relaxed">
           Click "Browse…" to select a folder containing your audio files (WAV, MP3, OGG, FLAC, etc.)
         </div>
       </div>
@@ -185,8 +185,7 @@ watch(navSections, () => nextTick(updateActiveSection))
         v-else-if="filterQuery && filteredSoundCount === 0"
         class="flex flex-col items-center justify-center h-full text-text-dim text-center gap-2 px-10"
       >
-        <div class="text-3xl opacity-30">&#x1F50D;</div>
-        <div class="text-sm">No sounds match <span class="text-text-secondary">"{{ filterQuery }}"</span></div>
+        <div class="text-sm text-text-secondary">No sounds match <span class="text-text-primary">"{{ filterQuery }}"</span></div>
       </div>
 
       <!-- Sound grid -->
@@ -196,7 +195,7 @@ watch(navSections, () => nextTick(updateActiveSection))
           :key="section.id"
           :data-section-id="section.id"
           :class="{
-            'outline-2 outline-accent rounded-sm': dragOverSectionId === section.id && draggingSection?.id !== section.id,
+            'outline-2 outline-accent': dragOverSectionId === section.id && draggingSection?.id !== section.id,
             'opacity-50': draggingSection?.id === section.id,
           }"
           @dragover="onSectionWrapperDragOver($event, section.id)"
@@ -213,7 +212,7 @@ watch(navSections, () => nextTick(updateActiveSection))
         <!-- New Category -->
         <div class="mt-2">
           <button
-            class="btn text-xs w-full text-text-dim hover:text-text-secondary flex items-center justify-center gap-1.5"
+            class="w-full py-2 text-sm text-text-secondary border border-dashed border-border-light hover:border-text-dim hover:text-text-primary flex items-center justify-center gap-1.5 transition-colors cursor-pointer bg-transparent outline-none"
             @click="addCategory"
           ><Icon name="plus" /> New Category</button>
         </div>

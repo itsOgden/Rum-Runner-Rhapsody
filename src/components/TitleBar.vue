@@ -33,17 +33,16 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="h-14 flex items-center pl-3 gap-1.5 bg-bg-deepest border-b border-border shrink-0 app-region-drag">
+  <div class="h-14 grid grid-cols-3 items-center bg-bg-deepest border-b border-border-light shrink-0 app-region-drag">
 
-    <!-- Left: logos -->
-    <div class="flex items-center gap-1 text-accent shrink-0">
-<!--      <LogoSvg class="h-15" />-->
+    <!-- Left: logo -->
+    <div class="flex items-center gap-1 text-accent pl-3">
       <WordmarkSvg class="h-10" />
     </div>
 
-    <!-- Center: master volume -->
-    <div class="flex items-center gap-1.75 flex-1 max-w-70 mx-auto app-region-no-drag">
-      <span class="text-xs text-text-dim uppercase tracking-[0.06em] whitespace-nowrap shrink-0">Master</span>
+    <!-- Center: master volume (1/3 column, matches search bar below) -->
+    <div class="flex items-center gap-1.75 w-[260px] mx-auto app-region-no-drag">
+      <span class="text-xs text-text-primary font-medium uppercase tracking-[0.06em] whitespace-nowrap shrink-0">Master</span>
       <input
         type="range"
         min="0"
@@ -52,11 +51,11 @@ onMounted(async () => {
         @change="onMasterChange"
         class="min-w-15"
       />
-      <span class="text-xs text-text-secondary min-w-8.5 text-right shrink-0">{{ masterPercent }}%</span>
+      <span class="text-xs text-text-primary font-medium min-w-8.5 text-right shrink-0">{{ masterPercent }}%</span>
     </div>
 
-    <!-- Right A: app controls -->
-    <div class="flex items-stretch shrink-0 h-12 app-region-no-drag">
+    <!-- Right: app controls + divider + window controls -->
+    <div class="flex items-center justify-end app-region-no-drag">
       <button
         class="wc-btn text-danger! hover:bg-danger/20!"
         title="Stop all sounds"
@@ -71,13 +70,9 @@ onMounted(async () => {
       <button class="wc-btn" title="Settings" @click="settingsModalOpen = true">
         <Icon name="gear-solid" />
       </button>
-    </div>
 
-    <!-- Divider -->
-    <div class="w-px h-5 bg-border shrink-0 mx-1 self-center" aria-hidden="true" />
+      <div class="w-px h-5 bg-border-light shrink-0 mx-1 self-center" aria-hidden="true" />
 
-    <!-- Right B: window controls -->
-    <div class="flex items-stretch shrink-0 h-12 app-region-no-drag">
       <button class="wc-btn" title="Minimize" @click="minimize">
         <Icon name="window-minimize-solid" />
       </button>
@@ -103,7 +98,7 @@ onMounted(async () => {
   justify-content: center;
   background: transparent;
   border: none;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   cursor: pointer;
   padding: 0;
   outline: none;

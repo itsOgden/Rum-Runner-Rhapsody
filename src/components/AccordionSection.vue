@@ -158,6 +158,53 @@ onMounted(() => {
 })
 
 const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200px')
+
+// ── Accordion transition (height 0 ↔ content height) ─────────────────────────
+
+function onBeforeEnter(el: Element): void {
+  const div = el as HTMLElement
+  div.style.height = '0'
+  div.style.overflow = 'hidden'
+}
+
+function onEnter(el: Element, done: () => void): void {
+  const div = el as HTMLElement
+  div.offsetHeight // force reflow so height:0 is committed before transition
+  div.style.transition = 'height 0.26s cubic-bezier(0.16, 1, 0.3, 1)'
+  div.style.height = `${div.scrollHeight}px`
+  div.addEventListener('transitionend', (e: Event) => {
+    if ((e as TransitionEvent).propertyName === 'height') done()
+  }, { once: true })
+}
+
+function onAfterEnter(el: Element): void {
+  const div = el as HTMLElement
+  div.style.height = ''
+  div.style.overflow = ''
+  div.style.transition = ''
+}
+
+function onLeave(el: Element, done: () => void): void {
+  const div = el as HTMLElement
+  div.style.height = `${div.offsetHeight}px`
+  div.style.overflow = 'hidden'
+  div.offsetHeight // force reflow
+  div.style.transition = 'height 0.2s ease-in'
+  div.style.height = '0'
+  div.addEventListener('transitionend', (e: Event) => {
+    if ((e as TransitionEvent).propertyName === 'height') done()
+  }, { once: true })
+}
+
+function onAfterLeave(el: Element): void {
+  const div = el as HTMLElement
+  // Clear only the inline styles we added — do NOT use cssText = '' because
+  // v-show sets display:none as an inline style and cssText would wipe it,
+  // causing the section to snap back open.
+  div.style.height = ''
+  div.style.overflow = ''
+  div.style.transition = ''
+}
 </script>
 
 <template>
@@ -171,80 +218,102 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
     @close="categorySettingsOpen = false"
   />
 
-  <!-- Section content: hidden when isHidden (unless showHidden is on); dimmed when shown-while-hidden -->
+  <!-- Section content -->
   <div
     v-show="!section.isHidden || showHidden"
-    class="mb-3 transition-opacity"
+    class="mb-4 transition-opacity"
     :class="{ 'opacity-40': section.isHidden && showHidden }"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
   >
-    <!-- Header — draggable for category reorder when no filter is active -->
+    <!-- Header — left-click collapses, drag to reorder, right-click for settings -->
     <div
-      class="group/hdr flex items-center gap-2 px-3 py-2 bg-bg-raised border border-border rounded-sm select-none transition-colors"
-      :class="[
-        !filter && 'cursor-grab hover:bg-bg-surface-hover hover:border-border-light',
-        isDropTarget && 'border-accent bg-bg-surface-hover',
-      ]"
+      class="group/hdr flex items-center gap-1.5 px-1.5 py-2 select-none transition-colors duration-100"
+      :class="!filter && 'cursor-grab hover:bg-bg-raised'"
       :draggable="!filter"
       @dragstart="onHeaderDragStart"
       @dragend="onHeaderDragEnd"
       @click="toggleCollapse"
+      @contextmenu.prevent="!filter && (categorySettingsOpen = true)"
     >
-      <!-- Collapse chevron (hidden during filter) -->
+      <!-- Drag grip — CSS dot grid, reveals on hover -->
+      <span
+        v-if="!filter"
+        class="drag-grip opacity-0 group-hover/hdr:opacity-100 transition-opacity duration-150 shrink-0"
+      />
+
+      <!-- Collapse chevron -->
       <Icon
         v-if="!filter"
         name="chevron-down-light"
-        class="text-text-dim transition-transform duration-200 shrink-0"
+        class="text-[10px] text-text-secondary transition-transform duration-200 shrink-0"
         :class="{ '-rotate-90': isCollapsed }"
       />
 
       <!-- Title -->
-      <span class="font-display text-base text-accent flex-1">{{ section.displayName }}</span>
+      <span class="font-display text-base text-text-primary flex-1 min-w-0 truncate leading-none">{{ section.displayName }}</span>
 
-      <span class="text-xs text-text-dim">{{ visibleSounds.length }}</span>
+      <!-- Inline hint — appears on hover, same color family as title but dimmed -->
+      <span
+        v-if="!filter"
+        class="opacity-0 group-hover/hdr:opacity-100 transition-opacity duration-150 text-xs text-text-primary tracking-wider whitespace-nowrap shrink-0 mr-2"
+      >drag to reorder  &middot;  right-click to edit</span>
 
-      <!-- Category settings button — collapses to zero width when not hovered -->
-      <div
-        class="w-0 overflow-hidden group-hover/hdr:w-4 transition-all duration-150 shrink-0"
-        @click.stop
-        @dragstart.stop
-      >
-        <button
-          class="w-4 h-4 text-sm flex items-center cursor-pointer justify-center text-text-secondary hover:text-text-primary rounded opacity-0 group-hover/hdr:opacity-100 transition-opacity duration-150"
-          title="Category settings"
-          @click="categorySettingsOpen = true"
-        ><Icon name="gear-solid" /></button>
-      </div>
+      <!-- Count -->
+      <span class="text-xs text-text-secondary tabular-nums shrink-0">{{ visibleSounds.length }}</span>
     </div>
+
+    <!-- Separator -->
+    <div class="h-px mb-2 transition-colors duration-150" :class="isDropTarget ? 'bg-accent' : 'bg-border-light'" />
 
     <!-- Body -->
-    <div v-show="!isCollapsed" class="pt-2">
-      <div
-        class="grid gap-x-2 gap-y-2.5 items-stretch rounded-sm transition-colors"
-        :class="isDropTarget && 'outline-2 outline-accent outline-offset-2'"
-        :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${minCellSize}, 1fr))` }"
-      >
-        <!-- Wrapper div enables per-slot dragover tracking for same-section reorder -->
+    <Transition
+      @before-enter="onBeforeEnter"
+      @enter="onEnter"
+      @after-enter="onAfterEnter"
+      @leave="onLeave"
+      @after-leave="onAfterLeave"
+    >
+      <div v-show="!isCollapsed" class="pt-0.5">
         <div
-          v-for="(sound, index) in visibleSounds"
-          :key="sound.path"
-          class="h-full"
-          :class="dragOverSoundIndex === index && draggingSound?.fromSectionId === section.id && !filter
-            ? 'outline-2 outline-accent rounded-md'
-            : ''"
-          @dragover="onSoundWrapperDragOver($event, index)"
+          class="grid gap-x-2 gap-y-2.5 items-stretch transition-colors"
+          :class="isDropTarget && 'outline-2 outline-accent outline-offset-2'"
+          :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${minCellSize}, 1fr))` }"
         >
-          <SoundButton
-            :sound="sound" :density="density"
-            :section-id="section.id"
-            :animation-delay="index * 25"
-          />
+          <!-- Wrapper div enables per-slot dragover tracking for same-section reorder -->
+          <div
+            v-for="(sound, index) in visibleSounds"
+            :key="sound.path"
+            class="h-full"
+            :class="dragOverSoundIndex === index && draggingSound?.fromSectionId === section.id && !filter
+              ? 'outline-2 outline-accent'
+              : ''"
+            @dragover="onSoundWrapperDragOver($event, index)"
+          >
+            <SoundButton
+              :sound="sound" :density="density"
+              :section-id="section.id"
+              :animation-delay="index * 8"
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </Transition>
   </div>
 
   </template>
 </template>
+
+<style scoped>
+/* 2×3 dot grid drag handle — classic grip indicator, no icon needed */
+.drag-grip {
+  display: inline-block;
+  width: 6px;
+  height: 10px;
+  background-image: radial-gradient(circle, var(--color-text-dim) 1px, transparent 1px);
+  background-size: 3px 3.5px;
+  background-repeat: repeat;
+  flex-shrink: 0;
+}
+</style>

@@ -87,7 +87,7 @@ onUnmounted(() => {
     <!-- ── Welcome screen — no folder selected yet ───────────────────────── -->
     <template v-if="!hasSoundFolder">
       <div class="flex-1 flex flex-col items-center justify-center text-center gap-7 px-10">
-        <img :src="appIcon" alt="" aria-hidden="true" class="h-[120px] w-auto opacity-90" />
+        <img :src="appIcon" alt="" aria-hidden="true" class="h-30 w-auto opacity-90" />
         <div class="flex flex-col gap-2">
           <div class="font-display text-3xl text-accent">Rum-Runner Rhapsody</div>
           <div class="text-sm text-text-dim max-w-sm leading-relaxed">
