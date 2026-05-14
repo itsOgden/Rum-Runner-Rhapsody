@@ -147,36 +147,26 @@
 ---
 
 ## Phase 2 — Branding & Visual Overhaul
-*Establish the visual language before building new UI. Changing colors and fonts after the fact is painful.*
+**Status: Done 2026-05-14.**
 
 ### 2.1 New Logo, Colors & Typography [#1]
-**What:** Replace all visual design tokens, logo, and potentially fonts to match the new branding package.
+**Status: Done.**
 
-**Steps:**
-1. Export SVG and PNG assets from the `/design files/` Affinity files in the sizes needed (app icon, tray icon, Stream Deck icons, website use).
-2. Identify the exact color values from the new branding (primary accent, background palette, text hierarchy).
-3. Update all `@theme` tokens in `style.css` to match. Dark mode first, then light mode overrides.
-4. Evaluate fonts — if a new font pairs better with the wordmark, swap it out. TavernloreBB may stay for the app name; body font is worth reconsidering.
-5. Update `app-icon.png` in the project root and rebuild icons.
-6. **User-customizable accent color:** Add an accent color picker to Settings → App tab. Store the chosen color in `GlobalSettings`. Override the `--color-accent` CSS variable on `<html>` at runtime.
-   - For SVG icons: the icon system uses CSS mask with `background-color`, which means they already inherit the CSS variable. If `--color-accent` changes, SVG icons using that color change automatically. Verify this is true for all icon usage paths.
-   - For duotone/colored icons: may need secondary variable for the secondary color.
-7. Light mode: should look like a polished "light" app, not just inverted dark mode. Neutral warm whites, not grays. This is worth spending time on.
+- ✅ New logo/wordmark (wordmark.svg), app icon, color tokens in `@theme`, light mode overrides
+- ✅ TavernloreBB display font, Outfit body font
+- ✅ User-customizable accent color: 16-color `ColorPalette.vue` component in Settings → Appearance tab; `accentColor` stored in GlobalSettings; `--color-accent` + `--color-accent-dim` overridden at runtime in App.vue via `darkenHex()`; `--color-accent-glow` auto-derives via CSS relative color syntax
+- ✅ Light mode overhauled to neutral grays (no warm tint, works with any accent); grain disabled in light mode
+- ✅ CSS cleanup: removed unused `--radius-md`, stale `--color-warning`/`--color-danger-glow` (were already gone); `colorPalette.ts` centralizes 16 palette colors for reuse in Phase 3.2 category colors
+- ✅ Settings → Appearance tab (Theme + Accent Color) split out from App tab
 
 ---
 
 ### 2.2 Dropdown & Context Menu Overhaul [#8]
-**What:** Replace the current clunky dropdown/context menu implementation with something cleaner.
+**Status: Done.**
 
-**Do this while the visual system is being rebuilt** — the new design tokens make it much easier to get dropdowns looking right.
-
-**Problems to solve:**
-- Menu positioning (flip up/down based on viewport space).
-- Animation (quick scale-in, no jank).
-- The "Move to…" inline expansion in the sound context menu should be more polished.
-- Keyboard navigation (arrow keys, escape, enter) for accessibility.
-
-Consider a shared `<Dropdown>` or `<ContextMenu>` component that all menus use, rather than each component rolling its own.
+- ✅ `AppSelect.vue` — custom styled dropdown replacing all native `<select>` elements (theme picker, device pickers); keyboard nav (arrow/enter/escape) on trigger; teleported + animated; integrates with `activeDropdownId` singleton
+- ✅ SoundButton context menu — scale-in/fade enter animation via `<Transition name="sound-menu">`; keyboard navigation (ArrowDown/ArrowUp cycle through buttons, Escape closes)
+- ✅ Menu positioning already flipped up/down based on viewport
 
 ---
 

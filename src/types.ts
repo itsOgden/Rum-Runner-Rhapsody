@@ -71,7 +71,7 @@ export interface GlobalSettings extends FolderSettings {
   theme: 'dark' | 'light'
   density: 'loose' | 'compact'
   devices: DeviceSettings[]
-  hotkeys: { stop: string }
+  hotkeys: { stop: string; search: string }
   playbackMode: 'overlap' | 'restart' | 'stop'
   normalize: boolean
   streamDeckButtonMode: boolean
@@ -80,6 +80,7 @@ export interface GlobalSettings extends FolderSettings {
   closeToTray: boolean
   autoStart: boolean
   launchMinimized: boolean
+  accentColor: string
 }
 
 // ── Folder-change IPC result ───────────────────────────────────────────────

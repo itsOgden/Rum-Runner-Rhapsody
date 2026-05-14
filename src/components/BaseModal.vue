@@ -46,7 +46,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
           class="modal-container bg-bg-raised border border-border-light rounded-lg shadow-lg overflow-hidden flex flex-col h-[calc(100vh-4rem)]"
           :style="{ width, maxHeight }"
         >
-          <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-light shrink-0">
+          <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-light shrink-0 bg-bg-surface-active">
             <div class="font-display text-lg text-text-primary">{{ title }}</div>
             <button
               class="text-text-dim text-xl leading-none cursor-pointer p-0.5 bg-transparent border-none transition-colors hover:text-text-primary"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useSettings } from '../composables/useSettings'
 import { useAudioDevices } from '../composables/useAudioDevices'
 import { useSoundManagement } from '../composables/useSoundManagement'
@@ -42,10 +42,25 @@ function setDensity(val: 'loose' | 'compact') {
   settings.value.density = val
   saveSettings({ density: val })
 }
+
+// ── Space → focus search ──────────────────────────────────────────────────────
+
+const searchInputEl = ref<HTMLInputElement | null>(null)
+
+function onGlobalKeydown(e: KeyboardEvent): void {
+  if (e.code !== settings.value.hotkeys.search) return
+  const target = e.target as HTMLElement
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+  e.preventDefault()
+  searchInputEl.value?.focus()
+}
+
+onMounted(() => document.addEventListener('keydown', onGlobalKeydown))
+onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown))
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-1.5 bg-bg-base border-b border-border-light shrink-0 md:grid md:grid-cols-3 md:gap-3">
+  <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-1.5 bg-bg-base border-b border-border-light shrink-0 md:grid md:grid-cols-3 md:gap-3">
 
     <!-- Left: browse action + soundboard name + refresh -->
     <div class="flex items-center gap-2">
@@ -65,6 +80,7 @@ function setDensity(val: 'loose' | 'compact') {
     <!-- Center: search — own row below md, centered column at md+ -->
     <div class="relative flex items-center w-full order-last md:order-0 md:w-96 max-w-full md:mx-auto">
       <input
+        ref="searchInputEl"
         type="text"
         v-model="filterQuery"
         placeholder="Search sounds…"
@@ -103,11 +119,11 @@ function setDensity(val: 'loose' | 'compact') {
       <!-- Show hidden toggle -->
       <button
         class="flex items-center gap-1 transition-colors cursor-pointer outline-none"
-        :class="showHidden ? 'text-accent' : 'text-text-dim hover:text-text-secondary'"
+        :class="showHidden ? 'text-accent-text' : 'text-text-dim hover:text-text-secondary'"
         :title="showHidden ? 'Hide hidden sounds' : 'Show hidden sounds'"
         @click="toggleShowHidden"
       >
-        <Icon :name="showHidden ? 'eye' : 'eye-slash'" class="text-[11px]" />
+        <span class="text-[11px] w-3.5 flex items-center"><Icon :name="showHidden ? 'eye' : 'eye-slash'" /></span>
         Show hidden
       </button>
 

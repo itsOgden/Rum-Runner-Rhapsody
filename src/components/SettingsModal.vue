@@ -11,6 +11,9 @@ import ToggleSwitch from './ToggleSwitch.vue'
 import StreamDeckImagePicker from './StreamDeckImagePicker.vue'
 import Icon from '@/components/Icon.vue'
 import SettingRow from './SettingRow.vue'
+import AppSelect from './AppSelect.vue'
+import ColorPalette from './ColorPalette.vue'
+import { DEFAULT_ACCENT } from '../colorPalette'
 
 const { settings, saveSettings } = useSettings()
 const { audioDevices, findMatchingDeviceId, cleanDeviceLabel, getDeviceLabel } = useAudioDevices()
@@ -21,13 +24,15 @@ const hasStreamDeckErrors = computed(() =>
   pickerErrorCount.value > 0 || brokenSources.value.includes('Default')
 )
 
-type Tab = 'app' | 'playback' | 'devices' | 'streamdeck'
+type Tab = 'app' | 'keybinds' | 'appearance' | 'playback' | 'devices' | 'streamdeck'
 const activeTab = ref<Tab>('app')
 
 const tabs = computed(() => [
   { id: 'app',        label: 'App'           },
-  { id: 'playback',   label: 'Playback'      },
+  { id: 'appearance', label: 'Appearance'    },
   { id: 'devices',    label: 'Audio Devices' },
+  { id: 'keybinds',   label: 'Keybinds'      },
+  { id: 'playback',   label: 'Playback'      },
   { id: 'streamdeck', label: 'Stream Deck', badge: hasStreamDeckErrors.value },
 ] as Array<{ id: Tab; label: string; badge?: boolean }>)
 
@@ -93,6 +98,11 @@ function syncDeviceIds() {
 watch(() => settings.value.devices.map(d => d.label).join('|'), syncDeviceIds)
 watch(audioDevices, syncDeviceIds)
 watch(() => settings.value.devices.length, syncAllDeviceState)
+
+function onDeviceSelectChange(idx: number, newId: string): void {
+  deviceSelectedIds.value[idx] = newId
+  onDeviceChange(idx)
+}
 
 function onDeviceChange(idx: number): void {
   const newId = deviceSelectedIds.value[idx]
@@ -175,7 +185,7 @@ let hotkeyTimer: ReturnType<typeof setTimeout> | null = null
 function onHotkeyInput() {
   if (hotkeyTimer) clearTimeout(hotkeyTimer)
   hotkeyTimer = setTimeout(() => {
-    saveSettings({ hotkeys: { stop: settings.value.hotkeys.stop } })
+    saveSettings({ hotkeys: { stop: settings.value.hotkeys.stop, search: settings.value.hotkeys.search } })
   }, 300)
 }
 
@@ -209,10 +219,19 @@ function setLaunchMinimized(val: boolean) {
   saveSettings({ launchMinimized: val })
 }
 
-function setTheme(e: Event) {
-  const val = (e.target as HTMLSelectElement).value as 'dark' | 'light'
-  settings.value.theme = val
-  saveSettings({ theme: val })
+function setTheme(val: string) {
+  settings.value.theme = val as 'dark' | 'light'
+  saveSettings({ theme: val as 'dark' | 'light' })
+}
+
+function setAccentColor(hex: string) {
+  settings.value.accentColor = hex
+  saveSettings({ accentColor: hex })
+}
+
+function clearAccentColor() {
+  settings.value.accentColor = ''
+  saveSettings({ accentColor: '' })
 }
 
 function setShowCategorySidebar(val: boolean) {
@@ -279,17 +298,6 @@ async function handleInstallPlugin(): Promise<void> {
         <!-- ── APP tab ── -->
         <div v-if="activeTab === 'app'" class="space-y-6">
           <div class="space-y-3">
-            <SettingRow label="Theme">
-              <select
-                class="px-2 py-1.5 text-sm min-w-[140px] bg-bg-surface text-text-primary border border-border-light outline-none cursor-pointer focus:border-accent"
-                :value="settings.theme"
-                @change="setTheme"
-              >
-                <option value="dark">Dark</option>
-                <option value="light">Light</option>
-              </select>
-            </SettingRow>
-
             <SettingRow label="Close to notification tray" description="Keep running in the notification tray when the window is closed">
               <ToggleSwitch :modelValue="settings.closeToTray" @update:modelValue="setCloseToTray" />
             </SettingRow>
@@ -307,17 +315,53 @@ async function handleInstallPlugin(): Promise<void> {
             </SettingRow>
           </div>
 
+        </div>
+
+        <!-- ── KEYBINDS tab ── -->
+        <div v-else-if="activeTab === 'keybinds'" class="space-y-3">
+          <SettingRow label="Stop All" description="Global hotkey to stop all playing sounds">
+            <input
+              type="text"
+              class="w-25 px-2 py-1.5 text-sm bg-bg-surface text-text-primary border border-border-light outline-none text-center focus:border-accent"
+              placeholder="Escape"
+              v-model="settings.hotkeys.stop"
+              @input="onHotkeyInput"
+            />
+          </SettingRow>
+          <SettingRow label="Focus Search" >
+            <input
+              type="text"
+              class="w-25 px-2 py-1.5 text-sm bg-bg-surface text-text-primary border border-border-light outline-none text-center focus:border-accent"
+              placeholder="Space"
+              v-model="settings.hotkeys.search"
+              @input="onHotkeyInput"
+            />
+          </SettingRow>
+        </div>
+
+        <!-- ── APPEARANCE tab ── -->
+        <div v-else-if="activeTab === 'appearance'" class="space-y-6">
+          <SettingRow label="Theme">
+            <AppSelect
+              class="min-w-35"
+              :modelValue="settings.theme"
+              :options="[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }]"
+              @update:modelValue="setTheme"
+            />
+          </SettingRow>
+
           <div>
-            <h3 class="font-display text-sm text-text-secondary mb-3 pb-1.5 border-b border-border-light">Keybinds</h3>
-            <SettingRow label="Stop All">
-              <input
-                type="text"
-                class="w-[100px] px-2 py-1.5 text-sm bg-bg-surface text-text-primary border border-border-light outline-none text-center focus:border-accent"
-                placeholder="Escape"
-                v-model="settings.hotkeys.stop"
-                @input="onHotkeyInput"
-              />
-            </SettingRow>
+            <div class="text-sm text-text-secondary mb-3">Accent color</div>
+            <ColorPalette
+              :modelValue="settings.accentColor"
+              :defaultValue="DEFAULT_ACCENT"
+              @update:modelValue="setAccentColor"
+            />
+            <button
+              v-if="settings.accentColor && settings.accentColor !== DEFAULT_ACCENT"
+              class="mt-3 text-xs text-text-dim hover:text-text-secondary cursor-pointer transition-colors"
+              @click="clearAccentColor"
+            >Reset to default</button>
           </div>
         </div>
 
@@ -344,7 +388,7 @@ async function handleInstallPlugin(): Promise<void> {
 
         <!-- ── DEVICES tab ── -->
         <div v-else-if="activeTab === 'devices'">
-          <div class="bg-bg-surface border border-border-light p-3 mb-4">
+          <div class="bg-bg-surface-hover border border-border-light p-3 mb-4">
             <p class="text-xs text-text-secondary leading-relaxed">
               Sounds play on all enabled devices at the same time. Typically you'll add your headphones or speakers to hear sounds locally, and a virtual cable to route audio into Discord, OBS, or any other app.
             </p>
@@ -365,15 +409,12 @@ async function handleInstallPlugin(): Promise<void> {
                   :modelValue="device.enabled"
                   @update:modelValue="(val) => onDeviceEnabled(idx, val)"
                 />
-                <select
-                  class="flex-1 min-w-0 px-2.5 py-1.5 pr-7 font-sans text-sm bg-bg-surface text-text-primary border border-border-light rounded-sm outline-none cursor-pointer appearance-none focus:border-accent bg-[url('data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2712%27%20height=%2712%27%20fill=%27%238891a8%27%3E%3Cpath%20d=%27M6%208L1%203h10z%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_10px_center]"
-                  v-model="deviceSelectedIds[idx]"
-                  @change="onDeviceChange(idx)"
-                >
-                  <option v-for="d in availableDevicesFor(idx)" :key="d.deviceId" :value="d.deviceId" class="bg-bg-surface text-text-primary">
-                    {{ cleanDeviceLabel(d.label || `Device ${d.deviceId.slice(0, 8)}`) }}
-                  </option>
-                </select>
+                <AppSelect
+                  class="flex-1 min-w-0"
+                  :modelValue="deviceSelectedIds[idx]"
+                  :options="availableDevicesFor(idx).map(d => ({ value: d.deviceId, label: cleanDeviceLabel(d.label || `Device ${d.deviceId.slice(0, 8)}`) }))"
+                  @update:modelValue="v => onDeviceSelectChange(idx, v)"
+                />
                 <button
                   class="text-text-dim text-lg leading-none cursor-pointer p-[2px_4px] rounded-sm bg-transparent border-none transition-colors shrink-0 hover:text-danger disabled:opacity-25 disabled:cursor-default"
                   :disabled="settings.devices.length <= 1"

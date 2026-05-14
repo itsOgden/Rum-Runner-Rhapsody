@@ -73,9 +73,16 @@ const manualActiveSection = ref<string | null>(null)
 let scrollLocked = false
 let scrollIdleTimer: ReturnType<typeof setTimeout> | null = null
 
-const navSections = computed(() =>
-  sections.value.filter(s => !s.isHidden || showHidden.value)
-)
+const navSections = computed(() => {
+  const base = sections.value.filter(s => !s.isHidden || showHidden.value)
+  if (!filterQuery.value) return base
+  const q = filterQuery.value.toLowerCase()
+  return base.filter(s =>
+    s.sounds.some(sound =>
+      sound.name.toLowerCase().includes(q) || sound.filename.toLowerCase().includes(q)
+    )
+  )
+})
 
 function updateActiveSection(): void {
   if (!ACTIVE_HIGHLIGHT_ENABLED || scrollLocked) return
@@ -141,15 +148,15 @@ watch(navSections, () => nextTick(updateActiveSection))
 
     <!-- Category quick-nav — fixed sibling outside scroll container -->
     <nav
-      v-if="settings.showCategorySidebar && !filterQuery && !isLoadingSounds && soundCount > 0"
-      class="w-36 shrink-0 py-2 border-r border-border-light overflow-y-auto"
+      v-if="settings.showCategorySidebar && !isLoadingSounds && soundCount > 0 && navSections.length > 0"
+      class="w-36 shrink-0 py-2 border-r border-border-light overflow-y-auto bg-bg-raised"
     >
       <button
         v-for="section in navSections"
         :key="section.id"
         class="block w-full py-1.5 pr-2 pl-3 text-left text-xs cursor-pointer truncate leading-[1.6] transition-colors duration-100 border-l-2"
         :class="activeSectionId === section.id
-          ? 'text-accent font-medium border-accent bg-accent/10'
+          ? 'text-accent-text font-medium border-accent bg-accent/10'
           : 'text-text-secondary border-transparent hover:text-text-primary hover:bg-bg-raised'"
         :title="section.displayName"
         @click="scrollToSection(section.id)"

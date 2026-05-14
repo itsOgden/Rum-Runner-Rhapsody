@@ -16,7 +16,7 @@ defineEmits<{ 'update:modelValue': [string] }>()
       :key="tab.id"
       class="block w-full text-left px-4 py-[10px] font-sans text-sm border-l-2 cursor-pointer transition-colors duration-100 outline-none hover:bg-bg-surface-hover hover:text-text-primary"
       :class="modelValue === tab.id
-        ? 'border-l-accent text-text-primary font-medium bg-bg-surface-hover'
+        ? 'border-l-accent text-text-primary font-medium bg-bg-surface-active'
         : 'border-l-transparent text-text-secondary'"
       @click="$emit('update:modelValue', tab.id)"
     >

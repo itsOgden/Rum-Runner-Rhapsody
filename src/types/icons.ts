@@ -8,6 +8,7 @@ export type IconName =
   | 'folder-open'
   | 'grid-2'
   | 'grid-4'
+  | 'pencil'
   | 'plus'
   | 'stop'
   | 'triangle-exclamation'
@@ -36,6 +37,7 @@ export type IconName =
   | 'ellipsis-solid'
   | 'gear-solid'
   | 'headphones-simple-solid'
+  | 'pencil-solid'
   | 'window-minimize-solid'
   | 'xmark-solid'
 

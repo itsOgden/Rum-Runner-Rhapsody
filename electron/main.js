@@ -135,7 +135,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
     { label: "", volume: 1.0, enabled: true },
     { label: "", volume: 1.0, enabled: true },
   ],
-  hotkeys: { stop: "Escape" },
+  hotkeys: { stop: "Escape", search: "Space" },
   playbackMode: "stop",
   normalize: false,
   streamDeckButtonMode: true,
@@ -144,6 +144,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
   closeToTray: false,
   autoStart: false,
   launchMinimized: false,
+  accentColor: "",
 };
 
 // Per-folder settings file — stored inside each sound folder

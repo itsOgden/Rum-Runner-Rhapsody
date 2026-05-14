@@ -27,6 +27,7 @@
   --color-accent:            #F9B71D;
   --color-accent-dim:        #D49A00;
   --color-accent-glow:       rgb(from var(--color-accent) r g b / 0.18);
+  --color-accent-text:       var(--color-accent); /* text-only variant; overridden in light mode for contrast */
 
   --color-text-primary:      #EAE8E6;
   --color-text-secondary:    #B8B5B3;
@@ -39,7 +40,6 @@
   --color-border-light:      #282828;
 
   --radius-sm: 0px;
-  --radius-md: 0px;
   --radius-lg: 8px;
 
   --grain-opacity: 0.04;
@@ -203,26 +203,56 @@
 }
 
 /* ---- Light mode ---- */
-/* All background/text/border tokens are overridden; accent shifts to
-   the amber-golden tone pulled from app-icon.png.                    */
 html.light {
-  --color-bg-deepest:       #DDD0B8;
-  --color-bg-base:          #F5EDD8;
-  --color-bg-raised:        #FFFFFF;
-  --color-bg-surface:       #EDE3CC;
-  --color-bg-surface-hover: #E5D9BE;
-  --color-bg-surface-active:#D8CCAE;
+  /* Titlebar + statusbar stay black: bg-deepest is unchanged.
+     The .bg-bg-deepest re-scope rule below keeps text light there. */
+  --color-bg-deepest:        #0C0C0C;
 
-  --color-accent:           #BF7200;
-  --color-accent-dim:       #A06000;
+  /* Subtle gray hierarchy: buttons/cards lighter than body, inputs inset */
+  --color-bg-base:           #E4E4E4;  /* body, folder bar, grid bg, modal sidebar */
+  --color-bg-raised:         #F2F2F2;  /* sound buttons, modal content, menus */
+  --color-bg-surface:        #F6F6F6;  /* inputs, dropdowns — near-white, clearly interactive */
+  --color-bg-surface-hover:  #E8E8E8;
+  --color-bg-surface-active: #D6D6D6;  /* modal header, distinctly darker than sidebar */
 
-  --color-text-primary:     #1A1200;
-  --color-text-secondary:   #5A3A10;
-  --color-text-dim:         #9A7840;
-  --color-text-on-accent:   #FFFFFF;
+  /* Accent dim is darkened further in light mode so --color-accent-text is readable.
+     --color-accent itself stays as the user's chosen color (or default gold #F9B71D). */
+  --color-accent-dim:        #A87000;
+  --color-accent-text:       var(--color-accent-dim); /* further-darkened for text on light surfaces */
 
-  --color-danger:           #C81028;
+  /* Text: dark on light surfaces */
+  --color-text-primary:      #141414;
+  --color-text-secondary:    #484848;
+  --color-text-dim:          #909090;
+  --color-text-on-accent:    #FFFFFF;
 
-  --color-border:           #D0C0A0;
-  --color-border-light:     #C0AE88;
+  --color-danger:            #CC1020;
+
+  /* Borders */
+  --color-border:            #CCCCCC;
+  --color-border-light:      #D4D4D4;
+
+  --grain-opacity: 0.04;
+}
+
+/* Range slider track: visible on light backgrounds; titlebar version stays dark */
+html.light input[type="range"] {
+  background: #C4C4C4;
+}
+html.light .bg-bg-deepest input[type="range"] {
+  background: #383838;
+}
+
+/* Invert btn-accent hover in light mode: lighten instead of darken */
+html.light .btn-accent:hover {
+  background: color-mix(in srgb, var(--color-accent) 80%, white);
+  border-color: color-mix(in srgb, var(--color-accent) 80%, white);
+}
+
+/* Titlebar and statusbar use bg-bg-deepest (#0C0C0C) — re-scope text
+   back to dark-mode values so it stays readable on the black bar. */
+html.light .bg-bg-deepest {
+  --color-text-primary:   #EAE8E6;
+  --color-text-secondary: #B8B5B3;
+  --color-text-dim:       #5A5857;
 }

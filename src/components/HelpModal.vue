@@ -157,7 +157,7 @@ onMounted(async () => {
             <p class="text-xs text-text-secondary leading-[1.5] m-0">Our recommended way to let any app hear your soundboard</p>
           </div>
 
-          <div class="bg-bg-surface border border-border-light rounded-sm px-[14px] py-3 text-sm text-text-secondary leading-[1.6] mb-5">
+          <div class="bg-bg-surface-hover border border-border-light rounded-sm px-[14px] py-3 text-sm text-text-secondary leading-[1.6] mb-5">
             VB-Cable creates a virtual microphone on your PC. You point your real mic and Rum-Runner Rhapsody at it, and any app (Discord, OBS, Zoom, etc) hears everything mixed together as if it's all coming from one microphone.
           </div>
 

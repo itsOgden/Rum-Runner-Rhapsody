@@ -73,13 +73,13 @@ Rum-Runner Rhapsody/
 │   ├── App.vue                  — Root component, layout (TitleBar + FolderBar + SoundGrid + StatusBar)
 │   ├── components/
 │   │   ├── TitleBar.vue         — Custom frameless titlebar (40px)
-│   │   ├── FolderBar.vue        — Sound library bar: Browse (btn-accent), folder basename, Refresh; center search; right text density toggle (Loose · Compact) + Show Hidden toggle
+│   │   ├── FolderBar.vue        — Sound library bar: Browse (btn-accent), folder basename, Refresh; center search (Space shortcut focuses it globally); right text density toggle (Loose · Compact) + Show Hidden toggle
 │   │   ├── SoundGrid.vue        — Main grid: category quick-nav sidebar, accordion sections, drag-and-drop, empty states
 │   │   ├── AccordionSection.vue — Category header (collapsible, draggable, right-click opens settings) + sound button grid + DnD
 │   │   ├── SoundButton.vue      — Individual sound button + context menu + preview
 │   │   ├── BaseModal.vue        — Reusable modal wrapper with animations
 │   │   ├── ModalTabs.vue        — Shared left-sidebar tab nav used by all modals (v-model activeTab, badge support)
-│   │   ├── SettingsModal.vue    — Settings (side-tab: App / Playback / Devices / Stream Deck)
+│   │   ├── SettingsModal.vue    — Settings (side-tab: App / Keybinds / Appearance / Playback / Audio Devices / Stream Deck)
 │   │   ├── HelpModal.vue        — Help (side-tab: Patch Notes / VB-Cable guide)
 │   │   ├── CategorySettingsModal.vue — Per-category settings (General / Stream Deck tabs)
 │   │   ├── StreamDeckImagePicker.vue — Reusable image picker for SD button images
@@ -91,6 +91,8 @@ Rum-Runner Rhapsody/
 │   │   ├── ToggleCircleButton.vue — Circle button with enabled state (accent bg when enabled, hover-reveal when not)
 │   │   ├── ToggleSwitch.vue     — Reusable boolean toggle switch (v-model); used in all settings modals
 │   │   ├── SettingRow.vue       — Label + control + optional description row; used in all settings modals (props: label, description)
+│   │   ├── AppSelect.vue        — Custom styled dropdown replacing native <select>; props: modelValue, options[{value,label}]; emits: update:modelValue; keyboard nav on trigger (arrow/enter/escape); teleported + animated
+│   │   ├── ColorPalette.vue     — Reusable 16-swatch color grid; props: modelValue (selected hex or ''), defaultValue (hex to highlight when modelValue is ''); emits: update:modelValue; used in Appearance tab and future category color pickers
 │   │   ├── MenuItem.vue         — Context menu button row; default slot for content, prop: topBorder
 │   │   ├── ImagePickerSlot.vue  — Single image picker card (label, preview, error, clear); used in StreamDeckImagePicker
 │   │   └── InstructionStep.vue  — Numbered step with accent badge, title, slot body; used in HelpModal VB-Cable guide
@@ -113,6 +115,7 @@ Rum-Runner Rhapsody/
 │   ├── dragState.ts             — Module singletons: draggingSound, draggingSection refs
 │   ├── toastState.ts            — Module singleton: toast ref + showToast() helper
 │   ├── modalState.ts            — Module singletons: settingsModalOpen, helpModalOpen refs
+│   ├── colorPalette.ts          — Shared COLOR_PALETTE array (16 presets), DEFAULT_ACCENT constant; imported by ColorPalette.vue and any future color pickers
 │   ├── dropdownState.ts         — Module singleton: activeDropdownId (one-at-a-time dropdown coordination)
 │   └── types.ts                 — GlobalSettings, FolderSettings, WindowApi, Sound, SoundSection interfaces
 ├── packages/
@@ -175,6 +178,7 @@ interface GlobalSettings {
   launchMinimized: boolean
   showCategorySidebar: boolean
   streamDeckDefaultImages: { idle?: string, playing?: string, stop?: string }
+  accentColor: string              // hex color override for --color-accent (empty string = use theme default gold)
   // Also contains all FolderSettings keys (GlobalSettings extends FolderSettings)
 }
 ```
@@ -338,10 +342,12 @@ Sound buttons and category headers are both draggable.
 - Fully inline Tailwind; optional `badge` prop shows warning icon on the tab
 - Sidebar uses `bg-bg-base` (#0C0C0C) so it recedes behind the `bg-bg-raised` (#161616) content area — not `bg-bg-surface`
 
-**SettingsModal.vue** — four side-tabs:
-- **App**: Theme, Stop All hotkey, Close to tray, Start with Windows, Launch minimized, Show category sidebar
+**SettingsModal.vue** — six side-tabs:
+- **App**: Close to tray, Start with Windows, Launch minimized, Show category sidebar
+- **Keybinds**: Stop All (editable global hotkey input) + Focus Search (fixed display: Space)
+- **Appearance**: Theme (dark/light AppSelect) + Accent color (ColorPalette with 16 swatches, Reset to default button)
 - **Playback**: Playback mode, Normalize volumes
-- **Devices**: N-device output list (enable toggle, device picker, volume slider, add/remove); description links to VB-Cable help tab
+- **Audio Devices**: N-device output list (enable toggle, AppSelect device picker, volume slider, add/remove); description links to VB-Cable help tab
 - **Stream Deck**: Grid mode, Install/Update plugin, Default Button Icons (idle/playing/stop via StreamDeckImagePicker)
 
 **HelpModal.vue** — two side-tabs:
@@ -361,7 +367,7 @@ All settings auto-save on change (no Save button).
 ## Category Quick-Nav Sidebar
 
 - Rendered inside `SoundGrid.vue` to the left of the scroll container as a fixed flex sibling
-- Always visible (controlled by `showCategorySidebar` setting); hidden during search/filter
+- Always visible (controlled by `showCategorySidebar` setting); during search, only shows categories that have at least one matching sound (hides entirely if no category matches)
 - Shows full category display names, truncated with ellipsis if too long
 - Clicking a category smoothly scrolls the sound grid to that category header
 - Active category highlighted with `--color-accent`; tracks scroll position
@@ -546,39 +552,36 @@ All design tokens are defined via Tailwind v4's `@theme` in `src/assets/css/styl
 --color-bg-surface-hover  /* #2A2A2A — hover state for surfaces */
 --color-bg-surface-active /* #333333 — active/pressed surface */
 
-/* Accent (brand gold) */
+/* Accent — user-customizable; default gold #F9B71D */
 --color-accent            /* #F9B71D — buttons, active states, badges */
 --color-accent-dim        /* #D49A00 — hover state for accent elements */
---color-accent-glow       /* rgba(249,183,29,0.18) — box-shadow glow on sliders */
+--color-accent-glow       /* rgb(from var(--color-accent) r g b / 0.18) — auto-derives from accent */
 
 /* Text */
---color-text-primary      /* #F0EBE0 — main text */
---color-text-secondary    /* #C0B6AA — muted/description text */
---color-text-dim          /* #5A5550 — very muted text (labels, placeholders) */
+--color-text-primary      /* #EAE8E6 — main text */
+--color-text-secondary    /* #B8B5B3 — muted/description text */
+--color-text-dim          /* #5A5857 — very muted text (labels, placeholders) */
 --color-text-on-accent    /* #000000 — text on gold accent background */
 
 /* Semantic */
 --color-danger            /* #FF5040 — destructive actions, error states */
---color-danger-glow       /* rgba(255,80,64,0.15) */
---color-warning           /* #FFE566 — warnings */
 
 /* Borders */
---color-border            /* #1E1E1E — structural/background-level separators only */
---color-border-light      /* #282828 — all visible UI borders: inputs, cards, modals, dividers, context menus */
+--color-border            /* #1E1E1E — used in SoundButton context menu separators */
+--color-border-light      /* #282828 — all visible UI borders: inputs, cards, modals, dividers */
 
 /* Radii */
 --radius-sm               /* 0px — sharp; matches logo angular geometry */
---radius-md               /* 0px — sharp */
 --radius-lg               /* 8px — modals and large floating elements only */
 
 /* Fonts */
 --font-sans               /* 'Outfit', -apple-system, sans-serif — weight 300 set on body */
---font-mono               /* monospace */
+--font-mono               /* monospace — used in changelog/code blocks */
 --font-display            /* 'TavernloreBB', 'Outfit', serif — branding/headers */
 ```
 
 ### Light mode overrides (`html.light`):
-Light mode is toggled by adding the `light` class to `<html>`. All background, text, border, accent, and danger tokens are overridden. Accent shifts from gold (#F9B71D) to a darker brown-gold (#BF7200).
+Light mode is toggled by adding the `light` class to `<html>`. Neutral gray palette (no warm tint — works with any accent). Default light accent is darker gold (#C88800). Grain overlay disabled (`--grain-opacity: 0`). User-chosen custom accents override the default via inline style on `<html>` (set in App.vue) which takes precedence over the `html.light` rule.
 
 ### Global button classes (in `style.css`):
 - `.btn` — base button style

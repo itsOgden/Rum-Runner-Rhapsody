@@ -221,7 +221,7 @@ function onAfterLeave(el: Element): void {
   <!-- Section content -->
   <div
     v-show="!section.isHidden || showHidden"
-    class="mb-4 transition-opacity"
+    class="mb-3 transition-opacity"
     :class="{ 'opacity-40': section.isHidden && showHidden }"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
@@ -229,7 +229,7 @@ function onAfterLeave(el: Element): void {
   >
     <!-- Header — left-click collapses, drag to reorder, right-click for settings -->
     <div
-      class="group/hdr flex items-center gap-1.5 px-1.5 py-2 select-none transition-colors duration-100"
+      class="group/hdr flex items-center gap-1.5 px-1.5 py-2.5 select-none transition-colors duration-100"
       :class="!filter && 'cursor-grab hover:bg-bg-raised'"
       :draggable="!filter"
       @dragstart="onHeaderDragStart"
@@ -254,11 +254,15 @@ function onAfterLeave(el: Element): void {
       <!-- Title -->
       <span class="font-display text-base text-text-primary flex-1 min-w-0 truncate leading-none">{{ section.displayName }}</span>
 
-      <!-- Inline hint — appears on hover, same color family as title but dimmed -->
-      <span
+      <!-- Pencil — hover-reveal, opens category settings modal -->
+      <button
         v-if="!filter"
-        class="opacity-0 group-hover/hdr:opacity-100 transition-opacity duration-150 text-xs text-text-primary tracking-wider whitespace-nowrap shrink-0 mr-2"
-      >drag to reorder  &middot;  right-click to edit</span>
+        class="opacity-0 group-hover/hdr:opacity-100 cursor-pointer transition-opacity duration-150 text-text-dim hover:text-text-secondary shrink-0"
+        title="Edit category"
+        @click.stop="categorySettingsOpen = true"
+      >
+        <Icon name="pencil" class="text-[11px]" />
+      </button>
 
       <!-- Count -->
       <span class="text-xs text-text-secondary tabular-nums shrink-0">{{ visibleSounds.length }}</span>

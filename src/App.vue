@@ -38,6 +38,35 @@ watch(
   { immediate: true }
 )
 
+watch(
+  [() => settings.value.accentColor, () => settings.value.theme],
+  ([color, theme]) => {
+    const el = document.documentElement
+    if (color) {
+      el.style.setProperty('--color-accent', color)
+      el.style.setProperty('--color-accent-dim', darkenHex(color, 0.15))
+      if (theme === 'light') {
+        el.style.setProperty('--color-accent-text', darkenHex(color, 0.35))
+      } else {
+        el.style.removeProperty('--color-accent-text')
+      }
+    } else {
+      el.style.removeProperty('--color-accent')
+      el.style.removeProperty('--color-accent-dim')
+      el.style.removeProperty('--color-accent-text')
+    }
+  },
+  { immediate: true }
+)
+
+function darkenHex(hex: string, factor: number): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const d = (v: number) => Math.round(v * (1 - factor)).toString(16).padStart(2, '0')
+  return `#${d(r)}${d(g)}${d(b)}`
+}
+
 function handleKeydown(e: KeyboardEvent): void {
   if (e.key === (settings.value.hotkeys?.stop || 'Escape')) {
     stopAll()

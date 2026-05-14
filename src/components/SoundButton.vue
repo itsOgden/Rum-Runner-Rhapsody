@@ -10,7 +10,6 @@ import type { Sound } from '../types'
 import CircleButton from '@/components/CircleButton.vue'
 import ToggleCircleButton from '@/components/ToggleCircleButton.vue'
 import VolumeSlider from '@/components/VolumeSlider.vue'
-import MenuItem from '@/components/MenuItem.vue'
 import { CLIP_VOLUME_MAX_DB, setClipVolumeOffset } from '../composables/useAudioPlayer'
 
 const props = defineProps<{
@@ -20,8 +19,8 @@ const props = defineProps<{
   animationDelay?: number
 }>()
 
-const { playSound, playingPaths, previewSound, stopPreview, previewingPath } = useAudioPlayer()
-const { hideSound, restoreSound, moveSound, resetSound, getSoundCategory, getAvailableCategories, renameSound } = useSoundManagement()
+const { playSound, playingPaths } = useAudioPlayer()
+const { hideSound, restoreSound, resetSound, getSoundCategory, renameSound } = useSoundManagement()
 const { settings, saveSettings } = useSettings()
 
 const compact = computed(() => props.density === 'compact')
@@ -33,19 +32,9 @@ const playCountLabel = computed(() => {
 })
 
 const isPlaying = computed(() => playingPaths.value.has(props.sound.path))
-const isPreviewing = computed(() => previewingPath.value === props.sound.path)
 
 function handleClick(): void {
   if (!isDragging.value) playSound(props.sound)
-}
-
-function handlePreviewClick(event: MouseEvent): void {
-  event.stopPropagation()
-  previewSound(props.sound)
-}
-
-function handleMouseLeave(): void {
-  if (isPreviewing.value) stopPreview()
 }
 
 // ── Drag source ──────────────────────────────────────────────────────────────
@@ -78,26 +67,53 @@ const btnClasses = computed(() => [
 const dropdownId = `sound-${Math.random().toString(36).slice(2)}`
 const menuOpen = ref(false)
 const menuPos = ref({ x: 0, y: 0 })
-const showMoveList = ref(false)
+const confirmingReset = ref(false)
 
 watch(activeDropdownId, (id) => {
   if (id !== dropdownId) {
     menuOpen.value = false
-    showMoveList.value = false
+    confirmingReset.value = false
   }
 })
 
-const MENU_HEIGHT_ESTIMATE = 300
+const MENU_HEIGHT_ESTIMATE = 220
+const menuRef = ref<HTMLElement | null>(null)
+
+function getMenuItems(): HTMLButtonElement[] {
+  return Array.from(menuRef.value?.querySelectorAll('button:not(:disabled)') ?? [])
+}
+
+function onMenuKeydown(e: KeyboardEvent): void {
+  const items = getMenuItems()
+  if (!items.length) return
+  const idx = items.indexOf(document.activeElement as HTMLButtonElement)
+  if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    const next = items[idx + 1] ?? items[0]
+    next.focus()
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    const prev = items[idx - 1] ?? items[items.length - 1]
+    prev.focus()
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    menuOpen.value = false
+    confirmingReset.value = false
+  }
+}
+
+const MENU_WIDTH = 224
 
 function openMenu(event: MouseEvent): void {
+  event.preventDefault()
   event.stopPropagation()
-  showMoveList.value = false
-  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
-  let x = rect.right - 180
-  let y = rect.bottom + 4
+  confirmingReset.value = false
+  let x = event.clientX
+  let y = event.clientY + 4
+  if (x + MENU_WIDTH > window.innerWidth) x = window.innerWidth - MENU_WIDTH - 4
   if (x < 4) x = 4
   if (y + MENU_HEIGHT_ESTIMATE > window.innerHeight) {
-    y = rect.top - MENU_HEIGHT_ESTIMATE - 4
+    y = event.clientY - MENU_HEIGHT_ESTIMATE - 4
     if (y < 4) y = 4
   }
   menuPos.value = { x, y }
@@ -105,7 +121,7 @@ function openMenu(event: MouseEvent): void {
   menuOpen.value = true
   const close = () => {
     menuOpen.value = false
-    showMoveList.value = false
+    confirmingReset.value = false
     document.removeEventListener('click', close)
   }
   document.addEventListener('click', close)
@@ -121,11 +137,6 @@ function handleRestore(): void {
   restoreSound(props.sound.key)
 }
 
-function handleMove(categoryId: string): void {
-  menuOpen.value = false
-  moveSound(props.sound.key, categoryId)
-}
-
 function handleReset(): void {
   menuOpen.value = false
   resetSound(props.sound.key)
@@ -135,10 +146,10 @@ function handleResetPlayCount(): void {
   const newCounts = { ...(settings.value.playCounts ?? {}), [props.sound.key]: 0 }
   settings.value.playCounts = newCounts
   saveSettings({ playCounts: newCounts })
+  confirmingReset.value = false
 }
 
 const isMoved = computed(() => !!getSoundCategory(props.sound.key))
-const availableCategories = computed(() => getAvailableCategories(props.sectionId ?? null))
 
 // ── Inline rename ────────────────────────────────────────────────────────────
 
@@ -169,7 +180,12 @@ function cancelRename(): void {
 const localVolumeOffset = ref(0)
 
 watch(menuOpen, (open) => {
-  if (open) localVolumeOffset.value = settings.value.soundVolumes?.[props.sound.key] ?? 0
+  if (open) {
+    localVolumeOffset.value = settings.value.soundVolumes?.[props.sound.key] ?? 0
+    nextTick(() => (menuRef.value as HTMLElement)?.focus())
+  } else {
+    confirmingReset.value = false
+  }
 })
 
 function onVolumeInput(value: number): void {
@@ -195,13 +211,14 @@ function resetVolumeOffset(): void {
     class="group/btn relative animate-fade-in h-full sbtn"
     :class="{ 'z-2': isPlaying, 'sbtn-playing': isPlaying }"
     :style="{ animationDelay: `${animationDelay ?? 0}ms` }"
-    @mouseleave="handleMouseLeave"
+    @contextmenu.prevent="openMenu"
   >
     <!-- Inline rename input (replaces button label) -->
     <div
       v-if="isRenaming"
       class="w-full h-full bg-bg-raised border border-accent px-3.5 py-2 flex items-center"
       @click.stop
+      @contextmenu.stop
     >
       <input
         ref="renameInputEl"
@@ -238,63 +255,60 @@ function resetVolumeOffset(): void {
       />
     </div>
 
-    <!-- Preview trigger — floats in bottom-right corner, visible on group hover -->
-    <div v-if="!isRenaming" class="absolute bottom-1.5 right-1 z-10" @click.stop>
-      <ToggleCircleButton
-        icon="headphones-simple-solid"
-        title="Preview (monitor output only)"
-        :enabled="isPreviewing"
-        @click="handlePreviewClick"
-      />
-    </div>
-
     <!-- Sound ⋯ menu (teleported to avoid scroll-container clipping) -->
     <Teleport to="body">
+      <Transition name="sound-menu">
       <div
         v-if="menuOpen"
-        class="fixed bg-bg-raised border border-border shadow-lg z-500 py-1 min-w-45"
+        ref="menuRef"
+        tabindex="-1"
+        class="sound-menu fixed z-500 w-56 bg-bg-raised border border-border-light outline-none"
         :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }"
         @click.stop
+        @keydown="onMenuKeydown"
       >
-        <!-- Play count + reset -->
-        <div class="px-3 flex justify-between items-center py-1.5 border-b border-border">
-          <div class="text-sm text-text-dim select-none">{{ playCountLabel }}</div>
-          <CircleButton v-if="playCount > 0" icon="xmark" @click="handleResetPlayCount" no-colors class="-mr-1.5 text-text-primary hover:border hover:border-danger hover:text-danger" title="Reset play count" />
+        <!-- Header: sound name + play count -->
+        <div class="bg-bg-deepest px-3 pt-2.5 pb-2 border-b border-border-light">
+          <div class="text-sm font-medium text-text-primary truncate mb-1.5" :title="sound.name">{{ sound.name }}</div>
+          <template v-if="!confirmingReset">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-text-secondary select-none">{{ playCountLabel }}</span>
+              <button
+                v-if="playCount > 0"
+                class="text-xs text-text-secondary hover:text-danger cursor-pointer transition-colors"
+                title="Reset play count"
+                @click="confirmingReset = true"
+              >reset</button>
+            </div>
+          </template>
+          <template v-else>
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[11px] text-text-secondary select-none">Clear count?</span>
+              <div class="flex gap-1.5">
+                <button
+                  class="text-[10px] px-1.5 py-0.5 text-danger border border-danger/40 hover:bg-danger/10 cursor-pointer"
+                  @click="handleResetPlayCount"
+                >Yes</button>
+                <button
+                  class="text-[10px] px-1.5 py-0.5 text-text-dim border border-border-light hover:bg-bg-surface cursor-pointer"
+                  @click="confirmingReset = false"
+                >No</button>
+              </div>
+            </div>
+          </template>
         </div>
 
-        <!-- Hide / Restore -->
-        <MenuItem v-if="!sound.isHidden" @click="handleHide">Hide</MenuItem>
-        <MenuItem v-else @click="handleRestore">Restore</MenuItem>
-
-        <!-- Rename -->
-        <MenuItem @click="startRename">Rename</MenuItem>
-
-        <!-- Move to… -->
-        <template v-if="!showMoveList">
-          <MenuItem @click.stop="showMoveList = true">
-            <span>Move to…</span>
-            <Icon name="chevron-down-solid" />
-          </MenuItem>
-        </template>
-        <template v-else>
-          <div class="border-t border-border">
-            <div class="px-3 py-1 text-sm text-text-dim uppercase tracking-wider">Move to</div>
-            <div class="max-h-60 overflow-y-auto">
-              <MenuItem v-for="cat in availableCategories" :key="cat.id" @click="handleMove(cat.id)">{{ cat.name }}</MenuItem>
-            </div>
-            <button
-              class="w-full flex items-center gap-1 text-left px-3 py-1 text-sm cursor-pointer hover:bg-bg-surface border-t border-border"
-              @click.stop="showMoveList = false"
-            ><Icon name="chevron-down-solid" class="rotate-90 text-[9px]" /> Back</button>
-          </div>
-        </template>
-
-        <!-- Reset to original — only when sound has been moved -->
-        <MenuItem v-if="isMoved" top-border @click="handleReset">Reset</MenuItem>
+        <!-- Actions -->
+        <div class="py-1">
+          <button v-if="!sound.isHidden" class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleHide">Hide</button>
+          <button v-else class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleRestore">Unhide</button>
+          <button class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="startRename">Rename</button>
+          <button v-if="isMoved" class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleReset">Reset to original</button>
+        </div>
 
         <!-- Volume Offset -->
-        <div class="border-t border-border px-3 pt-2 pb-2">
-          <div class="text-sm text-text-secondary mb-1.5">Volume Offset</div>
+        <div class="border-t border-border-light px-3 pt-2 pb-3">
+          <div class="text-[10px] uppercase tracking-widest text-text-secondary mb-2">Volume Offset</div>
           <VolumeSlider
             :modelValue="localVolumeOffset"
             :min="-CLIP_VOLUME_MAX_DB"
@@ -304,18 +318,56 @@ function resetVolumeOffset(): void {
             @update:modelValue="onVolumeInput"
             @change="handleVolumeChange"
           />
-          <button
-            v-if="localVolumeOffset !== 0"
-            class="mt-1.5 px-2.5 py-0.75 text-sm bg-bg-surface-active border border-border-light text-text-secondary cursor-pointer transition-colors hover:border-accent hover:text-text-primary"
-            @click="resetVolumeOffset"
-          >Reset</button>
+          <div v-if="localVolumeOffset !== 0" class="flex justify-end mt-1.5">
+            <button
+              class="text-xs text-text-secondary hover:text-text-primary cursor-pointer transition-colors"
+              @click="resetVolumeOffset"
+            >reset</button>
+          </div>
         </div>
       </div>
+      </Transition>
     </Teleport>
   </div>
 </template>
 
 <style scoped>
+.sound-menu-enter-active { transition: opacity 0.1s ease, transform 0.1s ease; }
+.sound-menu-enter-from { opacity: 0; transform: scale(0.97) translateY(-3px); transform-origin: top; }
+.sound-menu-leave-active { transition: opacity 0.08s ease; }
+.sound-menu-leave-to { opacity: 0; }
+
+.sound-menu {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+.sound-menu :deep(input[type="range"] ~ span) {
+  font-size: 11px;
+}
+
+.sound-menu-item {
+  position: relative;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.sound-menu-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;
+  bottom: 15%;
+  width: 2px;
+  background: var(--color-accent);
+  transform: scaleY(0);
+  transition: transform 0.12s ease;
+  transform-origin: center;
+}
+.sound-menu-item:hover {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+.sound-menu-item:hover::before {
+  transform: scaleY(1);
+}
+
 /* Outer wrapper handles lift so ring + button move together */
 .sbtn {
   transition: transform 0.09s ease;
@@ -339,7 +391,7 @@ function resetVolumeOffset(): void {
   box-shadow: 0 1px 0 var(--color-border-light) !important;
 }
 .btn-spin-playing {
-  color: var(--color-accent) !important;
+  color: var(--color-accent-text) !important;
   animation: btn-spin-glow 5s ease-in-out infinite;
 }
 @keyframes btn-spin-glow {
