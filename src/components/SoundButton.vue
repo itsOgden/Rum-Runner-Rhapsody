@@ -3,12 +3,10 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useAudioPlayer } from '../composables/useAudioPlayer'
 import { useSoundManagement } from '../composables/useSoundManagement'
 import { useSettings } from '../composables/useSettings'
-import { showToast } from '../toastState'
 import { activeDropdownId } from '../dropdownState'
 import { draggingSound } from '../dragState'
 import Icon from '@/components/Icon.vue'
 import type { Sound } from '../types'
-import { filterQuery } from '@/filterState'
 import CircleButton from '@/components/CircleButton.vue'
 import ToggleCircleButton from '@/components/ToggleCircleButton.vue'
 import VolumeSlider from '@/components/VolumeSlider.vue'
@@ -65,6 +63,15 @@ function onDragEnd(): void {
   isDragging.value = false
   draggingSound.value = null
 }
+
+const btnClasses = computed(() => [
+  props.sound.isHidden ? 'opacity-40' : '',
+  isDragging.value ? 'opacity-50' : '',
+  compact.value ? 'py-2.5 px-2 min-h-12' : 'px-3.5 py-4.5',
+  'text-text-primary',
+  'btn-spin',
+  isPlaying.value ? 'btn-spin-playing' : '',
+])
 
 // ── ⋯ Menu ──────────────────────────────────────────────────────────────────
 
@@ -192,7 +199,7 @@ function resetVolumeOffset(): void {
     <!-- Inline rename input (replaces button label) -->
     <div
       v-if="isRenaming"
-      class="w-full h-full bg-bg-raised border border-accent rounded-md px-3.5 py-2 flex items-center"
+      class="w-full h-full bg-bg-raised border border-accent rounded-sm px-3.5 py-2 flex items-center"
       @click.stop
     >
       <input
@@ -205,30 +212,21 @@ function resetVolumeOffset(): void {
       />
     </div>
 
-    <!-- Main play button -->
-    <button
-      v-else
-      draggable="true"
-      class="relative w-full h-full bg-bg-raised border rounded-md font-sans text-sm font-medium cursor-pointer text-center wrap-break-word transition-all duration-120 outline-none overflow-hidden hover:-translate-y-px hover:border-accent-dim hover:shadow-md active:translate-y-0 active:bg-bg-surface-active"
-      :class="[
-        isPlaying
-          ? 'border-accent shadow-[0_0_20px_var(--color-accent-glow)] text-text-primary'
-          : 'border-border text-text-primary',
-        sound.isHidden ? 'opacity-40' : '',
-        isDragging ? 'opacity-50' : '',
-        compact ? 'py-2.5 px-2 min-h-12' : 'px-3.5 py-4.5'
-      ]"
-      @click="handleClick"
-      @dragstart="onDragStart"
-      @dragend="onDragEnd"
-    >
-      {{ sound.name }}
-      <!-- Playing indicator bar -->
-      <div
-        v-if="isPlaying"
-        class="absolute bottom-1.5 left-1/2 -translate-x-1/2 h-[3px] bg-accent rounded-sm animate-playing-bar"
-      />
-    </button>
+    <!-- Spinning comet ring (DOM-first so button stacks on top) + button -->
+    <template v-else>
+      <div v-if="isPlaying" class="rounded-sm btn-spin-ring pointer-events-none" />
+
+      <button
+        draggable="true"
+        class="relative w-full h-full rounded-sm bg-bg-raised font-sans text-sm cursor-pointer text-center wrap-break-word transition-all duration-120 outline-none"
+        :class="btnClasses"
+        @click="handleClick"
+        @dragstart="onDragStart"
+        @dragend="onDragEnd"
+      >
+        {{ sound.name }}
+      </button>
+    </template>
 
     <!-- ⋯ trigger — floats in top-right corner, visible on group hover -->
     <div v-if="!isRenaming" class="absolute top-1 right-1 z-10" @click.stop>
@@ -307,7 +305,7 @@ function resetVolumeOffset(): void {
           />
           <button
             v-if="localVolumeOffset !== 0"
-            class="mt-1.5 px-2.5 py-[3px] text-sm bg-bg-surface-active border border-border rounded text-text-secondary cursor-pointer transition-colors hover:border-accent hover:text-text-primary"
+            class="mt-1.5 px-2.5 py-0.75 text-sm bg-bg-surface-active border border-border rounded text-text-secondary cursor-pointer transition-colors hover:border-accent hover:text-text-primary"
             @click="resetVolumeOffset"
           >Reset</button>
         </div>
@@ -316,3 +314,68 @@ function resetVolumeOffset(): void {
   </div>
 </template>
 
+<style scoped>
+.btn-spin {
+  box-shadow: 0 3px 0 var(--color-border-light);
+  transition: transform 0.09s ease, box-shadow 0.12s ease, color 0.15s, background 0.12s;
+}
+.btn-spin:hover {
+  background: var(--color-bg-surface) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 0 var(--color-text-dim);
+}
+.btn-spin:active {
+  transform: translateY(2px) !important;
+  box-shadow: 0 1px 0 var(--color-border-light) !important;
+}
+.btn-spin-playing {
+  color: var(--color-accent) !important;
+  animation: btn-spin-glow 2.8s ease-in-out infinite;
+}
+@keyframes btn-spin-glow {
+  0%, 100% {
+    box-shadow: 0 4px 0 var(--color-accent), 0 0 12px rgba(249, 183, 29, 0.18);
+  }
+  50% {
+    box-shadow: 0 4px 0 var(--color-accent), 0 0 26px rgba(249, 183, 29, 0.38);
+  }
+}
+
+/* Spinning comet ring — rendered before button in DOM so button stacks on top.
+   overflow:hidden clips the rotating ::before to the ring's border strip. */
+.btn-spin-ring {
+  position: absolute;
+  inset: -1px;
+  overflow: hidden;
+  z-index: 0;
+}
+.btn-spin-ring::before {
+  content: '';
+  position: absolute;
+  /* Square so it fully covers the ring at every rotation angle.
+     A non-square (200%w × 200%h) fails to cover the ring's horizontal
+     extent at ~90° because the shorter side doesn't reach far enough. */
+  width: 200%;
+  aspect-ratio: 1;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  background: conic-gradient(from 0deg,
+    transparent 0deg,
+    var(--color-accent) 50deg,
+    transparent 120deg
+  );
+  animation: btn-spin-rotate 2.5s linear infinite;
+}
+@keyframes btn-spin-rotate {
+  /* Peak starts at bottom (6 o'clock). Non-uniform: sides get ~3× less time than
+     top/bottom edges to compensate for wide button aspect ratio (~2.5:1).
+     Corner angles: ~65° from top/bottom → sides span 44°, top/bottom span 136° each. */
+  0%   { transform: rotate(130deg); }  /* peak at bottom                     */
+  23%  { transform: rotate(198deg); }  /* peak at lower-left corner          */
+  28%  { transform: rotate(242deg); }  /* peak at upper-left corner  (fast)  */
+  73%  { transform: rotate(378deg); }  /* peak at upper-right corner         */
+  78%  { transform: rotate(422deg); }  /* peak at lower-right corner (fast)  */
+  100% { transform: rotate(490deg); }  /* peak back at bottom (130 + 360)    */
+}
+</style>

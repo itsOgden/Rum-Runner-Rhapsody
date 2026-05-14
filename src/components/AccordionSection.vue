@@ -222,7 +222,7 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
     <!-- Body -->
     <div v-show="!isCollapsed" class="pt-2">
       <div
-        class="grid gap-2 items-stretch rounded-sm transition-colors"
+        class="grid gap-x-2 gap-y-2.5 items-stretch rounded-sm transition-colors"
         :class="isDropTarget && 'outline-2 outline-accent outline-offset-2'"
         :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${minCellSize}, 1fr))` }"
       >
