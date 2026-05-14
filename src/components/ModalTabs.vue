@@ -14,7 +14,7 @@ defineEmits<{ 'update:modelValue': [string] }>()
     <button
       v-for="tab in tabs"
       :key="tab.id"
-      class="block w-full text-left px-4 py-[10px] font-sans text-[13px] border-l-2 text-text-secondary cursor-pointer transition-colors duration-100 outline-none hover:bg-bg-surface-hover hover:text-text-primary"
+      class="block w-full text-left px-4 py-[10px] font-sans text-sm border-l-2 text-text-secondary cursor-pointer transition-colors duration-100 outline-none hover:bg-bg-surface-hover hover:text-text-primary"
       :class="modelValue === tab.id
         ? 'border-l-accent text-text-primary bg-bg-surface-hover'
         : 'border-l-transparent'"

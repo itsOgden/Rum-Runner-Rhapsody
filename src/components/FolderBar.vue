@@ -43,7 +43,7 @@ function toggleDensity() {
   <div class="flex items-center gap-3 px-5 py-2 bg-bg-base border-b border-border shrink-0">
     <!-- Folder path -->
     <span
-      class="flex-1 font-mono text-xs truncate min-w-0"
+      class="flex-1 text-sm truncate min-w-0"
       :class="settings.soundFolder ? 'text-text-secondary' : 'text-text-dim'"
     >
       {{ settings.soundFolder || '(no folder selected)' }}
@@ -55,7 +55,7 @@ function toggleDensity() {
         type="text"
         v-model="filterQuery"
         placeholder="Search"
-        class="font-sans text-[12px] bg-bg-surface border border-border rounded-sm pl-2.5 pr-6 py-1 text-text-primary placeholder:text-text-dim outline-none focus:border-accent w-40 transition-colors"
+        class="font-sans text-sm bg-bg-surface border border-border rounded-sm pl-2.5 pr-6 py-1 text-text-primary placeholder:text-text-dim outline-none focus:border-accent w-40 transition-colors"
       />
       <CircleButton
         v-if="filterQuery"

@@ -198,7 +198,7 @@ function resetVolumeOffset(): void {
       <input
         ref="renameInputEl"
         v-model="renamingValue"
-        class="w-full bg-transparent text-[13px] text-text-primary outline-none text-center"
+        class="w-full bg-transparent text-sm text-text-primary outline-none text-center"
         @keydown.enter.prevent="confirmRename"
         @keydown.escape.prevent="cancelRename"
         @blur="confirmRename"
@@ -209,7 +209,7 @@ function resetVolumeOffset(): void {
     <button
       v-else
       draggable="true"
-      class="relative w-full h-full bg-bg-raised border rounded-md font-sans text-[13px] font-medium cursor-pointer text-center wrap-break-word transition-all duration-120 outline-none overflow-hidden hover:-translate-y-px hover:border-accent-dim hover:shadow-md active:translate-y-0 active:bg-bg-surface-active"
+      class="relative w-full h-full bg-bg-raised border rounded-md font-sans text-sm font-medium cursor-pointer text-center wrap-break-word transition-all duration-120 outline-none overflow-hidden hover:-translate-y-px hover:border-accent-dim hover:shadow-md active:translate-y-0 active:bg-bg-surface-active"
       :class="[
         isPlaying
           ? 'border-accent shadow-[0_0_20px_var(--color-accent-glow)] text-text-primary'
@@ -259,7 +259,7 @@ function resetVolumeOffset(): void {
       >
         <!-- Play count + reset -->
         <div class="px-3 flex justify-between items-center py-1.5 border-b border-border">
-          <div class="text-[11px] text-text-dim select-none">{{ playCountLabel }}</div>
+          <div class="text-sm text-text-dim select-none">{{ playCountLabel }}</div>
           <CircleButton v-if="playCount > 0" icon="xmark" @click="handleResetPlayCount" no-colors class="-mr-1.5 text-text-primary hover:border hover:border-danger hover:text-danger" title="Reset play count" />
         </div>
 
@@ -279,12 +279,12 @@ function resetVolumeOffset(): void {
         </template>
         <template v-else>
           <div class="border-t border-border">
-            <div class="px-3 py-1 text-[10px] text-text-dim uppercase tracking-wider">Move to</div>
+            <div class="px-3 py-1 text-sm text-text-dim uppercase tracking-wider">Move to</div>
             <div class="max-h-60 overflow-y-auto">
               <MenuItem v-for="cat in availableCategories" :key="cat.id" @click="handleMove(cat.id)">{{ cat.name }}</MenuItem>
             </div>
             <button
-              class="w-full flex items-center gap-1 text-left px-3 py-1 text-[11px] cursor-pointer hover:bg-bg-surface border-t border-border"
+              class="w-full flex items-center gap-1 text-left px-3 py-1 text-sm cursor-pointer hover:bg-bg-surface border-t border-border"
               @click.stop="showMoveList = false"
             ><Icon name="chevron-down-solid" class="rotate-90 text-[9px]" /> Back</button>
           </div>
@@ -295,7 +295,7 @@ function resetVolumeOffset(): void {
 
         <!-- Volume Offset -->
         <div class="border-t border-border px-3 pt-2 pb-2">
-          <div class="text-[11px] text-text-secondary mb-1.5">Volume Offset</div>
+          <div class="text-sm text-text-secondary mb-1.5">Volume Offset</div>
           <VolumeSlider
             :modelValue="localVolumeOffset"
             :min="-CLIP_VOLUME_MAX_DB"
@@ -307,7 +307,7 @@ function resetVolumeOffset(): void {
           />
           <button
             v-if="localVolumeOffset !== 0"
-            class="mt-1.5 px-2.5 py-[3px] text-[11px] bg-bg-surface-active border border-border rounded text-text-secondary cursor-pointer transition-colors hover:border-accent hover:text-text-primary"
+            class="mt-1.5 px-2.5 py-[3px] text-sm bg-bg-surface-active border border-border rounded text-text-secondary cursor-pointer transition-colors hover:border-accent hover:text-text-primary"
             @click="resetVolumeOffset"
           >Reset</button>
         </div>

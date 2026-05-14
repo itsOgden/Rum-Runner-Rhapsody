@@ -90,11 +90,11 @@ onUnmounted(() => {
         <img :src="appIcon" alt="" aria-hidden="true" class="h-[120px] w-auto opacity-90" />
         <div class="flex flex-col gap-2">
           <div class="font-display text-3xl text-accent">Rum-Runner Rhapsody</div>
-          <div class="text-[13px] text-text-dim max-w-sm leading-relaxed">
+          <div class="text-sm text-text-dim max-w-sm leading-relaxed">
             Choose a folder containing your audio files to get started.
           </div>
         </div>
-        <button class="btn btn-accent px-6 py-2 text-[13px]" @click="handleChooseFolder">
+        <button class="btn btn-accent px-6 py-2 text-sm" @click="handleChooseFolder">
           Choose a sounds folder
         </button>
       </div>

@@ -201,9 +201,9 @@ const minCellSize = computed(() => props.density === 'compact' ? '150px' : '200p
       />
 
       <!-- Title -->
-      <span class="font-display text-[15px] text-accent flex-1">{{ section.displayName }}</span>
+      <span class="font-display text-base text-accent flex-1">{{ section.displayName }}</span>
 
-      <span class="font-mono text-[11px] text-text-dim">{{ visibleSounds.length }}</span>
+      <span class="text-xs text-text-dim">{{ visibleSounds.length }}</span>
 
       <!-- Category settings button — collapses to zero width when not hovered -->
       <div

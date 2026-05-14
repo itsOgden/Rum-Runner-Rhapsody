@@ -43,7 +43,7 @@ onMounted(async () => {
 
     <!-- Center: master volume -->
     <div class="flex items-center gap-1.75 flex-1 max-w-70 mx-auto app-region-no-drag">
-      <span class="font-mono text-[10px] text-text-dim uppercase tracking-[0.06em] whitespace-nowrap shrink-0">Master</span>
+      <span class="text-xs text-text-dim uppercase tracking-[0.06em] whitespace-nowrap shrink-0">Master</span>
       <input
         type="range"
         min="0"
@@ -52,7 +52,7 @@ onMounted(async () => {
         @change="onMasterChange"
         class="min-w-15"
       />
-      <span class="font-mono text-[11px] text-text-secondary min-w-8.5 text-right shrink-0">{{ masterPercent }}%</span>
+      <span class="text-xs text-text-secondary min-w-8.5 text-right shrink-0">{{ masterPercent }}%</span>
     </div>
 
     <!-- Right A: app controls -->
@@ -94,7 +94,7 @@ onMounted(async () => {
 
 <style scoped>
 
-/* Shared titlebar button — 32×40px, transparent, subtle hover */
+/* Shared titlebar button — transparent, subtle hover */
 .wc-btn {
   width: 32px;
   height: 48px;
@@ -108,6 +108,7 @@ onMounted(async () => {
   padding: 0;
   outline: none;
   transition: background 0.1s, color 0.1s;
+  font-size: 14px;
 }
 .wc-btn:hover {
   background: rgba(255, 255, 255, 0.08);

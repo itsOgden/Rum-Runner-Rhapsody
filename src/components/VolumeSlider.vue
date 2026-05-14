@@ -32,7 +32,7 @@ function onChange(e: Event): void {
       @input="onInput"
       @change="onChange"
     />
-    <span class="font-mono text-[11px] text-text-secondary min-w-[40px] text-right">
+    <span class="text-sm text-text-secondary min-w-[40px] text-right">
       {{ modelValue > 0 ? '+' : '' }}{{ modelValue }}{{ unit ?? '' }}
     </span>
   </div>

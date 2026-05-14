@@ -147,7 +147,7 @@ watch(navSections, () => nextTick(updateActiveSection))
       <button
         v-for="section in navSections"
         :key="section.id"
-        class="block w-full px-1.5 py-[3px] text-left text-[11px] bg-transparent border-none rounded-sm cursor-pointer truncate leading-[1.7] transition-colors"
+        class="block w-full px-1.5 py-[3px] text-left text-xs bg-transparent border-none rounded-sm cursor-pointer truncate leading-[1.7] transition-colors"
         :class="activeSectionId === section.id
           ? 'text-accent font-semibold hover:text-accent'
           : 'text-text-dim hover:text-text-secondary hover:bg-bg-surface-hover'"
@@ -165,7 +165,7 @@ watch(navSections, () => nextTick(updateActiveSection))
         class="flex flex-col items-center justify-center h-full text-text-dim gap-3"
       >
         <div class="w-[22px] h-[22px] rounded-full border-2 border-border-light border-t-accent animate-spin" />
-        <span class="text-[13px]">Scanning folder…</span>
+        <span class="text-sm">Scanning folder…</span>
       </div>
 
       <!-- Empty state — no sounds loaded -->
@@ -175,7 +175,7 @@ watch(navSections, () => nextTick(updateActiveSection))
       >
         <div class="text-5xl opacity-30">&#x1F3B5;</div>
         <div class="text-base font-semibold text-text-secondary">No sounds loaded</div>
-        <div class="text-[13px] max-w-xs leading-relaxed">
+        <div class="text-sm max-w-xs leading-relaxed">
           Click "Browse…" to select a folder containing your audio files (WAV, MP3, OGG, FLAC, etc.)
         </div>
       </div>
@@ -186,7 +186,7 @@ watch(navSections, () => nextTick(updateActiveSection))
         class="flex flex-col items-center justify-center h-full text-text-dim text-center gap-2 px-10"
       >
         <div class="text-3xl opacity-30">&#x1F50D;</div>
-        <div class="text-[13px]">No sounds match <span class="text-text-secondary font-mono">"{{ filterQuery }}"</span></div>
+        <div class="text-sm">No sounds match <span class="text-text-secondary">"{{ filterQuery }}"</span></div>
       </div>
 
       <!-- Sound grid -->
@@ -213,7 +213,7 @@ watch(navSections, () => nextTick(updateActiveSection))
         <!-- New Category -->
         <div class="mt-2">
           <button
-            class="btn text-[12px] w-full text-text-dim hover:text-text-secondary flex items-center justify-center gap-1.5"
+            class="btn text-xs w-full text-text-dim hover:text-text-secondary flex items-center justify-center gap-1.5"
             @click="addCategory"
           ><Icon name="plus" /> New Category</button>
         </div>

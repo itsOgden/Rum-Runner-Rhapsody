@@ -10,7 +10,7 @@ import { toast } from '../toastState'
         class="fixed bottom-0 left-0 right-0 z-[200] flex justify-center pb-5 pointer-events-none"
       >
         <div
-          class="pointer-events-auto flex items-center gap-2 px-4 py-3 rounded-md border text-[13px] font-medium shadow-lg"
+          class="pointer-events-auto flex items-center gap-2 px-4 py-3 rounded-md border text-sm font-medium shadow-lg"
           :class="toast.type === 'error'
             ? 'bg-danger/10 border-danger/30 text-danger'
             : 'bg-accent/10 border-accent/30 text-accent'"

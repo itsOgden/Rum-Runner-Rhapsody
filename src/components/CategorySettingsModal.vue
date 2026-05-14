@@ -127,12 +127,12 @@ function onPlayingImageChange(path: string | null): void {
         <!-- ── GENERAL tab ── -->
         <div v-if="activeTab === 'general'" class="space-y-6">
           <div class="flex items-center justify-between gap-4">
-            <div class="text-[13px] text-text-primary">Name</div>
+            <div class="text-sm text-text-primary">Name</div>
             <input
               ref="nameInputEl"
               v-model="editingName"
               type="text"
-              class="w-40 px-2 py-1.5 font-sans text-[12px] bg-bg-surface text-text-primary border border-border-light rounded-sm outline-none focus:border-accent"
+              class="w-40 px-2 py-1.5 font-sans text-xs bg-bg-surface text-text-primary border border-border-light rounded-sm outline-none focus:border-accent"
               placeholder="Category name"
               @keydown.enter.prevent="handleClose"
               @keydown.escape.prevent="handleClose"
@@ -141,10 +141,10 @@ function onPlayingImageChange(path: string | null): void {
 
           <div class="space-y-1.5">
             <div class="flex items-center justify-between gap-4">
-              <div class="text-[13px] text-text-primary">Hide</div>
+              <div class="text-sm text-text-primary">Hide</div>
               <ToggleSwitch :modelValue="section.isHidden" @update:modelValue="handleToggleHide" />
             </div>
-            <p class="text-[12px] text-text-dim">Hidden categories are not shown in the sound list</p>
+            <p class="text-xs text-text-dim">Hidden categories are not shown in the sound list</p>
           </div>
 
           <template v-if="!section.isCustom">
@@ -157,8 +157,8 @@ function onPlayingImageChange(path: string | null): void {
 
         <!-- ── STREAM DECK tab ── -->
         <div v-else-if="activeTab === 'streamdeck'" class="space-y-3">
-          <div class="text-[13px] text-text-primary">Custom Icons</div>
-          <p class="text-[12px] text-text-dim">Optional icons for this category's Stream Deck buttons.</p>
+          <div class="text-sm text-text-primary">Custom Icons</div>
+          <p class="text-xs text-text-dim">Optional icons for this category's Stream Deck buttons.</p>
           <StreamDeckImagePicker
             :idle-path="idleImagePath"
             :playing-path="playingImagePath"
