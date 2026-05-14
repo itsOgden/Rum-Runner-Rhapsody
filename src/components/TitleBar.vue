@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useAudioPlayer } from '../composables/useAudioPlayer'
-import { useSettings } from '../composables/useSettings'
-import { settingsModalOpen, helpModalOpen } from '../modalState'
-import appIcon from '../../app-icon.png'
+import { useAudioPlayer } from '@/composables/useAudioPlayer'
+import { useSettings } from '@/composables/useSettings'
+import { settingsModalOpen, helpModalOpen } from '@/modalState'
+import WordmarkSvg from '@/assets/images/wordmark.svg'
+import LogoSvg from '@/assets/images/logo.svg'
 import Icon from '@/components/Icon.vue'
+
 
 const { stopAll, playingPaths } = useAudioPlayer()
 const { settings, saveSettings } = useSettings()
@@ -31,16 +33,16 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="h-10 flex items-center pl-3 gap-1.5 bg-bg-deepest border-b border-border shrink-0 app-region-drag">
+  <div class="h-14 flex items-center pl-3 gap-1.5 bg-bg-deepest border-b border-border shrink-0 app-region-drag">
 
-    <!-- Left: app icon + title -->
-    <div class="flex items-center gap-2 shrink-0 pointer-events-none">
-      <img :src="appIcon" alt="" aria-hidden="true" class="w-[15px] h-[15px] object-contain" />
-      <span class="font-display text-[15px] text-accent leading-none whitespace-nowrap">Rum-Runner Rhapsody</span>
+    <!-- Left: logos -->
+    <div class="flex items-center gap-1 text-accent shrink-0">
+<!--      <LogoSvg class="h-15" />-->
+      <WordmarkSvg class="h-10" />
     </div>
 
     <!-- Center: master volume -->
-    <div class="flex items-center gap-[7px] flex-1 max-w-[280px] mx-auto app-region-no-drag">
+    <div class="flex items-center gap-1.75 flex-1 max-w-70 mx-auto app-region-no-drag">
       <span class="font-mono text-[10px] text-text-dim uppercase tracking-[0.06em] whitespace-nowrap shrink-0">Master</span>
       <input
         type="range"
@@ -48,13 +50,13 @@ onMounted(async () => {
         max="100"
         v-model.number="masterPercent"
         @change="onMasterChange"
-        class="min-w-[60px]"
+        class="min-w-15"
       />
-      <span class="font-mono text-[11px] text-text-secondary min-w-[34px] text-right shrink-0">{{ masterPercent }}%</span>
+      <span class="font-mono text-[11px] text-text-secondary min-w-8.5 text-right shrink-0">{{ masterPercent }}%</span>
     </div>
 
     <!-- Right A: app controls -->
-    <div class="flex items-stretch shrink-0 h-10 app-region-no-drag">
+    <div class="flex items-stretch shrink-0 h-12 app-region-no-drag">
       <button
         class="wc-btn text-danger! hover:bg-danger/20!"
         title="Stop all sounds"
@@ -75,7 +77,7 @@ onMounted(async () => {
     <div class="w-px h-5 bg-border shrink-0 mx-1 self-center" aria-hidden="true" />
 
     <!-- Right B: window controls -->
-    <div class="flex items-stretch shrink-0 h-10 app-region-no-drag">
+    <div class="flex items-stretch shrink-0 h-12 app-region-no-drag">
       <button class="wc-btn" title="Minimize" @click="minimize">
         <Icon name="window-minimize-solid" />
       </button>
@@ -91,10 +93,11 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+
 /* Shared titlebar button — 32×40px, transparent, subtle hover */
 .wc-btn {
   width: 32px;
-  height: 40px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,7 +105,6 @@ onMounted(async () => {
   border: none;
   color: var(--color-text-secondary);
   cursor: pointer;
-  font-size: 13px;
   padding: 0;
   outline: none;
   transition: background 0.1s, color 0.1s;

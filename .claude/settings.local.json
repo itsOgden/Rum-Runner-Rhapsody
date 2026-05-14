@@ -33,7 +33,9 @@
       "Bash(Remove-Item \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\src\\\\components\\\\DevicePanel.vue\" -Force)",
       "Bash(Remove-Item \"N:\\\\Repositories\\\\Personal\\\\Rum-Runner Rhapsody\\\\src\\\\components\\\\DeviceCard.vue\" -Force)",
       "Bash(Write-Output \"Deleted\")",
-      "PowerShell(Remove-Item *)"
+      "PowerShell(Remove-Item *)",
+      "WebFetch(domain:fonts.google.com)",
+      "WebFetch(domain:www.typewolf.com)"
     ]
   },
   "model": "sonnet"

@@ -572,7 +572,7 @@ function createWindow() {
     minHeight: 480,
     frame: false,
     titleBarStyle: "hidden",
-    backgroundColor: "#0f1117",
+    backgroundColor: "#000000",
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -584,8 +584,16 @@ function createWindow() {
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+  }
+
+  if (process.env.VITE_DEV_SERVER_URL) {
+    const { globalShortcut } = require("electron");
+    globalShortcut.register("F12", () => {
+      mainWindow?.webContents.toggleDevTools();
+    });
   }
 
   mainWindow.once("ready-to-show", () => {

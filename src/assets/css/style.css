@@ -18,26 +18,26 @@
 }
 
 @theme {
-  --color-bg-deepest:        #1A1A1F;
-  --color-bg-base:           #1E1E23;
-  --color-bg-raised:         #242428;
-  --color-bg-surface:        #2B2B30;
-  --color-bg-surface-hover:  #323237;
-  --color-bg-surface-active: #393940;
+  --color-bg-deepest:        #000000;
+  --color-bg-base:           #0C0C0C;
+  --color-bg-raised:         #161616;
+  --color-bg-surface:        #202020;
+  --color-bg-surface-hover:  #2A2A2A;
+  --color-bg-surface-active: #333333;
 
-  --color-accent:            #F5A800;
-  --color-accent-dim:        #D48E00;
-  --color-accent-glow:       rgba(245, 168, 0, 0.18);
+  --color-accent:            #F9B71D;
+  --color-accent-dim:        #D49A00;
+  --color-accent-glow:       rgba(249, 183, 29, 0.18);
 
   --color-text-primary:      #F0EBE0;
   --color-text-secondary:    #9A9080;
   --color-text-dim:          #5A5550;
-  --color-text-on-accent:    #1A1A1F;
+  --color-text-on-accent:    #000000;
 
   --color-danger:            #FF5040;
 
-  --color-border:            #2E2E34;
-  --color-border-light:      #3A3A42;
+  --color-border:            #1E1E1E;
+  --color-border-light:      #282828;
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -178,9 +178,9 @@ html.light {
   --color-bg-surface-hover: #E5D9BE;
   --color-bg-surface-active:#D8CCAE;
 
-  --color-accent:           #B86800;
-  --color-accent-dim:       #9A5500;
-  --color-accent-glow:      rgba(184, 104, 0, 0.18);
+  --color-accent:           #BF7200;
+  --color-accent-dim:       #A06000;
+  --color-accent-glow:      rgba(191, 114, 0, 0.18);
 
   --color-text-primary:     #1A1200;
   --color-text-secondary:   #5A3A10;

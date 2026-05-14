@@ -274,7 +274,8 @@ Audio and image files are loaded via `window.api.readSoundFile(path)` (IPC → `
 ## Custom Titlebar
 
 The window is **frameless** (`frame: false`). TitleBar.vue renders a 40px bar with:
-- Left: app icon (15px) + "Rum-Runner Rhapsody" in TavernloreBB (`--color-accent`, 15px)
+- Left: full brandmark SVG (`src/assets/images/wordmark.svg`, 34px tall, auto width) — replaces the old icon + text combo
+- Bar height increased from 40px to 48px (`h-12`) to accommodate the brandmark
 - Center: master volume slider (max-width 280px)
 - Right-A: Stop All (red, visible only when sounds are playing), Help (circle-question icon), Settings gear — all `.wc-btn` style
 - Divider: 1px vertical
@@ -533,25 +534,24 @@ All design tokens are defined via Tailwind v4's `@theme` in `src/assets/css/styl
 
 ### Dark mode (default):
 ```css
-/* Backgrounds (darkest → lightest) */
---color-bg-deepest        /* #1A1A1F — titlebar, status bar */
---color-bg-base           /* #1E1E23 — main app background */
---color-bg-raised         /* #242428 — card/panel surfaces (sound buttons, section headers) */
---color-bg-surface        /* #2B2B30 — inputs, selects, dropdowns */
---color-bg-surface-hover  /* #323237 — hover state for surfaces */
---color-bg-surface-active /* #393940 — active/pressed surface */
+/* Backgrounds (darkest → lightest) — pure neutral grays, R=G=B, no color tint */
+--color-bg-deepest        /* #000000 — titlebar, status bar */
+--color-bg-base           /* #0C0C0C — main app background */
+--color-bg-raised         /* #161616 — card/panel surfaces (sound buttons, section headers) */
+--color-bg-surface        /* #202020 — inputs, selects, dropdowns */
+--color-bg-surface-hover  /* #2A2A2A — hover state for surfaces */
+--color-bg-surface-active /* #333333 — active/pressed surface */
 
-/* Accent (amber) */
---color-accent            /* #F5A800 — buttons, active states, badges, category headers */
---color-accent-dim        /* #D48E00 — hover state for accent elements */
---color-accent-secondary  /* #F56500 — secondary accent (orange) */
---color-accent-glow       /* rgba(245,168,0,0.18) — box-shadow glow on sliders */
+/* Accent (brand gold) */
+--color-accent            /* #F9B71D — buttons, active states, badges, category headers */
+--color-accent-dim        /* #D49A00 — hover state for accent elements */
+--color-accent-glow       /* rgba(249,183,29,0.18) — box-shadow glow on sliders */
 
 /* Text */
 --color-text-primary      /* #F0EBE0 — main text */
 --color-text-secondary    /* #9A9080 — muted/description text */
 --color-text-dim          /* #5A5550 — very muted text (labels, placeholders) */
---color-text-on-accent    /* #1A1A1F — text on amber accent background */
+--color-text-on-accent    /* #000000 — text on gold accent background */
 
 /* Semantic */
 --color-danger            /* #FF5040 — destructive actions, error states */
@@ -559,8 +559,8 @@ All design tokens are defined via Tailwind v4's `@theme` in `src/assets/css/styl
 --color-warning           /* #FFE566 — warnings */
 
 /* Borders */
---color-border            /* #2E2E34 — dividers, section borders */
---color-border-light      /* #3A3A42 — input borders, card outlines */
+--color-border            /* #1E1E1E — dividers, section borders */
+--color-border-light      /* #282828 — input borders, card outlines */
 
 /* Radii */
 --radius-sm               /* 6px */
@@ -574,7 +574,7 @@ All design tokens are defined via Tailwind v4's `@theme` in `src/assets/css/styl
 ```
 
 ### Light mode overrides (`html.light`):
-Light mode is toggled by adding the `light` class to `<html>`. All background, text, border, accent, and danger tokens are overridden. Accent shifts from amber (#F5A800) to a darker brown-gold (#B86800).
+Light mode is toggled by adding the `light` class to `<html>`. All background, text, border, accent, and danger tokens are overridden. Accent shifts from gold (#F9B71D) to a darker brown-gold (#BF7200).
 
 ### Global button classes (in `style.css`):
 - `.btn` — base button style

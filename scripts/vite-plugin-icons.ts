@@ -4,6 +4,7 @@ import path from 'node:path'
 import type { Plugin } from 'vite'
 
 export const DefaultIconsFolder = 'duotone'
+export const ColoredIconsFolders = [] as string[]
 
 const iconsDir = path.resolve(__dirname, '../src/assets/icons')
 const cssFilePath = path.resolve(__dirname, '../src/assets/css/icon-data.css')
@@ -66,12 +67,6 @@ function svgToDataUri(svg: string): string {
   return `data:image/svg+xml;utf8,${encodeSvg(svg)}`
 }
 
-export interface SaIconInfo {
-  folder: string
-  name: string
-  colored: boolean
-}
-
 interface SvgFile {
   dataUri: string
   folder: string
@@ -110,7 +105,7 @@ const fsPromises = fs.promises
  * */
 const getIconsInUse = async (logUnused: boolean, logUsed: boolean): Promise<string[]> => {
   const iconNames = getSvgFiles(iconsDir, '').map((f) =>
-    f.folder === 'light' ? f.icon : `${f.icon}-${f.folder}`
+    f.folder === DefaultIconsFolder ? f.icon : `${f.icon}-${f.folder}`
   )
   const projectDir = path.resolve(__dirname, '../')
   const regexes = iconNames.map((name) => new RegExp(`['"]${name}['"]`, 'g'))
@@ -224,12 +219,14 @@ function generateCSS(): void {
   }
 
   files.forEach((f) => {
+    const colored = ColoredIconsFolders.includes(f.folder)
     const type = f.folder === DefaultIconsFolder ? f.icon : `${f.icon}-${f.folder}`
     topTypes += `\n  | '${type}'`
     if (!folders.includes(f.folder)) {
       folders.push(f.folder)
       bottomTypes += `\n  '${f.folder}',`
     }
+
 
     const icon = `i-${f.icon}-${f.folder}`
     const width = `${f.aspectRatio}em`
@@ -239,7 +236,7 @@ function generateCSS(): void {
     let css = `\n.${icon}:after {`
     css += `\n  width: ${width};  `
     css += `\n  ${
-      f.folder === 'colored' ? 'background' : 'mask'
+      colored ? 'background' : 'mask'
     }: var(${cssVar}) no-repeat;  `
 
     css += '\n}'
