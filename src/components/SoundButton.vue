@@ -192,7 +192,8 @@ function resetVolumeOffset(): void {
 <template>
   <!-- Outer wrapper: provides the hover group, full height, and fade-in animation -->
   <div
-    class="group/btn relative animate-fade-in h-full"
+    class="group/btn relative animate-fade-in h-full sbtn"
+    :class="{ 'z-[2]': isPlaying }"
     :style="{ animationDelay: `${animationDelay ?? 0}ms` }"
     @mouseleave="handleMouseLeave"
   >
@@ -315,29 +316,38 @@ function resetVolumeOffset(): void {
 </template>
 
 <style scoped>
+/* Outer wrapper handles lift so ring + button move together */
+.sbtn {
+  transition: transform 0.09s ease;
+}
+.sbtn:hover {
+  transform: translateY(-2px) !important;
+}
+.sbtn:active {
+  transform: translateY(2px) !important;
+}
+
 .btn-spin {
   box-shadow: 0 3px 0 var(--color-border-light);
-  transition: transform 0.09s ease, box-shadow 0.12s ease, color 0.15s, background 0.12s;
+  transition: box-shadow 0.12s ease, color 0.15s, background 0.12s;
 }
 .btn-spin:hover {
   background: var(--color-bg-surface) !important;
-  transform: translateY(-2px);
   box-shadow: 0 4px 0 var(--color-text-dim);
 }
 .btn-spin:active {
-  transform: translateY(2px) !important;
   box-shadow: 0 1px 0 var(--color-border-light) !important;
 }
 .btn-spin-playing {
   color: var(--color-accent) !important;
-  animation: btn-spin-glow 2.8s ease-in-out infinite;
+  animation: btn-spin-glow 5s ease-in-out infinite;
 }
 @keyframes btn-spin-glow {
   0%, 100% {
-    box-shadow: 0 4px 0 var(--color-accent), 0 0 12px rgba(249, 183, 29, 0.18);
+    box-shadow: 0 4px 0 var(--color-accent), 0 0 12px var(--color-accent-glow);
   }
   50% {
-    box-shadow: 0 4px 0 var(--color-accent), 0 0 26px rgba(249, 183, 29, 0.38);
+    box-shadow: 0 4px 0 var(--color-accent), 0 0 26px rgb(from var(--color-accent) r g b / 0.38);
   }
 }
 
@@ -363,19 +373,20 @@ function resetVolumeOffset(): void {
   background: conic-gradient(from 0deg,
     transparent 0deg,
     var(--color-accent) 50deg,
+    rgb(from var(--color-accent) r g b / 0.15) 90deg,
     transparent 120deg
   );
   animation: btn-spin-rotate 2.5s linear infinite;
 }
 @keyframes btn-spin-rotate {
-  /* Peak starts at bottom (6 o'clock). Non-uniform: sides get ~3× less time than
-     top/bottom edges to compensate for wide button aspect ratio (~2.5:1).
+  /* Peak starts at bottom (6 o'clock). Top/bottom edges are ~2× faster than the
+     sides so the comet cruises across the wide face and eases through the corners.
      Corner angles: ~65° from top/bottom → sides span 44°, top/bottom span 136° each. */
-  0%   { transform: rotate(130deg); }  /* peak at bottom                     */
-  23%  { transform: rotate(198deg); }  /* peak at lower-left corner          */
-  28%  { transform: rotate(242deg); }  /* peak at upper-left corner  (fast)  */
-  73%  { transform: rotate(378deg); }  /* peak at upper-right corner         */
-  78%  { transform: rotate(422deg); }  /* peak at lower-right corner (fast)  */
-  100% { transform: rotate(490deg); }  /* peak back at bottom (130 + 360)    */
+  0%   { transform: rotate(130deg); }  /* peak at bottom                          */
+  15%  { transform: rotate(198deg); }  /* peak at lower-left corner  (fast base)  */
+  35%  { transform: rotate(242deg); }  /* peak at upper-left corner  (slow side)  */
+  65%  { transform: rotate(378deg); }  /* peak at upper-right corner (fast top)   */
+  85%  { transform: rotate(422deg); }  /* peak at lower-right corner (slow side)  */
+  100% { transform: rotate(490deg); }  /* peak back at bottom (130 + 360)         */
 }
 </style>

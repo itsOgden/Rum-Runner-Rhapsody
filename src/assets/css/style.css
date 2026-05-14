@@ -27,7 +27,7 @@
 
   --color-accent:            #F9B71D;
   --color-accent-dim:        #D49A00;
-  --color-accent-glow:       rgba(249, 183, 29, 0.18);
+  --color-accent-glow:       rgb(from var(--color-accent) r g b / 0.18);
 
   --color-text-primary:      #F0EBE0;
   --color-text-secondary:    #9A9080;
@@ -194,7 +194,6 @@ html.light {
 
   --color-accent:           #BF7200;
   --color-accent-dim:       #A06000;
-  --color-accent-glow:      rgba(191, 114, 0, 0.18);
 
   --color-text-primary:     #1A1200;
   --color-text-secondary:   #5A3A10;
