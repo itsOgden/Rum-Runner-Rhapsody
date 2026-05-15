@@ -38,7 +38,8 @@
       "WebFetch(domain:www.typewolf.com)",
       "Skill(frontend-design)",
       "Bash(start pnpm *)",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "Skill(frontend-design:frontend-design)"
     ]
   },
   "model": "sonnet"

@@ -33,6 +33,7 @@ export interface SoundSection {
   isHidden: boolean
   isCustom: boolean
   folderPath?: string
+  color?: string
 }
 
 // ── Device settings ────────────────────────────────────────────────────────
@@ -60,6 +61,7 @@ export interface FolderSettings {
   playCounts: Record<string, number>                     // stored in rrr-stats.json
   soundVolumes: Record<string, number>
   categoryStreamDeckImages: Record<string, { idle?: string; playing?: string }>
+  categoryColors: Record<string, string>
 }
 
 // Global app settings — stored in rrr-settings.json next to the executable

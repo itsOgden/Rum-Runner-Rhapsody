@@ -187,6 +187,19 @@ export function useSoundManagement() {
     return (settings.value.movedSounds || {})[key] ?? null
   }
 
+  // ── Category colors ────────────────────────────────────────────────────────
+
+  function setCategoryColor(sectionId: string, color: string | null): void {
+    const colors = { ...(settings.value.categoryColors || {}) }
+    if (color) {
+      colors[sectionId] = color
+    } else {
+      delete colors[sectionId]
+    }
+    settings.value.categoryColors = colors
+    saveSettings({ categoryColors: colors })
+  }
+
   // ── Section restore ────────────────────────────────────────────────────────
   // Resets a folder section to defaults: removes custom display name, unhides
   // the section, unhides its sounds, and returns any moved sounds back.
@@ -286,6 +299,7 @@ export function useSoundManagement() {
     const customCats = settings.value.customCategories || []
     const sectionRenames = settings.value.sectionRenames || {}
     const soundNames = settings.value.soundNames || {}
+    const categoryColors = settings.value.categoryColors || {}
     const showing = showHidden.value
     const soundMap = getAllSoundsMap()
     const result: SoundSection[] = []
@@ -322,6 +336,7 @@ export function useSoundManagement() {
         isCustom: false,
         isHidden,
         folderPath: group.folderPath,
+        color: categoryColors[group.folderName] || undefined,
         sounds,
       })
     }
@@ -345,6 +360,7 @@ export function useSoundManagement() {
         displayName: cat.name,
         isCustom: true,
         isHidden,
+        color: categoryColors[cat.id] || undefined,
         sounds,
       })
     }
@@ -373,6 +389,7 @@ export function useSoundManagement() {
     getAvailableCategories,
     getCategoryDisplayName,
     renameCategory,
+    setCategoryColor,
     getSoundDisplayName,
     renameSound,
     hideSound,

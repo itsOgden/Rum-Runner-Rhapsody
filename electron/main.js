@@ -170,6 +170,7 @@ const DEFAULT_FOLDER_SETTINGS = {
   categoryOrder: [],
   soundVolumes: {},
   categoryStreamDeckImages: {},
+  categoryColors: {},             // categoryId → hex color string
 };
 
 // Stats are stored in rrr-stats.json alongside rrr-soundboard.json.

@@ -185,13 +185,17 @@
 ---
 
 ### 3.2 Category Color Coding [#7]
-**What:** Let users assign a color to each category. That color tints: the sidebar nav item, the category section header, and the sound buttons in that category.
+**Status: Done 2026-05-15.**
 
-**UI:** Color swatch in `CategorySettingsModal → General` tab. A small palette of preset colors (not a full color picker — keep it fast).
+**Design principle:** category colors are organizational labels, not action signals. Gold is the app's interactive language (playing state, active indicators). Category color only touches identity/labeling elements and never competes with gold.
 
-**Storage:** Add `categoryColors: Record<string, string>` to `FolderSettings`.
-
-**Implementation:** CSS custom property on each section's wrapper, inherited by buttons. Use semi-transparent tinting on buttons (not full color fill) so it doesn't clash with active/hover states.
+- ✅ `categoryColors: Record<string, string>` added to `FolderSettings` and `DEFAULT_FOLDER_SETTINGS`
+- ✅ `color?: string` added to `SoundSection`; populated in `buildSections()` from `categoryColors`
+- ✅ `setCategoryColor()` added to `useSoundManagement`
+- ✅ CategorySettingsModal → General tab: 17-swatch `ColorPalette` + inline "Remove" link when a color is active; Restore Defaults also clears the color
+- ✅ AccordionSection header: 6px colored dot (`w-1.5 h-1.5 rounded-full`) between chevron and title; hidden during search filter; section title text, separator line, and all button styles are completely unchanged
+- ✅ SoundGrid sidebar: same 6px dot always rendered (transparent placeholder when no color, preserving alignment); hover/active/selected text color, active background tint, and `::before` bar use the category color via `--nav-hover-color` and `--nav-active-bg` CSS custom properties with gold fallbacks
+- ✅ Sound buttons: untouched — no tinting, no border changes, no shadow changes; all playing states (comet, halo, bottom glow) remain gold
 
 ---
 

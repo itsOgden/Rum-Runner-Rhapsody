@@ -5,11 +5,12 @@ import { useSoundManagement } from '../composables/useSoundManagement'
 import { filterQuery } from '../filterState'
 import { draggingSection } from '../dragState'
 import AccordionSection from './AccordionSection.vue'
+import CategorySettingsModal from './CategorySettingsModal.vue'
 import Icon from '@/components/Icon.vue'
 import type { SoundSection } from '../types'
 
 const { settings, soundGroups, soundCount, isLoadingSounds } = useSettings()
-const { buildSections, addCategory, reorderCategories, showHidden } = useSoundManagement()
+const { buildSections, addCategory, reorderCategories, showHidden, pinnedSectionIds } = useSoundManagement()
 
 // ── Category reorder drag handling ───────────────────────────────────────────
 
@@ -141,6 +142,74 @@ onUnmounted(() => {
 })
 
 watch(navSections, () => nextTick(updateActiveSection))
+
+// ── Sidebar drag and drop ─────────────────────────────────────────────────────
+
+const draggingNavSectionId = ref<string | null>(null)
+const dragOverNavId = ref<string | null>(null)
+
+function onNavDragStart(event: DragEvent, section: SoundSection): void {
+  draggingNavSectionId.value = section.id
+  event.dataTransfer!.effectAllowed = 'move'
+  event.dataTransfer!.setData('text/plain', section.id)
+}
+
+function onNavDragEnd(): void {
+  draggingNavSectionId.value = null
+  dragOverNavId.value = null
+}
+
+function onNavDragOver(event: DragEvent, sectionId: string): void {
+  if (!draggingNavSectionId.value) return
+  event.preventDefault()
+  dragOverNavId.value = sectionId
+}
+
+function onNavDragLeave(event: DragEvent): void {
+  if (!(event.currentTarget as Element).contains(event.relatedTarget as Node | null)) {
+    dragOverNavId.value = null
+  }
+}
+
+function onNavDrop(sectionId: string): void {
+  const draggedId = draggingNavSectionId.value
+  draggingNavSectionId.value = null
+  dragOverNavId.value = null
+  if (!draggedId || draggedId === sectionId) return
+
+  const currentOrder = sections.value.map(s => s.id)
+  const fromIdx = currentOrder.indexOf(draggedId)
+  const toIdx = currentOrder.indexOf(sectionId)
+  if (fromIdx === -1 || toIdx === -1) return
+
+  const newOrder = [...currentOrder]
+  newOrder.splice(fromIdx, 1)
+  newOrder.splice(toIdx, 0, draggedId)
+  reorderCategories(newOrder)
+}
+
+// ── Sidebar category settings modal ──────────────────────────────────────────
+
+const editingNavSectionId = ref<string | null>(null)
+const editingNavSection = computed(() =>
+  editingNavSectionId.value
+    ? sections.value.find(s => s.id === editingNavSectionId.value) ?? null
+    : null
+)
+
+function openCategoryModal(section: SoundSection): void {
+  editingNavSectionId.value = section.id
+  pinnedSectionIds.value = new Set([...pinnedSectionIds.value, section.id])
+}
+
+function closeNavCategoryModal(): void {
+  if (editingNavSectionId.value) {
+    const next = new Set(pinnedSectionIds.value)
+    next.delete(editingNavSectionId.value)
+    pinnedSectionIds.value = next
+  }
+  editingNavSectionId.value = null
+}
 </script>
 
 <template>
@@ -151,16 +220,59 @@ watch(navSections, () => nextTick(updateActiveSection))
       v-if="settings.showCategorySidebar && !isLoadingSounds && soundCount > 0 && navSections.length > 0"
       class="w-36 shrink-0 py-2 border-r border-border-light overflow-y-auto bg-bg-raised"
     >
-      <button
+      <!-- Modal for category edits initiated from the sidebar -->
+      <CategorySettingsModal
+        v-if="editingNavSection"
+        :open="true"
+        :section="editingNavSection"
+        @close="closeNavCategoryModal"
+      />
+
+      <div
         v-for="section in navSections"
         :key="section.id"
-        class="nav-btn block w-full py-1.5 pr-2 pl-3 text-left text-xs cursor-pointer truncate leading-[1.6] transition-colors duration-100"
-        :class="activeSectionId === section.id
-          ? 'text-accent-text font-medium bg-accent/10 nav-btn--active'
-          : 'text-text-secondary hover:text-text-primary hover:bg-bg-surface'"
+        class="nav-btn group/nav-item relative flex items-center w-full text-xs leading-[1.6] transition-colors duration-100 select-none"
+        :class="[
+          activeSectionId === section.id
+            ? 'text-accent-text font-medium nav-btn--active'
+            : 'text-text-secondary hover:bg-bg-surface',
+          draggingNavSectionId === section.id
+            ? 'opacity-50'
+            : section.isHidden && showHidden ? 'opacity-40' : '',
+          dragOverNavId === section.id && draggingNavSectionId !== section.id ? 'outline-2 outline-accent' : '',
+          !filterQuery ? 'cursor-grab' : '',
+        ]"
+        :style="section.color ? { '--nav-hover-color': section.color, '--nav-active-bg': `color-mix(in srgb, ${section.color} 10%, transparent)` } : undefined"
         :title="section.displayName"
-        @click="scrollToSection(section.id)"
-      >{{ section.displayName }}</button>
+        :draggable="!filterQuery"
+        @dragstart="onNavDragStart($event, section)"
+        @dragend="onNavDragEnd"
+        @dragover="onNavDragOver($event, section.id)"
+        @dragleave="onNavDragLeave($event)"
+        @drop.prevent="onNavDrop(section.id)"
+        @contextmenu.prevent="openCategoryModal(section)"
+      >
+        <!-- Scroll click area -->
+        <button
+          class="flex items-center gap-1.5 flex-1 min-w-0 py-1.5 pl-3 text-left cursor-pointer"
+          @click="scrollToSection(section.id)"
+        >
+          <span
+            class="w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-150"
+            :style="{ backgroundColor: section.color || 'transparent' }"
+          />
+          <span class="truncate">{{ section.displayName }}</span>
+        </button>
+
+        <!-- Pencil edit button — reveals on row hover -->
+        <button
+          class="opacity-0 group-hover/nav-item:opacity-100 shrink-0 pr-2 py-1.5 cursor-pointer text-text-dim hover:text-text-secondary transition-opacity duration-150"
+          title="Edit category"
+          @click.stop="openCategoryModal(section)"
+        >
+          <Icon name="pencil" class="text-[11px]" />
+        </button>
+      </div>
     </nav>
 
     <!-- Scrollable content area -->
@@ -241,10 +353,17 @@ watch(navSections, () => nextTick(updateActiveSection))
   top: 15%;
   bottom: 15%;
   width: 2px;
-  background: var(--color-accent);
+  background: var(--nav-hover-color, var(--color-accent));
   transform: scaleY(0);
   transition: transform 0.12s ease;
   transform-origin: center;
+}
+.nav-btn:hover {
+  color: var(--nav-hover-color, var(--color-text-primary));
+}
+.nav-btn--active {
+  color: var(--nav-hover-color, var(--color-accent-text));
+  background-color: var(--nav-active-bg, color-mix(in srgb, var(--color-accent) 10%, transparent));
 }
 .nav-btn:hover::before {
   transform: scaleY(1);

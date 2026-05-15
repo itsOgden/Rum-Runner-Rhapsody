@@ -4,6 +4,7 @@ import BaseModal from './BaseModal.vue'
 import ModalTabs from './ModalTabs.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
 import Icon from './Icon.vue'
+import ColorPalette from './ColorPalette.vue'
 import StreamDeckImagePicker from './StreamDeckImagePicker.vue'
 import { useSoundManagement } from '../composables/useSoundManagement'
 import { useSettings } from '../composables/useSettings'
@@ -19,7 +20,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const { renameCategory, deleteCategory, hideSection, unhideSection, restoreSection } = useSoundManagement()
+const { renameCategory, deleteCategory, hideSection, unhideSection, restoreSection, setCategoryColor } = useSoundManagement()
 const { settings, saveSettings } = useSettings()
 const { brokenSources } = useStreamDeckImageErrors()
 
@@ -70,8 +71,24 @@ function handleToggleHide(val: boolean): void {
   }
 }
 
+// ── Category color ────────────────────────────────────────────────────────────
+
+const currentColor = computed(() =>
+  (settings.value.categoryColors || {})[props.section.id] ?? ''
+)
+
+
+function handleColorChange(hex: string): void {
+  setCategoryColor(props.section.id, hex)
+}
+
+function clearColor(): void {
+  setCategoryColor(props.section.id, null)
+}
+
 function handleRestore(): void {
   restoreSection(props.section.id)
+  setCategoryColor(props.section.id, null)
   editingName.value = props.section.id
 }
 
@@ -145,6 +162,18 @@ function onPlayingImageChange(path: string | null): void {
               <ToggleSwitch :modelValue="section.isHidden" @update:modelValue="handleToggleHide" />
             </div>
             <p class="text-xs text-text-secondary">Hidden categories are not shown in the sound list</p>
+          </div>
+
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div class="text-sm text-text-primary">Color</div>
+              <button
+                v-if="currentColor"
+                class="text-xs text-text-secondary hover:text-text-primary cursor-pointer transition-colors"
+                @click="clearColor"
+              >Remove</button>
+            </div>
+            <ColorPalette :modelValue="currentColor" @update:modelValue="handleColorChange" />
           </div>
 
           <template v-if="!section.isCustom">

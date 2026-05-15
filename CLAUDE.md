@@ -93,7 +93,7 @@ Rum-Runner Rhapsody/
 │   │   ├── ToggleSwitch.vue     — Reusable boolean toggle switch (v-model); used in all settings modals; checked state shows accent glow ring (`box-shadow: 0 0 0 3px var(--color-accent-glow)`)
 │   │   ├── SettingRow.vue       — Label + control + optional description row; used in all settings modals (props: label, description)
 │   │   ├── AppSelect.vue        — Custom styled dropdown replacing native <select>; props: modelValue, options[{value,label}]; emits: update:modelValue; keyboard nav on trigger (arrow/enter/escape); teleported + animated; trigger shows accent border when open; items use same `::before` scaleY bar design language as ModalTabs
-│   │   ├── ColorPalette.vue     — Reusable 17-swatch color grid; props: modelValue (selected hex or ''), defaultValue (hex to highlight when modelValue is ''); emits: update:modelValue; used in Appearance tab and future category color pickers
+│   │   ├── ColorPalette.vue     — Reusable 17-swatch color grid; props: modelValue (selected hex or ''), defaultValue (hex to highlight when modelValue is ''); emits: update:modelValue; used in Appearance tab and category color picker
 │   │   ├── MenuItem.vue         — Context menu button row; default slot for content, prop: topBorder
 │   │   ├── ImagePickerSlot.vue  — Single image picker card (label, preview, error, clear); used in StreamDeckImagePicker
 │   │   └── InstructionStep.vue  — Numbered step with accent badge, title, slot body; used in HelpModal VB-Cable guide
@@ -209,6 +209,7 @@ interface FolderSettings {
   categoryOrder: string[]
   soundVolumes: Record<string, number>             // dB offset, -20 to +20
   categoryStreamDeckImages: Record<string, { idle?: string, playing?: string }>
+  categoryColors: Record<string, string>           // categoryId → hex color string
   playCounts: Record<string, number>               // actually stored in rrr-stats.json; merged into FolderSettings on load
 }
 ```
@@ -395,7 +396,7 @@ Sound buttons and category headers are both draggable.
 - **Footer**: "Remove soundboard" danger button → inline confirmation row (files-not-deleted notice + Cancel + Remove). Remove calls `window.api.removeFolder`, auto-switches to first remaining saved folder or clears if none left
 
 **CategorySettingsModal.vue** — two side-tabs, opened by right-clicking a category header (no visible gear icon):
-- **General**: Category rename (drives live modal title), hide/show toggle, Restore Defaults button
+- **General**: Category rename (drives live modal title), hide/show toggle, color picker (17-swatch `ColorPalette`; "Remove" link when a color is active; Restore Defaults also clears the color), Restore Defaults button
 - **Stream Deck**: StreamDeckImagePicker for per-category idle/playing images
 - Modal stays open when hide is toggled; hidden categories remain mounted while modal is open
 - Restore Defaults resets name and hide state without closing modal
@@ -408,11 +409,14 @@ All settings auto-save on change (no Save button).
 
 - Rendered inside `SoundGrid.vue` to the left of the scroll container as a fixed flex sibling
 - Always visible (controlled by `showCategorySidebar` setting); during search, only shows categories that have at least one matching sound (hides entirely if no category matches)
+- Each item shows a 6px colored dot (`w-1.5 h-1.5 rounded-full`) before the name; always rendered but `transparent` when no category color is assigned — keeps all items left-aligned regardless of color state
 - Shows full category display names, truncated with ellipsis if too long
-- Clicking a category smoothly scrolls the sound grid to that category header
-- Active category highlighted with `--color-accent`; tracks scroll position
-- Active/hover buttons use the same 2px `::before` scaleY bar design language as ModalTabs and AppSelect items
-- Hidden categories omitted unless "show hidden" toggle is on
+- Clicking a category smoothly scrolls the sound grid to that category header; each nav item is a flex row (`group/nav-item`) containing a scroll-click `<button>` (flex-1) and a pencil `<button>` (shrink-0) so nested interactivity works without nested `<button>` elements — outer element is a `<div>`
+- Active/hover items use the same 2px `::before` scaleY bar design language as ModalTabs and AppSelect items
+- **Category color theming** (when `section.color` is set): hover text, active text, active background, and `::before` bar all use the category color. Implemented via CSS custom properties set as inline style on the nav div — `--nav-hover-color` (the color) and `--nav-active-bg` (`color-mix(in srgb, <color> 10%, transparent)`). Scoped rules `.nav-btn:hover` and `.nav-btn--active` read these with fallbacks to `--color-text-primary` / `--color-accent-text` / `--color-accent`, so uncolored items look identical to before.
+- Hidden categories omitted unless "show hidden" toggle is on; when shown (because Show Hidden is active), the nav item gets `opacity-40` to match the accordion section dimming
+- **Drag/drop reorder**: nav items are `draggable` (disabled during filter). Uses local `draggingNavSectionId` + `dragOverNavId` refs (independent of the main grid's `draggingSection` to avoid cross-area interference). Drop calls `reorderCategories` with the full `sections.value` order. Drop target highlighted with `outline-2 outline-accent`; dragged item gets `opacity-50`.
+- **Pencil edit button**: appears on the right of each nav row on hover (`group-hover/nav-item:opacity-100`). Right-clicking a nav item also opens the editor. Both open `CategorySettingsModal` via `openCategoryModal` / `closeNavCategoryModal` in `SoundGrid.vue`, which also manages `pinnedSectionIds` to keep the section mounted while the modal is open.
 - `ACTIVE_HIGHLIGHT_ENABLED` constant at top of `SoundGrid.vue` (not in settings) controls highlight behavior
 - Click-lock: after clicking, highlight stays on the clicked category until scroll has been idle for 300ms, using `manualActiveSection` ref as a veto against scroll-based tracking overriding it prematurely
 

@@ -251,6 +251,13 @@ function onAfterLeave(el: Element): void {
         :class="{ '-rotate-90': isCollapsed }"
       />
 
+      <!-- Category color dot (always reserves space; transparent when no color set) -->
+      <span
+        v-if="!filter"
+        class="w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-150"
+        :style="{ backgroundColor: section.color || 'transparent' }"
+      />
+
       <!-- Title -->
       <span class="font-display text-base text-text-primary flex-1 min-w-0 truncate leading-none">{{ section.displayName }}</span>
 
