@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {ref, watch, onUnmounted, computed} from 'vue'
 import Icon from './Icon.vue'
+import CircleButton from "@/components/CircleButton.vue";
 
 const props = withDefaults(defineProps<{
   title: string
@@ -48,12 +49,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
         >
           <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-light shrink-0 bg-bg-surface-active">
             <div class="font-display text-lg text-text-primary">{{ title }}</div>
-            <button
-              class="text-text-dim text-xl leading-none cursor-pointer p-0.5 bg-transparent border-none transition-colors hover:text-text-primary"
-              @click="emit('close')"
-            >
-              <Icon name="xmark-solid" class="text-[16px]" />
-            </button>
+            <CircleButton icon="xmark-solid" no-colors class="hover:bg-accent text-base! hover:text-text-on-accent" title="Close" @click="emit('close')" />
           </div>
           <div class="flex-1 min-h-0 flex flex-col">
             <slot />

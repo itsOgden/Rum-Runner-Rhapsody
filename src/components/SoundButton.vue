@@ -209,10 +209,15 @@ function resetVolumeOffset(): void {
   <!-- Outer wrapper: provides the hover group, full height, and fade-in animation -->
   <div
     class="group/btn relative animate-fade-in h-full sbtn"
-    :class="{ 'z-2': isPlaying, 'sbtn-playing': isPlaying }"
+    :class="{ 'z-2': isPlaying }"
     :style="{ animationDelay: `${animationDelay ?? 0}ms` }"
     @contextmenu.prevent="openMenu"
   >
+    <!-- Ambient halo: real element so Vue Transition owns the fade, not CSS pseudo-element -->
+    <Transition name="halo">
+      <div v-if="isPlaying" class="sbtn-halo" />
+    </Transition>
+
     <!-- Inline rename input (replaces button label) -->
     <div
       v-if="isRenaming"
@@ -232,7 +237,9 @@ function resetVolumeOffset(): void {
 
     <!-- Spinning comet ring (DOM-first so button stacks on top) + button -->
     <template v-else>
-      <div v-if="isPlaying" class="btn-spin-ring pointer-events-none" />
+      <Transition name="ring">
+        <div v-if="isPlaying" class="btn-spin-ring pointer-events-none" />
+      </Transition>
 
       <button
         draggable="true"
@@ -381,7 +388,8 @@ function resetVolumeOffset(): void {
 
 .btn-spin {
   box-shadow: 0 3px 0 var(--color-border-light);
-  transition: box-shadow 0.12s ease, color 0.15s, background 0.12s;
+  /* color 0.4s: slow fade-out when playing stops (cascade reads this state on removal) */
+  transition: box-shadow 0.12s ease, color 0.4s ease, background 0.12s;
 }
 .btn-spin:hover {
   background: var(--color-bg-surface) !important;
@@ -393,13 +401,15 @@ function resetVolumeOffset(): void {
 .btn-spin-playing {
   color: var(--color-accent-text) !important;
   animation: btn-spin-glow 5s ease-in-out infinite;
+  /* Overrides .btn-spin's slow color transition — snap in when playing starts */
+  transition: color 0.04s ease, background 0.12s, box-shadow 0.12s ease;
 }
 @keyframes btn-spin-glow {
   0%, 100% {
-    box-shadow: 0 4px 0 var(--color-accent), 0 0 12px var(--color-accent-glow);
+    box-shadow: 0 4px 0 var(--color-accent), 0 0 8px var(--color-accent-glow);
   }
   50% {
-    box-shadow: 0 4px 0 var(--color-accent), 0 0 26px rgb(from var(--color-accent) r g b / 0.38);
+    box-shadow: 0 4px 0 var(--color-accent), 0 0 20px rgb(from var(--color-accent) r g b / 0.38);
   }
 }
 
@@ -430,21 +440,30 @@ function resetVolumeOffset(): void {
   );
   animation: btn-spin-rotate 2.5s linear infinite;
 }
-/* Ambient gold halo — extends 12px outside, blurred, pulses in sync with btn-spin-glow */
-.sbtn-playing::after {
-  content: '';
+/* Ambient halo: real DOM element so Vue <Transition> owns enter/leave.
+   Pulse uses transform so opacity is free for the transition — no conflict. */
+.sbtn-halo {
   position: absolute;
   inset: -12px;
   background: rgb(from var(--color-accent) r g b / 0.14);
   filter: blur(22px);
-  z-index: -1;
   pointer-events: none;
   animation: btn-ambient-pulse 5s ease-in-out infinite;
 }
 @keyframes btn-ambient-pulse {
-  0%, 100% { opacity: 0.6; }
-  50%       { opacity: 1; }
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.1); }
 }
+.halo-enter-active { transition: opacity 0.05s ease; }
+.halo-enter-from   { opacity: 0; }
+.halo-leave-active { transition: opacity 0.55s ease; animation: none; }
+.halo-leave-to     { opacity: 0; }
+
+/* Ring transition: instant in, slow fade-out */
+.ring-enter-active { transition: opacity 0.04s ease; }
+.ring-enter-from   { opacity: 0; }
+.ring-leave-active { transition: opacity 0.45s ease; }
+.ring-leave-to     { opacity: 0; }
 
 @keyframes btn-spin-rotate {
   /* Peak starts at bottom (6 o'clock). Top/bottom edges are ~2× faster than the

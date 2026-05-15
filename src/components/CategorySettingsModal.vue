@@ -132,7 +132,7 @@ function onPlayingImageChange(path: string | null): void {
               ref="nameInputEl"
               v-model="editingName"
               type="text"
-              class="w-40 px-2 py-1.5 font-sans text-xs bg-bg-surface text-text-primary border border-border-light rounded-sm outline-none focus:border-accent"
+              class="w-40 px-2 py-1.5 font-sans text-xs bg-bg-surface text-text-primary border border-border-light rounded-sm outline-none focus:border-accent focus:shadow-[0_0_6px_var(--color-accent-glow)] transition-all"
               placeholder="Category name"
               @keydown.enter.prevent="handleClose"
               @keydown.escape.prevent="handleClose"

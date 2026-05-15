@@ -84,7 +84,7 @@ onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown))
         type="text"
         v-model="filterQuery"
         placeholder="Search sounds…"
-        class="w-full font-sans text-sm bg-bg-surface border border-border-light pl-3 pr-7 h-9 text-text-primary placeholder:text-text-dim outline-none focus:border-accent transition-colors"
+        class="w-full font-sans text-sm bg-bg-surface border border-border-light pl-3 pr-7 h-9 text-text-primary placeholder:text-text-dim outline-none focus:border-accent focus:shadow-[0_0_6px_var(--color-accent-glow)] transition-all"
       />
       <CircleButton
         v-if="filterQuery"
@@ -102,13 +102,13 @@ onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown))
       <div class="flex items-center gap-1.5">
         <button
           class="transition-colors cursor-pointer outline-none"
-          :class="settings.density !== 'compact' ? 'text-text-primary font-medium' : 'text-text-dim hover:text-text-secondary'"
+          :class="settings.density !== 'compact' ? 'text-accent-text font-medium' : 'text-text-dim hover:text-text-secondary'"
           @click="setDensity('loose')"
         >Loose</button>
         <span class="text-text-dim">·</span>
         <button
           class="transition-colors cursor-pointer outline-none"
-          :class="settings.density === 'compact' ? 'text-text-primary font-medium' : 'text-text-dim hover:text-text-secondary'"
+          :class="settings.density === 'compact' ? 'text-accent-text font-medium' : 'text-text-dim hover:text-text-secondary'"
           @click="setDensity('compact')"
         >Compact</button>
       </div>

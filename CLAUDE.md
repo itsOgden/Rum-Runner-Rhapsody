@@ -76,9 +76,9 @@ Rum-Runner Rhapsody/
 │   │   ├── FolderBar.vue        — Sound library bar: Browse (btn-accent), folder basename, Refresh; center search (Space shortcut focuses it globally); right text density toggle (Loose · Compact) + Show Hidden toggle
 │   │   ├── SoundGrid.vue        — Main grid: category quick-nav sidebar, accordion sections, drag-and-drop, empty states
 │   │   ├── AccordionSection.vue — Category header (collapsible, draggable, right-click opens settings) + sound button grid + DnD
-│   │   ├── SoundButton.vue      — Individual sound button + context menu + preview
-│   │   ├── BaseModal.vue        — Reusable modal wrapper with animations
-│   │   ├── ModalTabs.vue        — Shared left-sidebar tab nav used by all modals (v-model activeTab, badge support)
+│   │   ├── SoundButton.vue      — Individual sound button + context menu + preview; playing styles transition in instantly (~0.04s) but fade out slowly (~0.4–0.55s) via CSS cascade trick; halo glow is a real `<div>` with Vue `<Transition name="halo">` (not `::after`) so enter/leave work cleanly alongside the `btn-ambient-pulse` animation
+│   │   ├── BaseModal.vue        — Reusable modal wrapper with animations; close button uses `rounded-full` for circular hover (not rectangular)
+│   │   ├── ModalTabs.vue        — Shared left-sidebar tab nav used by all modals (v-model activeTab, badge support); active/hover state uses a 2px accent `::before` scaleY bar (0→1, 0.12s) matching the context menu design language; active state reveals bar instantly (transition: none)
 │   │   ├── SettingsModal.vue    — Settings (side-tab: App / Keybinds / Appearance / Playback / Audio Devices / Stream Deck)
 │   │   ├── HelpModal.vue        — Help (side-tab: Patch Notes / VB-Cable guide)
 │   │   ├── CategorySettingsModal.vue — Per-category settings (General / Stream Deck tabs)
@@ -89,10 +89,10 @@ Rum-Runner Rhapsody/
 │   │   ├── SquareButton.vue     — 36×36px icon button; props: icon, title, active, disabled, variant ('default'|'danger')
 │   │   ├── CircleButton.vue     — 20×20px circle icon button; prop: noColors to skip accent styling
 │   │   ├── ToggleCircleButton.vue — Circle button with enabled state (accent bg when enabled, hover-reveal when not)
-│   │   ├── ToggleSwitch.vue     — Reusable boolean toggle switch (v-model); used in all settings modals
+│   │   ├── ToggleSwitch.vue     — Reusable boolean toggle switch (v-model); used in all settings modals; checked state shows accent glow ring (`box-shadow: 0 0 0 3px var(--color-accent-glow)`)
 │   │   ├── SettingRow.vue       — Label + control + optional description row; used in all settings modals (props: label, description)
-│   │   ├── AppSelect.vue        — Custom styled dropdown replacing native <select>; props: modelValue, options[{value,label}]; emits: update:modelValue; keyboard nav on trigger (arrow/enter/escape); teleported + animated
-│   │   ├── ColorPalette.vue     — Reusable 16-swatch color grid; props: modelValue (selected hex or ''), defaultValue (hex to highlight when modelValue is ''); emits: update:modelValue; used in Appearance tab and future category color pickers
+│   │   ├── AppSelect.vue        — Custom styled dropdown replacing native <select>; props: modelValue, options[{value,label}]; emits: update:modelValue; keyboard nav on trigger (arrow/enter/escape); teleported + animated; trigger shows accent border when open; items use same `::before` scaleY bar design language as ModalTabs
+│   │   ├── ColorPalette.vue     — Reusable 17-swatch color grid; props: modelValue (selected hex or ''), defaultValue (hex to highlight when modelValue is ''); emits: update:modelValue; used in Appearance tab and future category color pickers
 │   │   ├── MenuItem.vue         — Context menu button row; default slot for content, prop: topBorder
 │   │   ├── ImagePickerSlot.vue  — Single image picker card (label, preview, error, clear); used in StreamDeckImagePicker
 │   │   └── InstructionStep.vue  — Numbered step with accent badge, title, slot body; used in HelpModal VB-Cable guide
@@ -115,7 +115,7 @@ Rum-Runner Rhapsody/
 │   ├── dragState.ts             — Module singletons: draggingSound, draggingSection refs
 │   ├── toastState.ts            — Module singleton: toast ref + showToast() helper
 │   ├── modalState.ts            — Module singletons: settingsModalOpen, helpModalOpen refs
-│   ├── colorPalette.ts          — Shared COLOR_PALETTE array (16 presets), DEFAULT_ACCENT constant; imported by ColorPalette.vue and any future color pickers
+│   ├── colorPalette.ts          — Shared COLOR_PALETTE array (17 presets: Gold, Amber, Ember, Crimson, Rose, Hot Pink, Magenta, Violet, Indigo, Blue, Sky, Teal, Jade, Lime, Bronze, Slate, Gray), DEFAULT_ACCENT constant; imported by ColorPalette.vue and any future color pickers
 │   ├── dropdownState.ts         — Module singleton: activeDropdownId (one-at-a-time dropdown coordination)
 │   └── types.ts                 — GlobalSettings, FolderSettings, WindowApi, Sound, SoundSection interfaces
 ├── packages/
@@ -354,7 +354,7 @@ Sound buttons and category headers are both draggable.
 **SettingsModal.vue** — six side-tabs:
 - **App**: Close to tray, Start with Windows, Launch minimized, Show category sidebar
 - **Keybinds**: Stop All (editable global hotkey input) + Focus Search (fixed display: Space)
-- **Appearance**: Theme (dark/light AppSelect) + Accent color (ColorPalette with 16 swatches, Reset to default button)
+- **Appearance**: Theme (dark/light AppSelect) + Accent color (ColorPalette with 17 swatches, Reset to default button)
 - **Playback**: Playback mode, Normalize volumes
 - **Audio Devices**: N-device output list (enable toggle, AppSelect device picker, volume slider, add/remove); description links to VB-Cable help tab
 - **Stream Deck**: Grid mode, Install/Update plugin, Default Button Icons (idle/playing/stop via StreamDeckImagePicker)
@@ -380,6 +380,7 @@ All settings auto-save on change (no Save button).
 - Shows full category display names, truncated with ellipsis if too long
 - Clicking a category smoothly scrolls the sound grid to that category header
 - Active category highlighted with `--color-accent`; tracks scroll position
+- Active/hover buttons use the same 2px `::before` scaleY bar design language as ModalTabs and AppSelect items
 - Hidden categories omitted unless "show hidden" toggle is on
 - `ACTIVE_HIGHLIGHT_ENABLED` constant at top of `SoundGrid.vue` (not in settings) controls highlight behavior
 - Click-lock: after clicking, highlight stays on the clicked category until scroll has been idle for 300ms, using `manualActiveSection` ref as a veto against scroll-based tracking overriding it prematurely
@@ -675,6 +676,7 @@ Light mode is toggled by adding the `light` class to `<html>`. Neutral gray pale
 - Context menu is teleported to `<body>` to avoid scroll-container clipping
 - Menu flips upward if it would overflow the viewport bottom
 - Only one menu open at a time via `activeDropdownId` singleton
+- Menu items use a 2px accent `::before` scaleY bar (0→1, 0.12s) on hover — this is the **unified design language** shared by ModalTabs, category quick-nav, and AppSelect items
 
 ### SoundButton hover overlays:
 - Top-right: `ToggleCircleButton` with `ellipsis-solid` icon → opens context menu

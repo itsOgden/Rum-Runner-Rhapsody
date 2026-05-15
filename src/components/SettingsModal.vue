@@ -322,7 +322,7 @@ async function handleInstallPlugin(): Promise<void> {
           <SettingRow label="Stop All" description="Global hotkey to stop all playing sounds">
             <input
               type="text"
-              class="w-25 px-2 py-1.5 text-sm bg-bg-surface text-text-primary border border-border-light outline-none text-center focus:border-accent"
+              class="w-25 px-2 py-1.5 text-sm bg-bg-surface text-text-primary border border-border-light outline-none text-center focus:border-accent focus:shadow-[0_0_6px_var(--color-accent-glow)] transition-all"
               placeholder="Escape"
               v-model="settings.hotkeys.stop"
               @input="onHotkeyInput"
@@ -331,7 +331,7 @@ async function handleInstallPlugin(): Promise<void> {
           <SettingRow label="Focus Search" >
             <input
               type="text"
-              class="w-25 px-2 py-1.5 text-sm bg-bg-surface text-text-primary border border-border-light outline-none text-center focus:border-accent"
+              class="w-25 px-2 py-1.5 text-sm bg-bg-surface text-text-primary border border-border-light outline-none text-center focus:border-accent focus:shadow-[0_0_6px_var(--color-accent-glow)] transition-all"
               placeholder="Space"
               v-model="settings.hotkeys.search"
               @input="onHotkeyInput"

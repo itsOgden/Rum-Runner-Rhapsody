@@ -98,7 +98,8 @@ onUnmounted(removeOutsideHandler)
   <div class="relative w-full">
     <button
       ref="triggerRef"
-      class="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 font-sans text-sm bg-bg-surface text-text-primary border border-border-light outline-none cursor-pointer transition-colors focus:border-accent hover:bg-bg-surface-hover"
+      class="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 font-sans text-sm bg-bg-surface text-text-primary border border-border-light outline-none cursor-pointer transition-colors hover:bg-bg-surface-hover"
+      :class="isOpen ? 'border-accent!' : 'focus:border-accent'"
       @click="toggle"
       @keydown="onTriggerKeydown"
     >
@@ -123,10 +124,10 @@ onUnmounted(removeOutsideHandler)
             v-for="(option, i) in options"
             :key="option.value"
             tabindex="-1"
-            class="w-full text-left px-3 py-1.5 font-sans text-sm cursor-pointer outline-none transition-colors"
+            class="select-item w-full text-left px-3 py-1.5 font-sans text-sm cursor-pointer outline-none transition-colors"
             :class="[
               option.value === modelValue
-                ? 'text-accent bg-bg-surface'
+                ? 'text-accent bg-bg-surface select-item--selected'
                 : 'text-text-secondary hover:bg-bg-surface hover:text-text-primary',
               i === focusedIndex && option.value !== modelValue
                 ? 'bg-bg-surface-hover! text-text-primary!'
@@ -148,4 +149,27 @@ onUnmounted(removeOutsideHandler)
 .app-select-enter-from { opacity: 0; transform: translateY(-4px) scale(0.98); transform-origin: top; }
 .app-select-leave-active { transition: opacity 0.08s ease; }
 .app-select-leave-to { opacity: 0; }
+
+.select-item {
+  position: relative;
+}
+.select-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;
+  bottom: 15%;
+  width: 2px;
+  background: var(--color-accent);
+  transform: scaleY(0);
+  transition: transform 0.12s ease;
+  transform-origin: center;
+}
+.select-item:hover::before {
+  transform: scaleY(1);
+}
+.select-item--selected::before {
+  transform: scaleY(1);
+  transition: none;
+}
 </style>
