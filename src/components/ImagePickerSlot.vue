@@ -22,7 +22,7 @@ const emit = defineEmits<{
     <div
       class="group/slot relative w-full aspect-square rounded-sm overflow-hidden border cursor-pointer outline-none"
       :class="error
-        ? 'border-danger bg-[color-mix(in_srgb,var(--color-danger)_12%,var(--color-bg-surface))] focus-visible:outline focus-visible:outline-1 focus-visible:outline-danger'
+        ? 'border-danger bg-[color-mix(in_srgb,var(--color-danger)_12%,var(--color-bg-surface))] focus-visible:outline-1 focus-visible:outline-danger'
         : 'border-border-light bg-bg-surface focus-visible:border-accent'"
       role="button"
       :tabindex="disabled ? -1 : 0"
@@ -38,7 +38,7 @@ const emit = defineEmits<{
       </div>
       <button
         v-if="path"
-        class="absolute top-1 right-1 w-[18px] h-[18px] rounded-full bg-black/60 border-none text-white text-sm leading-none cursor-pointer flex items-center justify-center p-0 z-[1] transition-colors duration-100 hover:bg-danger"
+        class="absolute top-1 right-1 w-[18px] h-4.5 rounded-full bg-black/60 border-none text-white text-sm leading-none cursor-pointer flex items-center justify-center p-0 z-[1] transition-colors duration-100 hover:bg-danger"
         title="Clear override"
         @click.stop="emit('clear')"
       >

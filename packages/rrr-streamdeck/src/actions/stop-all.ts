@@ -1,6 +1,7 @@
 import streamDeck, { action, KeyAction, KeyDownEvent, PropertyInspectorDidAppearEvent, SendToPluginEvent, SingletonAction, WillAppearEvent, WillDisappearEvent } from "@elgato/streamdeck";
 import { rrrClient } from "../rrr-client";
 import { readFileSync } from "fs";
+import { buildStopImage } from "../svg-compose";
 
 type SoundItem = { key: string; displayName: string; category: string };
 type DefaultImages = { idle?: string; playing?: string; stop?: string };
@@ -11,6 +12,8 @@ type DefaultImages = { idle?: string; playing?: string; stop?: string };
 let stateReady = false;
 let folderSelected = false;
 let streamDeckDefaultImages: DefaultImages = {};
+let accentColor = "#F9B71D";
+
 
 const activeStopActions = new Map<string, KeyAction<Record<string, never>>>();
 
@@ -20,6 +23,7 @@ function pushState(): void {
 		connected: stateReady,
 		folderSelected,
 		sounds: [] as SoundItem[],
+		accentColor,
 	});
 }
 
@@ -36,10 +40,10 @@ async function applyStopImage(keyAction: KeyAction<Record<string, never>>): Prom
 			await keyAction.setImage(await loadImage(streamDeckDefaultImages.stop));
 			return;
 		} catch {
-			// unreadable — fall through to built-in
+			// unreadable — fall through to generated image
 		}
 	}
-	try { await keyAction.setImage(""); } catch {}
+	try { await keyAction.setImage(buildStopImage(accentColor)); } catch {}
 }
 
 rrrClient.on("connected", () => {
@@ -53,7 +57,7 @@ rrrClient.on("disconnected", () => {
 	pushState();
 });
 
-rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean; streamDeckDefaultImages?: DefaultImages }) => {
+rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean; streamDeckDefaultImages?: DefaultImages; accentColor?: string }) => {
 	// Update state variables but do NOT call pushState() here.
 	// If we called pushState() from this module-level handler, it would send
 	// sounds: [] to whatever PI is currently open — including the play-sound PI,
@@ -62,6 +66,10 @@ rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelec
 	if (data.type === "sounds-list" || data.type === "sounds-updated") {
 		folderSelected = data.folderSelected !== false;
 		if (data.streamDeckDefaultImages !== undefined) streamDeckDefaultImages = data.streamDeckDefaultImages;
+		if (data.accentColor && data.accentColor !== accentColor) {
+			accentColor = data.accentColor;
+			streamDeck.settings.setGlobalSettings({ accentColor }).catch(() => {});
+		}
 		stateReady = true;
 		for (const action of activeStopActions.values()) {
 			applyStopImage(action).catch(() => {});
@@ -69,6 +77,10 @@ rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelec
 	} else if (data.type === "folder-status") {
 		folderSelected = false;
 		if (data.streamDeckDefaultImages !== undefined) streamDeckDefaultImages = data.streamDeckDefaultImages;
+		if (data.accentColor && data.accentColor !== accentColor) {
+			accentColor = data.accentColor;
+			streamDeck.settings.setGlobalSettings({ accentColor }).catch(() => {});
+		}
 		stateReady = true;
 		for (const action of activeStopActions.values()) {
 			applyStopImage(action).catch(() => {});

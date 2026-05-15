@@ -123,13 +123,22 @@ Rum-Runner Rhapsody/
 │       ├── src/
 │       │   ├── plugin.ts        — SDK v3 entry point
 │       │   ├── rrr-client.ts    — WebSocket client (port 57432, exponential backoff)
+│       │   ├── svg-compose.ts   — SVG compositing: imports assets, applies accent color, returns base64 data URIs
+│       │   ├── svg.d.ts         — Type declaration for *.svg raw string imports
 │       │   └── actions/
 │       │       ├── play-sound.ts — Play Sound action, button state, title formatting
 │       │       └── stop-all.ts   — Stop All action, global default stop image support
-│       ├── ui/
-│       │   ├── play-sound.html  — Property inspector
-│       │   └── stop-all.html
-│       └── com.pdog1.rum-runner-rhapsody.sdPlugin/  — Built plugin output
+│       ├── action_svgs/         — Source SVG assets (bundled into plugin.js at build time)
+│       │   ├── background@2x.svg        — Idle button frame (white fills → accent)
+│       │   ├── background-active@2x.svg — Active button fill (inverted, white → accent)
+│       │   ├── stop@2x.svg              — Stop square icon (white, on active bg)
+│       │   ├── playing@2x.svg           — Playing center icon (currently empty)
+│       │   ├── clip@2x.svg              — Future: clip mode icon
+│       │   └── save@2x.svg              — Future: shadow record icon
+│       ├── com.pdog1.rum-runner-rhapsody.sdPlugin/  — Built plugin output
+│       │   └── ui/
+│       │       ├── play-sound.html  — Property inspector (accent color via CSS vars + global settings)
+│       │       └── stop-all.html
 ├── scripts/
 │   ├── vite-plugin-icons.ts     — Custom Vite plugin for SVG icon system
 │   └── update-changelog.md      — Reusable Claude Code prompt for bumping versions/changelog
@@ -401,10 +410,11 @@ Reusable component (`StreamDeckImagePicker.vue`) used in both CategorySettingsMo
 ### WebSocket server (port 57432):
 - Binds to `127.0.0.1` only
 - Broadcasts: `sounds-list`, `sounds-updated`, `playing-status`, `folder-status`
-- All broadcasts include: `sounds`, `folderSelected`, `buttonMode`, `categoryStreamDeckImages`, `streamDeckDefaultImages`
+- All broadcasts include: `sounds`, `folderSelected`, `buttonMode`, `categoryStreamDeckImages`, `streamDeckDefaultImages`, `accentColor`
+- `accentColor` is resolved before sending: empty string (theme default) → `"#F9B71D"`
 - On new client connect: immediately sends full `sounds-list` payload to that client
 - `get-sounds` message from plugin: responds with fresh `sounds-list` to requesting client only
-- `save-settings` with `streamDeckDefaultImages` triggers broadcast
+- `save-settings` with `streamDeckDefaultImages` or `accentColor` triggers broadcast
 
 ### WebSocket message types (plugin → app):
 | Type | Payload | Effect |
@@ -427,7 +437,11 @@ Reusable component (`StreamDeckImagePicker.vue`) used in both CategorySettingsMo
 ### Play Sound action — image priority:
 1. Category override (`categoryStreamDeckImages[categoryId]`) — wins if `useCategoryImage !== false`
 2. Global default (`streamDeckDefaultImages`)
-3. Built-in `key.png` / `playing.png`
+3. Composited SVG from `svg-compose.ts`: `background@2x.svg` (idle) or `background-active@2x.svg` (playing), with white fills replaced by accent color
+
+### Stop All action — image priority:
+1. Global default (`streamDeckDefaultImages.stop`)
+2. Composited SVG from `svg-compose.ts`: `background@2x.svg` + `stop@2x.svg` icon overlaid, accent color applied
 
 `useCategoryImage` defaults to on (`undefined` treated as `true`); user can explicitly set to `false` to opt out. Toggle only appears in PI when category has images defined.
 
@@ -437,8 +451,39 @@ Reusable component (`StreamDeckImagePicker.vue`) used in both CategorySettingsMo
 - `soundCategory` is persisted in button settings and back-filled from live sounds list if missing
 
 ### Stop All action:
-- Applies `streamDeckDefaultImages.stop` if set, falls back to built-in image
+- Applies `streamDeckDefaultImages.stop` if set, falls back to composited accent SVG
 - Updates immediately on `sounds-list`/`sounds-updated`
+
+### Accent color in the plugin:
+- `accentColor` is tracked as module-level state in both `play-sound.ts` and `stop-all.ts` (default `#F9B71D`)
+- Updated whenever a WS broadcast arrives; persisted to Stream Deck global plugin settings via `streamDeck.settings.setGlobalSettings({ accentColor })` on change
+- Property Inspector UIs request global settings immediately on open (`getGlobalSettings`) so the accent color is applied before the connecting spinner renders, without waiting for the `soundsList` roundtrip
+
+### SVG compositing system (`src/svg-compose.ts`):
+Source SVG assets live in `packages/rrr-streamdeck/action_svgs/`. They are bundled into `plugin.js` at build time via a raw-SVG import plugin in `rollup.config.mjs` (no runtime file I/O, no path issues on install).
+
+**Asset files:**
+| File | Purpose |
+|---|---|
+| `background@2x.svg` | Standard button frame — decorative border path in white (→ accent) on dark bg; used for idle and non-toggle buttons |
+| `background-active@2x.svg` | Toggle-active button fill — inverted: entire button filled white (→ accent) except the frame cutout; only used for actively-toggled states (e.g. sound currently playing) |
+| `stop@2x.svg` | Stop square icon — white, overlaid on active background |
+| `playing@2x.svg` | Playing center icon — currently empty (no icon for playing state) |
+| `clip@2x.svg` | Future: clip/open mode button icon |
+| `save@2x.svg` | Future: shadow record save button icon |
+
+**How compositing works:**
+1. The raw-SVG rollup plugin inlines each `.svg` file as a string constant at build time
+2. `extractInner()` strips the XML declaration, DOCTYPE, and outer `<svg>` wrapper from each asset
+3. White fills (`fill:#fff`) in the **background layer only** are replaced with the accent color
+4. Center icon fills stay white (for contrast on the accent background)
+5. Both layers are wrapped in a single `<svg viewBox="0 0 144 144">` with the original style attributes preserved
+6. The result is base64-encoded as a `data:image/svg+xml;base64,...` URI passed to `setImage()`
+
+**To add a new action with a custom button image:**
+1. Add the center icon SVG to `action_svgs/` (white fills, 144×144 viewBox)
+2. Import it in `svg-compose.ts` and export a new `build*Image(accent)` function — use `bgIdleSvg` for standard buttons, `bgActiveSvg` only for toggle-active states
+3. Import and call it from the new action file
 
 ### Stream Deck dev workflow:
 ```bash

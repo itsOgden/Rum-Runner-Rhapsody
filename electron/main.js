@@ -540,9 +540,9 @@ function startWebSocketServer() {
   wss.on("connection", (ws) => {
     const folder = globalSettings.soundFolder;
     if (folder) {
-      ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} }));
+      ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" }));
     } else {
-      ws.send(JSON.stringify({ type: "folder-status", folderSelected: false, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} }));
+      ws.send(JSON.stringify({ type: "folder-status", folderSelected: false, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" }));
     }
 
     ws.on("message", (raw) => {
@@ -552,9 +552,9 @@ function startWebSocketServer() {
       if (msg.type === "get-sounds") {
         const folder = globalSettings.soundFolder;
         if (folder) {
-          ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} }));
+          ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" }));
         } else {
-          ws.send(JSON.stringify({ type: "folder-status", folderSelected: false, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} }));
+          ws.send(JSON.stringify({ type: "folder-status", folderSelected: false, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" }));
         }
       } else if (msg.type === "play-sound" && msg.key) {
         mainWindow?.webContents.send("ws-play-sound", { key: msg.key });
@@ -756,15 +756,15 @@ ipcMain.handle("save-settings", (_event, newSettings) => {
   if ("autoStart" in newSettings) {
     applyAutoStart(newSettings.autoStart);
   }
-  if (folderDirty || "streamDeckButtonMode" in newSettings || "streamDeckDefaultImages" in newSettings) {
-    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} });
+  if (folderDirty || "streamDeckButtonMode" in newSettings || "streamDeckDefaultImages" in newSettings || "accentColor" in newSettings) {
+    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
   }
   return { ...globalSettings, ...folderSettings, ...stats };
 });
 
 ipcMain.handle("get-sounds", () => {
   const groups = discoverSounds(globalSettings.soundFolder);
-  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} });
+  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
   return groups;
 });
 
@@ -793,7 +793,7 @@ ipcMain.handle("pick-folder", async () => {
   stats = loadStats(newFolder);
 
   // Notify connected Stream Deck clients that the folder and sounds have changed.
-  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {} });
+  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
 
   return { folder: newFolder, folderSettings: { ...folderSettings, ...stats } };
 });
@@ -802,7 +802,7 @@ ipcMain.handle("pick-image", async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ["openFile"],
     title: "Select Image",
-    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg"] }],
+    filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "svg"] }],
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths[0];

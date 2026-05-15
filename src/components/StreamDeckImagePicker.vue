@@ -30,7 +30,7 @@ async function tryLoadBlobUrl(path: string): Promise<string | null> {
   const ab = await window.api.readSoundFile(path)
   if (!ab) return null
   const ext = path.split('.').pop()?.toLowerCase()
-  const mime = ext === 'png' ? 'image/png' : 'image/jpeg'
+  const mime = ext === 'png' ? 'image/png' : ext === 'svg' ? 'image/svg+xml' : 'image/jpeg'
   return URL.createObjectURL(new Blob([ab], { type: mime }))
 }
 

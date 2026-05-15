@@ -4,6 +4,7 @@ import terser from "@rollup/plugin-terser";
 import typescript from "@rollup/plugin-typescript";
 import path from "node:path";
 import url from "node:url";
+import fs from "node:fs";
 
 const isWatching = !!process.env.ROLLUP_WATCH;
 const sdPlugin = "com.pdog1.rum-runner-rhapsody.sdPlugin";
@@ -21,6 +22,14 @@ const config = {
 		}
 	},
 	plugins: [
+		{
+			name: "raw-svg",
+			transform(_code, id) {
+				if (!id.endsWith(".svg")) return null;
+				const content = fs.readFileSync(id, "utf8");
+				return { code: `export default ${JSON.stringify(content)};`, map: null };
+			},
+		},
 		{
 			name: "watch-externals",
 			buildStart: function () {

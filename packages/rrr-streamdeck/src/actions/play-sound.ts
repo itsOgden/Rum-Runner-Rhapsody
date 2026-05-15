@@ -1,6 +1,7 @@
 import streamDeck, { action, DidReceiveSettingsEvent, KeyAction, KeyDownEvent, PropertyInspectorDidAppearEvent, SendToPluginEvent, SingletonAction, WillAppearEvent, WillDisappearEvent } from "@elgato/streamdeck";
 import { rrrClient } from "../rrr-client";
 import { readFileSync } from "fs";
+import { buildPlaySoundImage } from "../svg-compose";
 
 type PlaySoundSettings = {
 	soundKey?: string;
@@ -29,6 +30,8 @@ let folderSelected = false;
 let buttonMode = true;
 let categoryStreamDeckImages: Record<string, CategoryImages> = {};
 let streamDeckDefaultImages: { idle?: string; playing?: string } = {};
+let accentColor = "#F9B71D";
+
 
 // Playing state tracking — used to flip button images
 const currentlyPlaying = new Set<string>();
@@ -72,9 +75,8 @@ async function applyKeyImage(keyAction: KeyAction<PlaySoundSettings>, settings: 
 			// unreadable — fall through
 		}
 	}
-	// Priority 3: built-in key.png / playing.png state images
-	try { await keyAction.setImage(""); } catch {}
-	try { await keyAction.setState(isPlaying ? 1 : 0); } catch {}
+	// Priority 3: accent-colored generated image
+	try { await keyAction.setImage(buildPlaySoundImage(accentColor, isPlaying)); } catch {}
 }
 
 function pushState(): void {
@@ -85,6 +87,7 @@ function pushState(): void {
 		sounds: currentSounds,
 		buttonMode,
 		categoryStreamDeckImages,
+		accentColor,
 	});
 }
 
@@ -104,13 +107,17 @@ rrrClient.on("disconnected", () => {
 	pushState();
 });
 
-rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean; playingKeys?: string[]; buttonMode?: boolean; categoryStreamDeckImages?: Record<string, CategoryImages>; streamDeckDefaultImages?: { idle?: string; playing?: string } }) => {
+rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelected?: boolean; playingKeys?: string[]; buttonMode?: boolean; categoryStreamDeckImages?: Record<string, CategoryImages>; streamDeckDefaultImages?: { idle?: string; playing?: string }; accentColor?: string }) => {
 	if (data.type === "sounds-list" || data.type === "sounds-updated") {
 		currentSounds = data.sounds ?? [];
 		folderSelected = data.folderSelected !== false;
 		if (data.buttonMode !== undefined) buttonMode = data.buttonMode;
 		categoryStreamDeckImages = data.categoryStreamDeckImages ?? {};
 		if (data.streamDeckDefaultImages !== undefined) streamDeckDefaultImages = data.streamDeckDefaultImages;
+		if (data.accentColor && data.accentColor !== accentColor) {
+			accentColor = data.accentColor;
+			streamDeck.settings.setGlobalSettings({ accentColor }).catch(() => {});
+		}
 		stateReady = true;
 		pushState();
 		// Refresh all active action images and titles from the updated sounds list
@@ -132,6 +139,10 @@ rrrClient.on("message", (data: { type: string; sounds?: SoundItem[]; folderSelec
 		folderSelected = false;
 		categoryStreamDeckImages = {};
 		if (data.streamDeckDefaultImages !== undefined) streamDeckDefaultImages = data.streamDeckDefaultImages;
+		if (data.accentColor && data.accentColor !== accentColor) {
+			accentColor = data.accentColor;
+			streamDeck.settings.setGlobalSettings({ accentColor }).catch(() => {});
+		}
 		stateReady = true;
 		pushState();
 		for (const { action, soundKey, settings } of activeActions.values()) {
