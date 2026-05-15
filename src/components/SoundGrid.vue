@@ -154,10 +154,10 @@ watch(navSections, () => nextTick(updateActiveSection))
       <button
         v-for="section in navSections"
         :key="section.id"
-        class="block w-full py-1.5 pr-2 pl-3 text-left text-xs cursor-pointer truncate leading-[1.6] transition-colors duration-100 border-l-2"
+        class="nav-btn block w-full py-1.5 pr-2 pl-3 text-left text-xs cursor-pointer truncate leading-[1.6] transition-colors duration-100"
         :class="activeSectionId === section.id
-          ? 'text-accent-text font-medium border-accent bg-accent/10'
-          : 'text-text-secondary border-transparent hover:text-text-primary hover:bg-bg-raised'"
+          ? 'text-accent-text font-medium bg-accent/10 nav-btn--active'
+          : 'text-text-secondary hover:text-text-primary hover:bg-bg-surface'"
         :title="section.displayName"
         @click="scrollToSection(section.id)"
       >{{ section.displayName }}</button>
@@ -229,3 +229,28 @@ watch(navSections, () => nextTick(updateActiveSection))
 
   </div>
 </template>
+
+<style scoped>
+.nav-btn {
+  position: relative;
+}
+.nav-btn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;
+  bottom: 15%;
+  width: 2px;
+  background: var(--color-accent);
+  transform: scaleY(0);
+  transition: transform 0.12s ease;
+  transform-origin: center;
+}
+.nav-btn:hover::before {
+  transform: scaleY(1);
+}
+.nav-btn--active::before {
+  transform: scaleY(1);
+  transition: none;
+}
+</style>
