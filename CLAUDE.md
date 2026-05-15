@@ -73,11 +73,12 @@ Rum-Runner Rhapsody/
 │   ├── App.vue                  — Root component, layout (TitleBar + FolderBar + SoundGrid + StatusBar)
 │   ├── components/
 │   │   ├── TitleBar.vue         — Custom frameless titlebar (40px)
-│   │   ├── FolderBar.vue        — Sound library bar: Browse (btn-accent), folder basename, Refresh; center search (Space shortcut focuses it globally); right text density toggle (Loose · Compact) + Show Hidden toggle
+│   │   ├── FolderBar.vue        — Sound library bar: left = soundboard switcher trigger (full gold/accent background, TavernloreBB text) with pencil icon inside left of chevron (opacity-0, group-hover/sb reveals it) + accent-colored Refresh button; center search (Space shortcut focuses it globally); right text density toggle (Loose · Compact) + Show Hidden toggle. Clicking pencil or right-clicking trigger opens SoundboardModal. Dropdown (teleported) shows all savedFolders with display names, no remove buttons (management is in SoundboardModal). "Add folder…" at dropdown bottom.
+│   │   ├── SoundboardModal.vue  — Opened by pencil icon or right-clicking the soundboard trigger in FolderBar; General tab: name input (modal title updates live as you type; saves to folderDisplayNames on close), read-only location path. Footer: "Remove soundboard" danger button with inline confirmation (files not deleted warning + Cancel/Remove). Remove auto-switches to first remaining folder or clears if none left.
 │   │   ├── SoundGrid.vue        — Main grid: category quick-nav sidebar, accordion sections, drag-and-drop, empty states
 │   │   ├── AccordionSection.vue — Category header (collapsible, draggable, right-click opens settings) + sound button grid + DnD
 │   │   ├── SoundButton.vue      — Individual sound button + context menu + preview; playing styles transition in instantly (~0.04s) but fade out slowly (~0.4–0.55s) via CSS cascade trick; halo glow is a real `<div>` with Vue `<Transition name="halo">` (not `::after`) so enter/leave work cleanly alongside the `btn-ambient-pulse` animation
-│   │   ├── BaseModal.vue        — Reusable modal wrapper with animations; close button uses `rounded-full` for circular hover (not rectangular)
+│   │   ├── BaseModal.vue        — Reusable modal wrapper with animations; optional `label` prop renders a small gold uppercase rubric above the title to identify modal type (e.g. "Category", "Soundboard"); scoped `.type-rubric` CSS: 9px, 0.16em tracking, accent color
 │   │   ├── ModalTabs.vue        — Shared left-sidebar tab nav used by all modals (v-model activeTab, badge support); active/hover state uses a 2px accent `::before` scaleY bar (0→1, 0.12s) matching the context menu design language; active state reveals bar instantly (transition: none)
 │   │   ├── SettingsModal.vue    — Settings (side-tab: App / Keybinds / Appearance / Playback / Audio Devices / Stream Deck)
 │   │   ├── HelpModal.vue        — Help (side-tab: Patch Notes / VB-Cable guide)
@@ -171,7 +172,9 @@ pnpm streamdeck:unlink      # remove the symlink
 **`rrr-settings.json`** (next to the exe, global):
 ```typescript
 interface GlobalSettings {
-  soundFolder: string
+  soundFolder: string              // currently active folder path (empty string if none)
+  savedFolders: string[]           // ordered list of all saved folder paths
+  folderDisplayNames: Record<string, string>  // path → custom display name override (falls back to basename)
   windowWidth: number
   windowHeight: number
   theme: 'dark' | 'light'
@@ -217,6 +220,30 @@ interface FolderSettings {
 ```
 
 **Important**: `GlobalSettings extends FolderSettings` in TypeScript — all folder keys are present in the global type. The main process routes save keys using `GLOBAL_KEYS` (keys of `DEFAULT_GLOBAL_SETTINGS`) and `STATS_KEYS` (keys of `DEFAULT_STATS`); everything else goes to `rrr-soundboard.json`.
+
+### Folder-change IPC result types:
+
+```typescript
+// Returned by pick-folder and switch-folder
+interface FolderChangeResult {
+  folder: string
+  folderSettings: Partial<FolderSettings>  // includes stats (playCounts merged in)
+  savedFolders?: string[]                  // updated list (always present from pick-folder)
+}
+
+// Returned by remove-folder
+interface FolderRemoveResult {
+  savedFolders: string[]
+  switched: FolderChangeResult | null  // null if no folders remain
+}
+```
+
+`useSettings.onFolderChanged(result)` handles both: sets `soundFolder`, merges `savedFolders` if present, `Object.assign`s `folderSettings`, then calls `loadSounds()`.
+
+### Multi-folder IPC handlers (added for Phase 3.1):
+- **`switch-folder(path)`** — saves current folder settings, loads new folder settings + stats, broadcasts to Stream Deck, returns `FolderChangeResult`
+- **`remove-folder(path)`** — removes from `savedFolders`, auto-switches to first remaining or clears, returns `FolderRemoveResult`
+- **`check-file-exists(path)`** — synchronous `fs.existsSync`; used by renderer to find which saved folder contains a given sound key for Stream Deck play routing
 
 ### Modifying settings — required checklist
 
@@ -340,7 +367,7 @@ Sound buttons and category headers are both draggable.
 ## Modal System
 
 **BaseModal.vue** — reusable wrapper:
-- Props: `title: string`, `width: string`
+- Props: `title: string`, `label?: string` (optional type rubric shown above title), `size`, `open`
 - Emits: `close`
 - Escape key closes; enter animation scales 0.95→1 + translateY; leave 0.15s
 - Container has `border border-border-light` (no border-radius — matches 0px radius design system)
@@ -362,6 +389,10 @@ Sound buttons and category headers are both draggable.
 **HelpModal.vue** — two side-tabs:
 - **Patch Notes** (first tab): Reads `CHANGELOG.md` via `get-changelog` IPC, parses and renders with version heading in TavernloreBB, date below it, App/Stream Deck subsections
 - **VB-Cable**: Setup guide with screenshots
+
+**SoundboardModal.vue** — opened by pencil icon inside soundboard trigger or right-clicking the trigger; uses `label="Soundboard"` rubric:
+- **General tab**: Name field (modal title updates live as you type; empty input falls back to folder basename; saves to `folderDisplayNames` on close via `commitRename`), read-only location path
+- **Footer**: "Remove soundboard" danger button → inline confirmation row (files-not-deleted notice + Cancel + Remove). Remove calls `window.api.removeFolder`, auto-switches to first remaining saved folder or clears if none left
 
 **CategorySettingsModal.vue** — two side-tabs, opened by right-clicking a category header (no visible gear icon):
 - **General**: Category rename (drives live modal title), hide/show toggle, Restore Defaults button
@@ -421,7 +452,7 @@ Reusable component (`StreamDeckImagePicker.vue`) used in both CategorySettingsMo
 | Type | Payload | Effect |
 |---|---|---|
 | `get-sounds` | — | App responds with `sounds-list` to that client only |
-| `play-sound` | `{ key: string }` | App forwards to renderer via `ws-play-sound` IPC event |
+| `play-sound` | `{ key: string }` | App forwards to renderer via `ws-play-sound` IPC event; renderer searches `savedFolders` in priority order (active first) — plays from the first folder that contains the key, never from multiple |
 | `stop-all` | — | App forwards to renderer via `ws-stop-all` IPC event |
 
 ### WS sound list item shape:

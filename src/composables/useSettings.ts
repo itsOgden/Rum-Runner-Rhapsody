@@ -3,6 +3,8 @@ import type { GlobalSettings, SoundGroup, FolderChangeResult } from '../types'
 
 const settings = ref<GlobalSettings>({
   soundFolder: '',
+  savedFolders: [],
+  folderDisplayNames: {},
   windowWidth: 960,
   windowHeight: 680,
   theme: 'dark',
@@ -65,6 +67,7 @@ export function useSettings() {
 
   async function onFolderChanged(result: FolderChangeResult): Promise<void> {
     settings.value.soundFolder = result.folder
+    if (result.savedFolders) settings.value.savedFolders = result.savedFolders
     Object.assign(settings.value, result.folderSettings)
     await loadSounds()
   }

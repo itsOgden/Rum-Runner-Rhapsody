@@ -117,7 +117,7 @@ function onPlayingImageChange(path: string | null): void {
 </script>
 
 <template>
-  <BaseModal :open="open" size="sm" :title="editingName || section.displayName" @close="handleClose">
+  <BaseModal :open="open" size="sm" :title="editingName || section.displayName" label="Category" @close="handleClose">
     <div class="flex flex-1 min-h-0">
 
       <ModalTabs :tabs="tabs" v-model="activeTab" />

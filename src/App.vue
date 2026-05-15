@@ -6,7 +6,6 @@ import { useAudioPlayer } from './composables/useAudioPlayer'
 import { useSoundManagement } from './composables/useSoundManagement'
 import { useStreamDeckImageErrors } from './composables/useStreamDeckImageErrors'
 import { filterQuery } from './filterState'
-import appIcon from '../app-icon.png'
 import TitleBar from './components/TitleBar.vue'
 import FolderBar from './components/FolderBar.vue'
 import SoundGrid from './components/SoundGrid.vue'
@@ -14,6 +13,7 @@ import StatusBar from './components/StatusBar.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import HelpModal from './components/HelpModal.vue'
 import Toast from './components/Toast.vue'
+import FullLogo from '@/assets/images/full-logo.svg'
 
 const { settings, loadSettings, onFolderChanged } = useSettings()
 const { refreshDevices } = useAudioDevices()
@@ -89,12 +89,24 @@ onMounted(async () => {
   document.addEventListener('keydown', handleKeydown)
 
   window.api.onWsPlaySound(async ({ key }) => {
-    const soundFolder = settings.value.soundFolder
-    if (!soundFolder || !key) return
-    const absPath = soundFolder.replace(/[/\\]+$/, '') + '\\' + key.replace(/\//g, '\\')
+    if (!key) return
+    // Priority: active soundFolder first, then other savedFolders in order
+    const foldersToTry: string[] = []
+    if (settings.value.soundFolder) foldersToTry.push(settings.value.soundFolder)
+    for (const f of settings.value.savedFolders) {
+      if (f !== settings.value.soundFolder) foldersToTry.push(f)
+    }
     const filename = key.split('/').pop() ?? key
-    const name = (settings.value.soundNames ?? {})[key] ?? filename.replace(/\.[^.]+$/, '')
-    await playSound({ path: absPath, filename, name, key, originalFolder: '', isHidden: false, isMoved: false })
+    for (const folder of foldersToTry) {
+      const absPath = folder.replace(/[/\\]+$/, '') + '\\' + key.replace(/\//g, '\\')
+      const exists = await window.api.checkFileExists(absPath)
+      if (exists) {
+        const soundNames = folder === settings.value.soundFolder ? (settings.value.soundNames ?? {}) : {}
+        const name = soundNames[key] ?? filename.replace(/\.[^.]+$/, '')
+        await playSound({ path: absPath, filename, name, key, originalFolder: '', isHidden: false, isMoved: false })
+        return
+      }
+    }
   })
 
   window.api.onWsStopAll(() => {
@@ -116,10 +128,9 @@ onUnmounted(() => {
     <!-- ── Welcome screen — no folder selected yet ───────────────────────── -->
     <template v-if="!hasSoundFolder">
       <div class="flex-1 flex flex-col items-center justify-center text-center gap-7 px-10">
-        <img :src="appIcon" alt="" aria-hidden="true" class="h-30 w-auto opacity-90" />
-        <div class="flex flex-col gap-2">
-          <div class="font-display text-3xl text-accent">Rum-Runner Rhapsody</div>
-          <div class="text-sm text-text-dim max-w-sm leading-relaxed">
+        <div class="flex flex-col gap-3">
+          <FullLogo class="text-accent" />
+          <div class=" text-shadow-text-primary leading-relaxed">
             Choose a folder containing your audio files to get started.
           </div>
         </div>

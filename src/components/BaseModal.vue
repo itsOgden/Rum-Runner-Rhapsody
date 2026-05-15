@@ -5,6 +5,7 @@ import CircleButton from "@/components/CircleButton.vue";
 
 const props = withDefaults(defineProps<{
   title: string
+  label?: string
   size?: 'sm' | 'md' | 'lg'
   open?: boolean
 }>(), {
@@ -47,8 +48,11 @@ onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
           class="modal-container bg-bg-raised border border-border-light rounded-lg shadow-lg overflow-hidden flex flex-col h-[calc(100vh-4rem)]"
           :style="{ width, maxHeight }"
         >
-          <div class="flex items-center justify-between px-5 py-3.5 border-b border-border-light shrink-0 bg-bg-surface-active">
-            <div class="font-display text-lg text-text-primary">{{ title }}</div>
+          <div class="flex items-center justify-between px-5 py-3 border-b border-border-light shrink-0 bg-bg-surface-active">
+            <div class="flex flex-col gap-0.5">
+              <div v-if="label" class="type-rubric">{{ label }}</div>
+              <div class="font-display text-lg text-text-primary leading-tight">{{ title }}</div>
+            </div>
             <CircleButton icon="xmark-solid" no-colors class="hover:bg-accent text-base! hover:text-text-on-accent" title="Close" @click="emit('close')" />
           </div>
           <div class="flex-1 min-h-0 flex flex-col">
@@ -89,5 +93,15 @@ onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
 .modal-leave-to .modal-container {
   opacity: 0;
   transform: scale(0.95) translateY(-8px);
+}
+
+.type-rubric {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  line-height: 1;
 }
 </style>

@@ -1,0 +1,34 @@
+{
+  "soundFolder": "D:\\Dropbox (Personal)\\Stream Deck\\Audio Clips\\Soundboard",
+  "windowWidth": 1888,
+  "windowHeight": 1096,
+  "theme": "dark",
+  "masterVolume": 0.4,
+  "density": "loose",
+  "devices": [
+    {
+      "label": "Voice Chat (VB-Audio Virtual Cable A)",
+      "volume": 1,
+      "enabled": true
+    },
+    {
+      "label": "Microphone RRR (VB-Audio Virtual Cable B)",
+      "volume": 1,
+      "enabled": true
+    }
+  ],
+  "hotkeys": {
+    "stop": "Escape",
+    "search": "Space"
+  },
+  "playbackMode": "stop",
+  "normalize": true,
+  "streamDeckButtonMode": true,
+  "streamDeckDefaultImages": {},
+  "showCategorySidebar": true,
+  "closeToTray": false,
+  "autoStart": true,
+  "launchMinimized": true,
+  "accentColor": "#F9B71D",
+  "settingsVersion": 1
+}

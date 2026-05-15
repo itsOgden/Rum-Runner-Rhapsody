@@ -174,16 +174,13 @@
 *High-value features that improve daily usability. No major external dependencies.*
 
 ### 3.1 Multiple Soundboard Folders [#10]
-**What:** Let users maintain multiple soundboard libraries and switch between them.
+**Status: Done 2026-05-15.**
 
-**UI:** Replace the single folder path in `FolderBar` with a dropdown of saved folders. A "+" button adds a new one. Active folder is highlighted.
-
-**Data:**
-- Global settings stores an array of folder paths + the active folder index.
-- Each folder continues to have its own `rrr-soundboard.json`.
-- Switching folders triggers a full library reload (same as current Browse flow).
-
-**Why now:** This is a foundational UX change. Better to do it before shadow recording and clip trimming, since those features reference a "clips folder" that should be selectable in the same UI paradigm.
+- ✅ `savedFolders: string[]` added to `GlobalSettings`; `GLOBAL_VERSION` bumped to 2 with migration (populates from existing `soundFolder`)
+- ✅ `pick-folder` adds new folder to `savedFolders`; new `switch-folder` and `remove-folder` IPC handlers
+- ✅ FolderBar: Browse button replaced with folder-switcher dropdown (active highlighted, click to switch, × to remove); "+" icon button to add; all same animation/design-language as AppSelect
+- ✅ Remove active folder → auto-switches to first remaining, or clears if none left
+- ✅ Each folder still has its own `rrr-soundboard.json` and `rrr-stats.json`
 
 ---
 
@@ -219,11 +216,9 @@ See R4 for design recommendation. Implement after the exploration confirms the a
 ---
 
 ### 3.5 Keyboard Shortcut for Search [#11]
-**What:** Press a configurable key combo (default: `Ctrl+F` or `/`) to focus the search input.
+**Status: Done.** Uses `Space` to focus search (existing behavior preserved). Configurable key capture not needed — Space is the right call for a soundboard app.
 
 **Implementation:** Register a local keyboard listener in the app (not `globalShortcut` — this only needs to work when the app is focused). On keydown, focus `FolderBar`'s search input and select any existing text.
-
-This is a 30-minute task. Do it whenever you have a small window.
 
 ---
 
@@ -232,7 +227,7 @@ This is a 30-minute task. Do it whenever you have a small window.
 
 **Implementation:**
 - Storage: `soundHotkeys: Record<string, string>` in `FolderSettings` (maps sound key → shortcut string like `"F5"` or `"Ctrl+1"`).
-- Context menu: "Set Shortcut" option → small inline key-capture input.
+- Context menu: "Set Shortcut" option → small inline key-capture input (must **listen** for keystrokes, not require typing — same pattern as the existing Stop All hotkey capture in Settings → Keybinds).
 - Main process: on settings load, register all shortcuts via `globalShortcut.register()`. On settings change, unregister/re-register.
 - Visual: small badge on the sound button showing the assigned key.
 - Conflict detection: warn if a shortcut is already assigned to another sound or to a system action.

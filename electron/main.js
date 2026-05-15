@@ -12,7 +12,7 @@ const { WebSocketServer } = require("ws");
 // To add a migration: append a function to the relevant array and increment
 // the corresponding VERSION constant. The runner chains v0→v1→v2→... automatically.
 
-const GLOBAL_VERSION = 1;
+const GLOBAL_VERSION = 2;
 const FOLDER_VERSION = 1;
 const STATS_VERSION  = 1;
 
@@ -20,7 +20,13 @@ const STATS_VERSION  = 1;
 function _migrateGlobalV0toV1(s) {
   return { ...s, settingsVersion: 1, devices: (s.devices || []).map(({ id, ...rest }) => rest) };
 }
-const _GLOBAL_MIGRATIONS = [_migrateGlobalV0toV1];
+// v1 → v2: populate savedFolders from soundFolder for existing single-folder users
+function _migrateGlobalV1toV2(s) {
+  const saved = s.savedFolders ?? [];
+  const extra = s.soundFolder && !saved.includes(s.soundFolder) ? [s.soundFolder] : [];
+  return { ...s, settingsVersion: 2, savedFolders: [...saved, ...extra] };
+}
+const _GLOBAL_MIGRATIONS = [_migrateGlobalV0toV1, _migrateGlobalV1toV2];
 
 function migrateGlobalSettings(settings) {
   let s = { ...settings };
@@ -126,6 +132,8 @@ function debugLog(...args) {
 
 const DEFAULT_GLOBAL_SETTINGS = {
   soundFolder: "",
+  savedFolders: [],
+  folderDisplayNames: {},
   windowWidth: 960,
   windowHeight: 680,
   theme: "dark",
@@ -585,7 +593,7 @@ function createWindow() {
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools();
+    if (process.env.OPEN_DEVTOOLS !== 'false') mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
@@ -785,6 +793,9 @@ ipcMain.handle("pick-folder", async () => {
 
   // Update global
   globalSettings.soundFolder = newFolder;
+  if (!globalSettings.savedFolders.includes(newFolder)) {
+    globalSettings.savedFolders = [...globalSettings.savedFolders, newFolder];
+  }
   saveGlobalSettings(globalSettings);
 
   // Load per-folder soundboard settings and stats from the new folder.
@@ -795,7 +806,48 @@ ipcMain.handle("pick-folder", async () => {
   // Notify connected Stream Deck clients that the folder and sounds have changed.
   broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
 
-  return { folder: newFolder, folderSettings: { ...folderSettings, ...stats } };
+  return { folder: newFolder, folderSettings: { ...folderSettings, ...stats }, savedFolders: globalSettings.savedFolders };
+});
+
+ipcMain.handle("switch-folder", async (_event, newFolder) => {
+  if (globalSettings.soundFolder === newFolder) return null;
+  const oldFolder = globalSettings.soundFolder;
+  if (oldFolder) saveFolderSettings(oldFolder, folderSettings);
+  globalSettings.soundFolder = newFolder;
+  saveGlobalSettings(globalSettings);
+  folderSettings = loadFolderSettings(newFolder);
+  stats = loadStats(newFolder);
+  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
+  return { folder: newFolder, folderSettings: { ...folderSettings, ...stats }, savedFolders: globalSettings.savedFolders };
+});
+
+ipcMain.handle("remove-folder", async (_event, targetFolder) => {
+  const isActive = globalSettings.soundFolder === targetFolder;
+  globalSettings.savedFolders = globalSettings.savedFolders.filter(f => f !== targetFolder);
+
+  let switched = null;
+  if (isActive) {
+    saveFolderSettings(targetFolder, folderSettings);
+    if (globalSettings.savedFolders.length > 0) {
+      const nextFolder = globalSettings.savedFolders[0];
+      globalSettings.soundFolder = nextFolder;
+      folderSettings = loadFolderSettings(nextFolder);
+      stats = loadStats(nextFolder);
+      switched = { folder: nextFolder, folderSettings: { ...folderSettings, ...stats }, savedFolders: globalSettings.savedFolders };
+    } else {
+      globalSettings.soundFolder = "";
+      folderSettings = { ...DEFAULT_FOLDER_SETTINGS };
+      stats = { ...DEFAULT_STATS };
+    }
+    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
+  }
+
+  saveGlobalSettings(globalSettings);
+  return { savedFolders: globalSettings.savedFolders, switched };
+});
+
+ipcMain.handle("check-file-exists", (_event, filePath) => {
+  return fs.existsSync(filePath);
 });
 
 ipcMain.handle("pick-image", async () => {

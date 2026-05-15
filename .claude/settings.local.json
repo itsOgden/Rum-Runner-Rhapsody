@@ -36,7 +36,9 @@
       "PowerShell(Remove-Item *)",
       "WebFetch(domain:fonts.google.com)",
       "WebFetch(domain:www.typewolf.com)",
-      "Skill(frontend-design)"
+      "Skill(frontend-design)",
+      "Bash(start pnpm *)",
+      "Bash(tasklist)"
     ]
   },
   "model": "sonnet"

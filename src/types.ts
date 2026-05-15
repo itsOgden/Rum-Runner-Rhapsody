@@ -65,6 +65,8 @@ export interface FolderSettings {
 // Global app settings — stored in rrr-settings.json next to the executable
 export interface GlobalSettings extends FolderSettings {
   soundFolder: string
+  savedFolders: string[]
+  folderDisplayNames: Record<string, string>  // path → custom display name (falls back to folder basename)
   windowWidth: number
   windowHeight: number
   masterVolume: number
@@ -83,11 +85,17 @@ export interface GlobalSettings extends FolderSettings {
   accentColor: string
 }
 
-// ── Folder-change IPC result ───────────────────────────────────────────────
+// ── Folder-change IPC results ──────────────────────────────────────────────
 
 export interface FolderChangeResult {
   folder: string
   folderSettings: Partial<FolderSettings>
+  savedFolders?: string[]
+}
+
+export interface FolderRemoveResult {
+  savedFolders: string[]
+  switched: FolderChangeResult | null
 }
 
 // ── Window API (exposed by preload.js via contextBridge) ───────────────────
@@ -97,7 +105,10 @@ export interface WindowApi {
   getSettings(): Promise<GlobalSettings>
   saveSettings(partial: Partial<GlobalSettings>): Promise<void>
   getSounds(): Promise<SoundGroup[]>
+  checkFileExists(path: string): Promise<boolean>
   pickFolder(): Promise<FolderChangeResult | null>
+  switchFolder(path: string): Promise<FolderChangeResult | null>
+  removeFolder(path: string): Promise<FolderRemoveResult>
   pickImage(): Promise<string | null>
   readSoundFile(filePath: string): Promise<ArrayBuffer | null>
   onWsPlaySound(callback: (data: { key: string }) => void): void
