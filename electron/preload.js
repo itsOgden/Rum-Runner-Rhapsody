@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld("api", {
   readSoundFile: (filePath) => ipcRenderer.invoke("read-sound-file", filePath),
   onWsPlaySound: (callback) => ipcRenderer.on("ws-play-sound", (_event, data) => callback(data)),
   onWsStopAll: (callback) => ipcRenderer.on("ws-stop-all", () => callback()),
+  onGlobalPlaySound: (callback) => ipcRenderer.on("global-play-sound", (_event, data) => callback(data)),
   updatePlayingStatus: (keys) => ipcRenderer.send("ws-playing-status", keys),
   installStreamDeckPlugin: () => ipcRenderer.invoke("install-streamdeck-plugin"),
   getStreamDeckPluginStatus: () => ipcRenderer.invoke("get-streamdeck-plugin-status"),

@@ -330,7 +330,7 @@ function closeNavCategoryModal(): void {
       <!-- New Category -->
       <div class="mt-1 px-2 pb-2">
         <button
-          class="w-full py-1.5 text-[11px] text-text-dim hover:text-text-secondary border border-dashed border-border-light hover:border-text-dim flex items-center justify-center gap-1 transition-colors cursor-pointer bg-transparent outline-none"
+          class="w-full py-1.5 text-[11px] text-text-secondary hover:text-text-primary border border-dashed border-border-light hover:border-text-secondary flex items-center justify-center gap-1 transition-colors cursor-pointer bg-transparent outline-none"
           @click="addCategoryFromSidebar"
         >
           <Icon name="plus" class="text-[9px]" />

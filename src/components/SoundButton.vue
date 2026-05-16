@@ -10,7 +10,9 @@ import type { Sound } from '../types'
 import CircleButton from '@/components/CircleButton.vue'
 import ToggleCircleButton from '@/components/ToggleCircleButton.vue'
 import VolumeSlider from '@/components/VolumeSlider.vue'
+import KeybindCapture from '@/components/KeybindCapture.vue'
 import { CLIP_VOLUME_MAX_DB, setClipVolumeOffset } from '../composables/useAudioPlayer'
+import { showToast } from '../toastState'
 
 const props = defineProps<{
   sound: Sound
@@ -73,12 +75,17 @@ const menuOpen = ref(false)
 const menuPos = ref({ x: 0, y: 0, maxHeight: 480, openUpward: false })
 const confirmingReset = ref(false)
 const confirmingDelete = ref(false)
+const menuPage = ref<'main' | 'more'>('main')
+const capturingKeybind = ref(false)
+const keybindCaptureRef = ref<InstanceType<typeof KeybindCapture> | null>(null)
 
 watch(activeDropdownId, (id) => {
   if (id !== dropdownId) {
     menuOpen.value = false
     confirmingReset.value = false
     confirmingDelete.value = false
+    menuPage.value = 'main'
+    capturingKeybind.value = false
   }
 })
 
@@ -112,6 +119,7 @@ const MENU_WIDTH = 224
 function openMenu(event: MouseEvent): void {
   event.preventDefault()
   event.stopPropagation()
+  menuPage.value = 'main'
   confirmingReset.value = false
   let x = event.clientX
   if (x + MENU_WIDTH > window.innerWidth) x = window.innerWidth - MENU_WIDTH - 4
@@ -129,14 +137,25 @@ function openMenu(event: MouseEvent): void {
   }
   activeDropdownId.value = dropdownId
   menuOpen.value = true
+  const onEsc = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape') return
+    e.preventDefault()
+    menuOpen.value = false
+    confirmingReset.value = false
+    capturingKeybind.value = false
+    document.removeEventListener('keydown', onEsc, true)
+  }
   const close = () => {
     menuOpen.value = false
     confirmingReset.value = false
+    capturingKeybind.value = false
     document.removeEventListener('click', close)
     document.removeEventListener('scroll', close, true)
+    document.removeEventListener('keydown', onEsc, true)
   }
   document.addEventListener('click', close)
   document.addEventListener('scroll', close, true)
+  document.addEventListener('keydown', onEsc, true)
 }
 
 function handleHide(): void {
@@ -162,18 +181,55 @@ function handleResetPlayCount(): void {
 }
 
 const isMoved = computed(() => !!getSoundCategory(props.sound.key))
-const isRenamed = computed(() => !!settings.value.soundNames?.[props.sound.key])
+const soundHotkey = computed(() => settings.value.soundHotkeys?.[props.sound.key] || '')
 
-function handleResetName(): void {
-  menuOpen.value = false
-  renameSound(props.sound.key, '')
+// ── Keybind capture ───────────────────────────────────────────────────────────
+
+function handleSoundHotkeyChange(combo: string): void {
+  if (!combo) { clearSoundHotkey(); return }
+  if (combo.toLowerCase() === (settings.value.hotkeys?.stop || 'Escape').toLowerCase()) {
+    showToast(`"${combo}" is already used by Stop All`, 'info')
+  } else {
+    const conflict = Object.entries(settings.value.soundHotkeys ?? {}).find(([k, c]) => k !== props.sound.key && c.toLowerCase() === combo.toLowerCase())
+    if (conflict) showToast(`"${combo}" is already assigned to another sound`, 'info')
+  }
+  setSoundHotkey(combo)
+}
+
+function setSoundHotkey(combo: string): void {
+  const updated = { ...(settings.value.soundHotkeys ?? {}), [props.sound.key]: combo }
+  settings.value.soundHotkeys = updated
+  saveSettings({ soundHotkeys: updated })
+}
+
+function clearSoundHotkey(): void {
+  capturingKeybind.value = false
+  const updated = { ...(settings.value.soundHotkeys ?? {}) }
+  delete updated[props.sound.key]
+  settings.value.soundHotkeys = updated
+  saveSettings({ soundHotkeys: updated })
+}
+
+function goBack(): void {
+  showMoveTo.value = false
+  confirmingDelete.value = false
+  capturingKeybind.value = false
+  menuPage.value = 'main'
+}
+
+async function startKeybindCapture(): Promise<void> {
+  capturingKeybind.value = true
+  await nextTick()
+  keybindCaptureRef.value?.startListening()
 }
 
 // ── Move to… ─────────────────────────────────────────────────────────────────
 
 const showMoveTo = ref(false)
 const currentSectionId = computed(() => getSoundCategory(props.sound.key) ?? props.sound.originalFolder)
-const moveTargets = computed(() => buildSections().filter(s => s.id !== currentSectionId.value))
+const allSections = computed(() => buildSections())
+const moveTargets = computed(() => allSections.value.filter(s => s.id !== currentSectionId.value))
+const currentSectionDisplayName = computed(() => allSections.value.find(s => s.id === currentSectionId.value)?.displayName ?? '')
 
 function handleMoveTo(sectionId: string): void {
   menuOpen.value = false
@@ -228,6 +284,7 @@ watch(menuOpen, (open) => {
     confirmingReset.value = false
     confirmingDelete.value = false
     showMoveTo.value = false
+    menuPage.value = 'main'
   }
 })
 
@@ -305,6 +362,14 @@ function resetVolumeOffset(): void {
       />
     </div>
 
+    <!-- Keybind badge — bottom-center individual key chips -->
+    <div
+      v-if="soundHotkey && !isRenaming"
+      class="absolute bottom-0 inset-x-0 flex justify-center gap-px pointer-events-none z-10"
+    >
+      <span v-for="(part, i) in soundHotkey.split('+')" :key="i" class="shortcut-chip">{{ part }}</span>
+    </div>
+
     <!-- Category dot (flat mode) — dot always visible; name fades in on hover -->
     <div
       v-if="categoryColor && !isRenaming"
@@ -331,111 +396,157 @@ function resetVolumeOffset(): void {
         @click.stop
         @keydown="onMenuKeydown"
       >
-        <!-- Header: sound name + play count -->
-        <div class="bg-bg-deepest px-3 pt-2.5 pb-2 border-b border-border-light shrink-0">
-          <div class="text-sm font-medium text-text-primary truncate mb-1.5" :title="sound.name">{{ sound.name }}</div>
-          <template v-if="!confirmingReset">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-text-secondary select-none">{{ playCountLabel }}</span>
-              <button
-                v-if="playCount > 0"
-                class="text-xs text-text-secondary hover:text-danger cursor-pointer transition-colors"
-                title="Reset play count"
-                @click="confirmingReset = true"
-              >reset</button>
-            </div>
-          </template>
-          <template v-else>
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-[11px] text-text-secondary select-none">Clear count?</span>
-              <div class="flex gap-1.5">
-                <button
-                  class="text-[10px] px-1.5 py-0.5 text-danger border border-danger/40 hover:bg-danger/10 cursor-pointer"
-                  @click="handleResetPlayCount"
-                >Yes</button>
-                <button
-                  class="text-[10px] px-1.5 py-0.5 text-text-dim border border-border-light hover:bg-bg-surface cursor-pointer"
-                  @click="confirmingReset = false"
-                >No</button>
-              </div>
-            </div>
-          </template>
-        </div>
 
-        <!-- Actions (scrollable) -->
-        <div class="py-1 overflow-y-auto flex-1 min-h-0">
-          <button v-if="!sound.isHidden" class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleHide">Hide</button>
-          <button v-else class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleRestore">Unhide</button>
-          <button class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="startRename">Rename</button>
-          <button v-if="isRenamed" class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleResetName">Reset name</button>
-          <button
-            v-if="moveTargets.length > 0"
-            class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer flex items-center justify-between"
-            @click="showMoveTo = !showMoveTo"
-          >
-            <span>Move to…</span>
-            <Icon name="chevron-down-solid" class="text-[8px] transition-transform duration-150" :class="{ 'rotate-180': showMoveTo }" />
-          </button>
-          <div v-if="showMoveTo">
+        <!-- ══ PAGE 1: MAIN ══ -->
+        <template v-if="menuPage === 'main'">
+
+          <!-- Header: play count -->
+          <div class="bg-bg-deepest px-3 pt-2.5 pb-2 border-b border-border-light shrink-0">
+            <template v-if="!confirmingReset">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-text-secondary select-none">{{ playCountLabel }}</span>
+                <button
+                  v-if="playCount > 0"
+                  class="text-xs text-text-secondary hover:text-danger cursor-pointer transition-colors"
+                  title="Reset play count"
+                  @click="confirmingReset = true"
+                >reset</button>
+              </div>
+            </template>
+            <template v-else>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[11px] text-text-secondary select-none">Clear count?</span>
+                <div class="flex gap-1.5">
+                  <button
+                    class="text-[10px] px-1.5 py-0.5 text-danger border border-danger/40 hover:bg-danger/10 cursor-pointer"
+                    @click="handleResetPlayCount"
+                  >Yes</button>
+                  <button
+                    class="text-[10px] px-1.5 py-0.5 text-text-dim border border-border-light hover:bg-bg-surface cursor-pointer"
+                    @click="confirmingReset = false"
+                  >No</button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- Actions (scrollable) -->
+          <div class="py-1 overflow-y-auto flex-1 min-h-0">
+            <button v-if="!sound.isHidden" class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleHide">Hide</button>
+            <button v-else class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleRestore">Unhide</button>
+            <button class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="startRename">Rename</button>
             <button
-              v-for="section in moveTargets"
-              :key="section.id"
-              class="sound-menu-item w-full text-left pl-6 pr-4 py-1.5 text-xs text-text-secondary cursor-pointer flex items-center gap-2"
-              @click="handleMoveTo(section.id)"
+              v-if="!soundHotkey && !capturingKeybind"
+              class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer"
+              @click.stop="startKeybindCapture"
+            >Set keybind</button>
+            <div v-else class="px-4 h-9 flex items-center" @click.stop>
+              <KeybindCapture
+                ref="keybindCaptureRef"
+                class="w-full" allow-delete
+                :modelValue="soundHotkey"
+                @update:modelValue="handleSoundHotkeyChange"
+                @cancel="capturingKeybind = false"
+              />
+            </div>
+          </div>
+
+          <!-- More options -->
+          <div class="border-t border-border-light shrink-0">
+            <button
+              class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer flex items-center justify-between"
+              @click="menuPage = 'more'"
             >
-              <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: section.color || 'transparent' }" />
-              <span class="truncate">{{ section.displayName }}</span>
+              <span>More options</span>
+              <Icon name="chevron-down-solid" class="text-[9px] -rotate-90" />
             </button>
           </div>
-          <button v-if="isMoved" class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleReset">Reset to original</button>
-        </div>
 
-        <!-- Edit category -->
-        <div class="border-t border-border-light shrink-0">
-          <button class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleEditCategory">Edit category…</button>
-        </div>
-
-        <!-- Volume Offset -->
-        <div class="border-t border-border-light px-3 pt-2 pb-3 shrink-0">
-          <div class="text-[10px] uppercase tracking-widest text-text-secondary mb-2">Volume Offset</div>
-          <VolumeSlider
-            :modelValue="localVolumeOffset"
-            :min="-CLIP_VOLUME_MAX_DB"
-            :max="CLIP_VOLUME_MAX_DB"
-            :step="1"
-            unit=" dB"
-            @update:modelValue="onVolumeInput"
-            @change="handleVolumeChange"
-          />
-          <div v-if="localVolumeOffset !== 0" class="flex justify-end mt-1.5">
-            <button
-              class="text-xs text-text-secondary hover:text-text-primary cursor-pointer transition-colors"
-              @click="resetVolumeOffset"
-            >reset</button>
-          </div>
-        </div>
-
-        <!-- Delete (danger footer) -->
-        <div class="border-t border-border-light shrink-0">
-          <template v-if="!confirmingDelete">
-            <button class="sound-menu-item w-full text-left px-4 py-2 text-sm text-danger cursor-pointer" @click="confirmingDelete = true">Delete…</button>
-          </template>
-          <template v-else>
-            <div class="px-3 py-2">
-              <div class="text-[11px] text-text-secondary mb-2 leading-relaxed">Delete "{{ sound.filename }}"? The file will be sent to your Recycle Bin.</div>
-              <div class="flex gap-1.5 justify-end">
-                <button
-                  class="text-[10px] px-1.5 py-0.5 text-text-dim border border-border-light hover:bg-bg-surface cursor-pointer transition-colors"
-                  @click="confirmingDelete = false"
-                >Cancel</button>
-                <button
-                  class="text-[10px] px-1.5 py-0.5 text-danger border border-danger/40 hover:bg-danger/10 cursor-pointer transition-colors"
-                  @click="handleDeleteFile"
-                >Delete</button>
-              </div>
+          <!-- Volume Offset -->
+          <div class="border-t border-border-light px-3 pt-2 pb-3 shrink-0">
+            <div class="text-[10px] uppercase tracking-widest text-text-secondary mb-2">Volume Offset</div>
+            <VolumeSlider
+              :modelValue="localVolumeOffset"
+              :min="-CLIP_VOLUME_MAX_DB"
+              :max="CLIP_VOLUME_MAX_DB"
+              :step="1"
+              unit=" dB"
+              @update:modelValue="onVolumeInput"
+              @change="handleVolumeChange"
+            />
+            <div v-if="localVolumeOffset !== 0" class="flex justify-end mt-1.5">
+              <button
+                class="text-xs text-text-secondary hover:text-text-primary cursor-pointer transition-colors"
+                @click="resetVolumeOffset"
+              >reset</button>
             </div>
-          </template>
-        </div>
+          </div>
+
+        </template>
+
+        <!-- ══ PAGE 2: MORE OPTIONS ══ -->
+        <template v-else>
+
+          <!-- Header: back only -->
+          <div class="bg-bg-deepest px-3 py-2 border-b border-border-light shrink-0">
+            <button
+              class="flex items-center gap-1 text-text-primary hover:text-accent cursor-pointer transition-colors"
+              @click="goBack"
+            >
+              <Icon name="chevron-down-solid" class="text-[9px] rotate-90" />
+              <span class="text-xs">Back</span>
+            </button>
+          </div>
+
+          <!-- Scrollable actions -->
+          <div class="py-1 overflow-y-auto flex-1 min-h-0">
+            <button
+              v-if="moveTargets.length > 0"
+              class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer flex items-center justify-between"
+              @click="showMoveTo = !showMoveTo"
+            >
+              <span>Switch categories</span>
+              <Icon name="chevron-down-solid" class="text-[8px] transition-transform duration-150" :class="{ 'rotate-180': showMoveTo }" />
+            </button>
+            <div v-if="showMoveTo">
+              <button
+                v-for="section in moveTargets"
+                :key="section.id"
+                class="sound-menu-item w-full text-left pl-6 pr-4 py-1.5 text-xs text-text-secondary cursor-pointer flex items-center gap-2"
+                @click="handleMoveTo(section.id)"
+              >
+                <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: section.color || 'transparent' }" />
+                <span class="truncate">{{ section.displayName }}</span>
+              </button>
+            </div>
+            <button v-if="isMoved" class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleReset">Reset to original</button>
+            <button class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleEditCategory">Edit {{ currentSectionDisplayName || 'category' }}</button>
+          </div>
+
+          <!-- Delete (danger footer) -->
+          <div class="border-t border-border-light shrink-0">
+            <template v-if="!confirmingDelete">
+              <button class="sound-menu-item w-full text-left px-4 py-2 text-sm text-danger cursor-pointer" @click="confirmingDelete = true">Delete…</button>
+            </template>
+            <template v-else>
+              <div class="px-3 py-2">
+                <div class="text-[11px] text-text-secondary mb-2 leading-relaxed">Delete "{{ sound.filename }}"? The file will be sent to your Recycle Bin.</div>
+                <div class="flex gap-1.5 justify-end">
+                  <button
+                    class="text-[10px] px-1.5 py-0.5 text-text-dim border border-border-light hover:bg-bg-surface cursor-pointer transition-colors"
+                    @click="confirmingDelete = false"
+                  >Cancel</button>
+                  <button
+                    class="text-[10px] px-1.5 py-0.5 text-danger border border-danger/40 hover:bg-danger/10 cursor-pointer transition-colors"
+                    @click="handleDeleteFile"
+                  >Delete</button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+        </template>
+
       </div>
       </Transition>
     </Teleport>
@@ -443,6 +554,23 @@ function resetVolumeOffset(): void {
 </template>
 
 <style scoped>
+/* Bottom-center keybind chip on sound button */
+.shortcut-chip {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 5px;
+  background: var(--color-bg-deepest);
+  border: 1px solid var(--color-border-light);
+  border-bottom: none;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sound-menu-enter-active { transition: opacity 0.1s ease, transform 0.1s ease; }
 .sound-menu-enter-from { opacity: 0; transform: scale(0.97) translateY(-3px); transform-origin: top; }
 .sound-menu-leave-active { transition: opacity 0.08s ease; }
@@ -482,6 +610,14 @@ function resetVolumeOffset(): void {
 /* Outer wrapper handles lift so ring + button move together */
 .sbtn {
   transition: transform 0.09s ease;
+}
+/* Extends the hover hit-area 2px below the element so the lift doesn't
+   move the cursor outside the hover zone and cause oscillation. */
+.sbtn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  bottom: -2px;
 }
 .sbtn:hover {
   transform: translateY(-2px) !important;

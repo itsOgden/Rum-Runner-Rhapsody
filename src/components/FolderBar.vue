@@ -5,6 +5,7 @@ import { useAudioDevices } from '../composables/useAudioDevices'
 import { useSoundManagement } from '../composables/useSoundManagement'
 import { useStreamDeckImageErrors } from '../composables/useStreamDeckImageErrors'
 import { filterQuery } from '../filterState'
+import { formatAccelerator } from '../utils/hotkey'
 import type { FolderRemoveResult } from '../types'
 import CircleButton from '@/components/CircleButton.vue'
 import Icon from '@/components/Icon.vue'
@@ -129,7 +130,8 @@ function setViewMode(val: string) {
 const searchInputEl = ref<HTMLInputElement | null>(null)
 
 function onGlobalKeydown(e: KeyboardEvent): void {
-  if (e.code !== settings.value.hotkeys.search) return
+  const combo = formatAccelerator(e)
+  if (!combo || combo.toLowerCase() !== (settings.value.hotkeys.search || 'Space').toLowerCase()) return
   const target = e.target as HTMLElement
   if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
   e.preventDefault()
@@ -200,6 +202,7 @@ onUnmounted(() => {
         v-model="filterQuery"
         placeholder="Search sounds…"
         class="w-full font-sans text-sm bg-bg-surface border border-border-light pl-3 pr-7 h-9 text-text-primary placeholder:text-text-dim outline-none focus:border-accent focus:shadow-[0_0_6px_var(--color-accent-glow)] transition-all"
+        @keydown.esc.prevent="filterQuery = ''; searchInputEl?.blur()"
       />
       <CircleButton
         v-if="filterQuery"

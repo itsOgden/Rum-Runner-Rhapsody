@@ -13,11 +13,14 @@ import Icon from '@/components/Icon.vue'
 import SettingRow from './SettingRow.vue'
 import AppSelect from './AppSelect.vue'
 import ColorPalette from './ColorPalette.vue'
+import KeybindCapture from './KeybindCapture.vue'
 import { DEFAULT_ACCENT } from '../colorPalette'
+import { useSoundManagement } from '../composables/useSoundManagement'
 
 const { settings, saveSettings } = useSettings()
 const { audioDevices, findMatchingDeviceId, cleanDeviceLabel, getDeviceLabel } = useAudioDevices()
 const { brokenSources } = useStreamDeckImageErrors()
+const { buildSections } = useSoundManagement()
 
 const pickerErrorCount = ref(0)
 const hasStreamDeckErrors = computed(() =>
@@ -181,12 +184,42 @@ function openVbCableHelp(): void {
 
 // ── Auto-save handlers ──────────────────────────────────────────────────────
 
-let hotkeyTimer: ReturnType<typeof setTimeout> | null = null
-function onHotkeyInput() {
-  if (hotkeyTimer) clearTimeout(hotkeyTimer)
-  hotkeyTimer = setTimeout(() => {
-    saveSettings({ hotkeys: { stop: settings.value.hotkeys.stop, search: settings.value.hotkeys.search } })
-  }, 300)
+function onGlobalHotkeyChange(key: 'stop' | 'search', combo: string): void {
+  settings.value.hotkeys = { ...settings.value.hotkeys, [key]: combo }
+  saveSettings({ hotkeys: { ...settings.value.hotkeys } })
+}
+
+const soundNameMap = computed((): Record<string, string> => {
+  const map: Record<string, string> = {}
+  for (const section of buildSections()) {
+    for (const sound of section.sounds) map[sound.key] = sound.name
+  }
+  return map
+})
+
+const soundShortcuts = computed(() =>
+  Object.entries(settings.value.soundHotkeys ?? {}).filter(([, v]) => !!v)
+)
+
+function onSoundHotkeyChange(soundKey: string, combo: string): void {
+  if (!combo) { clearSoundHotkey(soundKey); return }
+  if (combo.toLowerCase() === (settings.value.hotkeys.stop || 'Escape').toLowerCase() ||
+      combo.toLowerCase() === (settings.value.hotkeys.search || 'Space').toLowerCase()) {
+    showToast(`"${combo}" conflicts with a global keybind`, 'info')
+  } else {
+    const conflict = Object.entries(settings.value.soundHotkeys ?? {}).find(([k, c]) => k !== soundKey && c.toLowerCase() === combo.toLowerCase())
+    if (conflict) showToast(`"${combo}" is already assigned to "${soundNameMap.value[conflict[0]] || conflict[0]}"`, 'info')
+  }
+  const updated = { ...(settings.value.soundHotkeys ?? {}), [soundKey]: combo }
+  settings.value.soundHotkeys = updated
+  saveSettings({ soundHotkeys: updated })
+}
+
+function clearSoundHotkey(soundKey: string): void {
+  const updated = { ...(settings.value.soundHotkeys ?? {}) }
+  delete updated[soundKey]
+  settings.value.soundHotkeys = updated
+  saveSettings({ soundHotkeys: updated })
 }
 
 function setPlaybackMode(mode: 'overlap' | 'restart' | 'stop') {
@@ -318,25 +351,52 @@ async function handleInstallPlugin(): Promise<void> {
         </div>
 
         <!-- ── KEYBINDS tab ── -->
-        <div v-else-if="activeTab === 'keybinds'" class="space-y-3">
-          <SettingRow label="Stop All" description="Global hotkey to stop all playing sounds">
-            <input
-              type="text"
-              class="w-25 px-2 py-1.5 text-sm bg-bg-surface text-text-primary border border-border-light outline-none text-center focus:border-accent focus:shadow-[0_0_6px_var(--color-accent-glow)] transition-all"
-              placeholder="Escape"
-              v-model="settings.hotkeys.stop"
-              @input="onHotkeyInput"
-            />
-          </SettingRow>
-          <SettingRow label="Focus Search" >
-            <input
-              type="text"
-              class="w-25 px-2 py-1.5 text-sm bg-bg-surface text-text-primary border border-border-light outline-none text-center focus:border-accent focus:shadow-[0_0_6px_var(--color-accent-glow)] transition-all"
-              placeholder="Space"
-              v-model="settings.hotkeys.search"
-              @input="onHotkeyInput"
-            />
-          </SettingRow>
+        <div v-else-if="activeTab === 'keybinds'" class="space-y-5">
+          <div class="space-y-3">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-0.5 h-3.5 bg-accent shrink-0" />
+              <span class="text-sm uppercase tracking-widest text-text-primary">Global</span>
+              <div class="flex-1 h-px bg-border-light" />
+            </div>
+            <SettingRow label="Stop All">
+              <KeybindCapture
+                :modelValue="settings.hotkeys.stop"
+                :allow-delete="false"
+                placeholder="Escape"
+                @update:modelValue="onGlobalHotkeyChange('stop', $event)"
+              />
+            </SettingRow>
+            <SettingRow label="Focus Search">
+              <KeybindCapture
+                :modelValue="settings.hotkeys.search"
+                :allow-delete="false"
+                placeholder="Space"
+                @update:modelValue="onGlobalHotkeyChange('search', $event)"
+              />
+            </SettingRow>
+          </div>
+
+          <div class="space-y-3">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-0.5 h-3.5 bg-accent shrink-0" />
+              <span class="text-sm uppercase tracking-widest text-text-primary">Per-Sound</span>
+              <div class="flex-1 h-px bg-border-light" />
+            </div>
+            <p class="text-xs text-text-secondary -mt-1">Set keybinds via right-clicking any sound button. Keybinds are saved per soundboard folder.</p>
+            <template v-if="soundShortcuts.length > 0">
+              <SettingRow
+                v-for="[soundKey, combo] in soundShortcuts"
+                :key="soundKey"
+                :label="soundNameMap[soundKey] || soundKey"
+              >
+                <KeybindCapture allow-delete
+                  :modelValue="combo"
+                  @update:modelValue="onSoundHotkeyChange(soundKey, $event)"
+                />
+              </SettingRow>
+            </template>
+            <p v-else class="text-xs text-text-dim">No per-sound keybinds assigned yet.</p>
+          </div>
         </div>
 
         <!-- ── APPEARANCE tab ── -->

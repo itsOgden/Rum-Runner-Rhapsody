@@ -38,6 +38,7 @@ const settings = ref<GlobalSettings>({
   soundVolumes: {},
   categoryStreamDeckImages: {},
   categoryColors: {},
+  soundHotkeys: {},
 })
 
 const soundGroups = ref<SoundGroup[]>([])

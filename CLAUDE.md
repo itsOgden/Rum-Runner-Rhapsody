@@ -85,6 +85,7 @@ Rum-Runner Rhapsody/
 │   │   ├── CategorySettingsModal.vue — Per-category settings (General / Stream Deck tabs)
 │   │   ├── StreamDeckImagePicker.vue — Reusable image picker for SD button images
 │   │   ├── StatusBar.vue        — Audio status text, SD image error warnings, sound count + hotkey reminder
+│   │   ├── KeybindCapture.vue   — Reusable keybind capture widget; displays assigned keybind as individual key chips ([Ctrl] [F5]); click to enter listening mode (pulsing dot + "Press a key…"); Escape cancels; emits accelerator string or empty string (clear); `allowDelete` prop (default true) shows × button — pass `false` for global keybinds that must always be set; used in SettingsModal Keybinds tab and SoundButton context menu
 │   │   ├── VolumeSlider.vue     — Reusable range slider (v-model, min/max/step/unit)
 │   │   ├── Icon.vue             — SVG icon component (wraps generated icon CSS classes)
 │   │   ├── SquareButton.vue     — 36×36px icon button; props: icon, title, active, disabled, variant ('default'|'danger')
@@ -117,6 +118,8 @@ Rum-Runner Rhapsody/
 │   ├── toastState.ts            — Module singleton: toast ref + showToast() helper
 │   ├── modalState.ts            — Module singletons: settingsModalOpen, helpModalOpen refs
 │   ├── colorPalette.ts          — Shared COLOR_PALETTE array (17 presets: Gold, Amber, Ember, Crimson, Rose, Hot Pink, Magenta, Violet, Indigo, Blue, Sky, Teal, Jade, Lime, Bronze, Slate, Gray), DEFAULT_ACCENT constant; imported by ColorPalette.vue and any future color pickers
+│   ├── utils/
+│   │   └── hotkey.ts            — `formatAccelerator(e: KeyboardEvent): string | null` — converts KeyboardEvent to Electron accelerator string (e.g. "Ctrl+F5", "Escape", "Space")
 │   ├── dropdownState.ts         — Module singleton: activeDropdownId (one-at-a-time dropdown coordination)
 │   └── types.ts                 — GlobalSettings, FolderSettings, WindowApi, Sound, SoundSection interfaces
 ├── packages/
@@ -211,6 +214,7 @@ interface FolderSettings {
   soundVolumes: Record<string, number>             // dB offset, -20 to +20
   categoryStreamDeckImages: Record<string, { idle?: string, playing?: string }>
   categoryColors: Record<string, string>           // categoryId → hex color string
+  soundHotkeys: Record<string, string>             // soundKey → Electron accelerator string (e.g. "F5", "Ctrl+1")
   playCounts: Record<string, number>               // actually stored in rrr-stats.json; merged into FolderSettings on load
 }
 ```
@@ -382,7 +386,7 @@ Sound buttons and category headers are both draggable.
 
 **SettingsModal.vue** — six side-tabs:
 - **App**: Close to tray, Start with Windows, Launch minimized, Show category sidebar
-- **Keybinds**: Stop All (editable global hotkey input) + Focus Search (fixed display: Space)
+- **Keybinds**: Global section (Stop All + Focus Search via `KeybindCapture` with `allowDelete: false`); Per-Sound section (lists all assigned `soundHotkeys` with `KeybindCapture` — the component's built-in × handles clearing; empty state when none set); section headers use gold left-bar + monospace label + hairline design
 - **Appearance**: Theme (dark/light AppSelect) + Accent color (ColorPalette with 17 swatches, Reset to default button)
 - **Playback**: Playback mode, Normalize volumes
 - **Audio Devices**: N-device output list (enable toggle, AppSelect device picker, volume slider, add/remove); description links to VB-Cable help tab
@@ -693,27 +697,44 @@ Light mode is toggled by adding the `light` class to `<html>`. Neutral gray pale
 
 ## Context Menu (SoundButton.vue)
 
+Two-page design: Page 1 for quick daily-use actions, Page 2 ("More Options") for less-frequent operations.
+
+**Page 1 (main):**
 ```
 ┌──────────────────────────────────┐
-│ Played X times       [× reset]   │  ← fixed header; circle × resets count (if count > 0)
+│ Played X times       [× reset]   │  ← fixed header; inline confirm (Clear count? Yes/No)
 ├──────────────────────────────────┤
-│ Hide / Restore                   │  ↑
-│ Rename                           │  │ scrollable actions section
-│ Reset name          (if renamed) │  │ (flex-1 overflow-y-auto)
-│ Move to…            (expandable) │  │
-│ Reset to original   (if moved)   │  ↓
+│ Hide / Restore                   │  ↑ scrollable
+│ Rename                           │  │
+│ ─────────────────────────────── │  │
+│ Set shortcut / [key] [×]         │  ↓ inline listen mode when capturing
 ├──────────────────────────────────┤
-│ Edit category…                   │  ← fixed; shrink-0
+│ More options                   → │  ← fixed; navigates to page 2
 ├──────────────────────────────────┤
-│ Volume Offset                    │  ← fixed; shrink-0
+│ Volume Offset                    │  ← fixed; bottommost; shrink-0
 │ [VolumeSlider -20 to +20 dB]     │
 │ Reset          [button]          │  ← only when offset !== 0
-├──────────────────────────────────┤
-│ Delete…           (danger)       │  ← fixed footer; shrink-0; inline confirm when clicked
 └──────────────────────────────────┘
 ```
 
-- Menu is a `flex flex-col` with `maxHeight` set dynamically from available viewport space; header, volume section, and "Edit category…" footer are `shrink-0`; middle actions section is `flex-1 min-h-0 overflow-y-auto`
+**Page 2 (more):**
+```
+┌──────────────────────────────────┐
+│ ← Back                           │  ← fixed header; white text; no label
+├──────────────────────────────────┤
+│ Move to             (expandable) │  ↑
+│   [category list…]               │  │ scrollable
+│ Reset to original   (if moved)   │  │
+│ Edit category                    │  ↓
+├──────────────────────────────────┤
+│ Delete…           (danger)       │  ← fixed footer; inline confirm when clicked
+└──────────────────────────────────┘
+```
+
+- `menuPage: Ref<'main' | 'more'>` tracks which page is visible; resets to `'main'` on open and on close
+- `goBack()` clears `showMoveTo`, `confirmingDelete`, stops shortcut capture, sets `menuPage = 'main'`
+- Shortcut badge: 9px monospace at bottom-left of button face (`style="color: var(--color-text-dim)"` inline to resist the playing-state color cascade)
+- Menu is a `flex flex-col` with `maxHeight` set dynamically from available viewport space; header and footers are `shrink-0`; actions section is `flex-1 min-h-0 overflow-y-auto`
 - Position computation: measures space above/below click point and opens in the direction with more room; upward opening uses `bottom` CSS positioning (anchored to click point) not `top`, so it never jumps to the top of the page
 - "Move to…" expands inline within the scrollable section showing all other categories
 - "Edit category…" opens `CategorySettingsModal` for the sound's current category; emits `edit-category` event that bubbles through AccordionSection → SoundGrid

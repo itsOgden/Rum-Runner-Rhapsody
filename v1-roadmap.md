@@ -229,16 +229,18 @@
 ---
 
 ### 3.6 Per-Sound Keyboard Shortcuts [#19]
-**What:** Allow users to assign a keyboard shortcut to any sound that triggers it globally (even when the app is backgrounded).
+**Status: Done.**
 
-**Implementation:**
-- Storage: `soundHotkeys: Record<string, string>` in `FolderSettings` (maps sound key → shortcut string like `"F5"` or `"Ctrl+1"`).
-- Context menu: "Set Shortcut" option → small inline key-capture input (must **listen** for keystrokes, not require typing — same pattern as the existing Stop All hotkey capture in Settings → Keybinds).
-- Main process: on settings load, register all shortcuts via `globalShortcut.register()`. On settings change, unregister/re-register.
-- Visual: small badge on the sound button showing the assigned key.
-- Conflict detection: warn if a shortcut is already assigned to another sound or to a system action.
-
-**Dependency:** Complete R3 research first.
+- ✅ `soundHotkeys: Record<string, string>` added to `FolderSettings` and `DEFAULT_FOLDER_SETTINGS`
+- ✅ `src/utils/hotkey.ts` — `formatAccelerator(e)` converts a `KeyboardEvent` to an Electron accelerator string (`Ctrl+F5`, `Escape`, `Space`, etc.)
+- ✅ `HotkeyCapture.vue` — reusable listen-mode capture widget; click to enter listening state, press any key to capture, Escape to cancel
+- ✅ `globalShortcut.register/unregister` in main.js; `registerSoundHotkeys()` called on startup, folder switch, and whenever `soundHotkeys` is saved
+- ✅ `global-play-sound` IPC event sent by main process on shortcut trigger; renderer wired in App.vue via `onGlobalPlaySound`
+- ✅ Context menu: "Set shortcut…" row in scrollable section; shows `[combo] [×]` when set, clicking combo re-captures; enters inline listen mode
+- ✅ Shortcut badge on button face (bottom-left, 9px monospace, always visible)
+- ✅ Settings → Keybinds tab: global shortcuts (Stop All, Focus Search) now use HotkeyCapture; per-sound section lists all assigned shortcuts with live edit + clear
+- ✅ Conflict detection: toast warning if combo matches Stop All / Focus Search or another sound's shortcut (non-blocking)
+- ✅ Stop All and Focus Search hotkey matching updated to use `formatAccelerator` (consistent format, supports modifier combos)
 
 ---
 

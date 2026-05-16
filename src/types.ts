@@ -62,6 +62,7 @@ export interface FolderSettings {
   soundVolumes: Record<string, number>
   categoryStreamDeckImages: Record<string, { idle?: string; playing?: string }>
   categoryColors: Record<string, string>
+  soundHotkeys: Record<string, string>
 }
 
 // Global app settings — stored in rrr-settings.json next to the executable
@@ -117,6 +118,7 @@ export interface WindowApi {
   readSoundFile(filePath: string): Promise<ArrayBuffer | null>
   onWsPlaySound(callback: (data: { key: string }) => void): void
   onWsStopAll(callback: () => void): void
+  onGlobalPlaySound(callback: (data: { key: string }) => void): void
   updatePlayingStatus(keys: string[]): void
   installStreamDeckPlugin(): Promise<{ success: boolean; message: string; restartingStreamDeck: boolean }>
   getStreamDeckPluginStatus(): Promise<{ bundledVersion: string; installedVersion: string | null; needsUpdate: boolean; isInstalled: boolean }>

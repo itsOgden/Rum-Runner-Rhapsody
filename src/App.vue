@@ -6,6 +6,7 @@ import { useAudioPlayer } from './composables/useAudioPlayer'
 import { useSoundManagement } from './composables/useSoundManagement'
 import { useStreamDeckImageErrors } from './composables/useStreamDeckImageErrors'
 import { filterQuery } from './filterState'
+import { formatAccelerator } from './utils/hotkey'
 import TitleBar from './components/TitleBar.vue'
 import FolderBar from './components/FolderBar.vue'
 import SoundGrid from './components/SoundGrid.vue'
@@ -68,8 +69,29 @@ function darkenHex(hex: string, factor: number): string {
 }
 
 function handleKeydown(e: KeyboardEvent): void {
-  if (e.key === (settings.value.hotkeys?.stop || 'Escape')) {
+  const combo = formatAccelerator(e)
+  if (combo && combo.toLowerCase() === (settings.value.hotkeys?.stop || 'Escape').toLowerCase()) {
     stopAll()
+  }
+}
+
+async function handlePlaySoundByKey(key: string): Promise<void> {
+  if (!key) return
+  const foldersToTry: string[] = []
+  if (settings.value.soundFolder) foldersToTry.push(settings.value.soundFolder)
+  for (const f of settings.value.savedFolders) {
+    if (f !== settings.value.soundFolder) foldersToTry.push(f)
+  }
+  const filename = key.split('/').pop() ?? key
+  for (const folder of foldersToTry) {
+    const absPath = folder.replace(/[/\\]+$/, '') + '\\' + key.replace(/\//g, '\\')
+    const exists = await window.api.checkFileExists(absPath)
+    if (exists) {
+      const soundNames = folder === settings.value.soundFolder ? (settings.value.soundNames ?? {}) : {}
+      const name = soundNames[key] ?? filename.replace(/\.[^.]+$/, '')
+      await playSound({ path: absPath, filename, name, key, originalFolder: '', isHidden: false, isMoved: false })
+      return
+    }
   }
 }
 
@@ -88,26 +110,8 @@ onMounted(async () => {
   await scanAll(settings.value)
   document.addEventListener('keydown', handleKeydown)
 
-  window.api.onWsPlaySound(async ({ key }) => {
-    if (!key) return
-    // Priority: active soundFolder first, then other savedFolders in order
-    const foldersToTry: string[] = []
-    if (settings.value.soundFolder) foldersToTry.push(settings.value.soundFolder)
-    for (const f of settings.value.savedFolders) {
-      if (f !== settings.value.soundFolder) foldersToTry.push(f)
-    }
-    const filename = key.split('/').pop() ?? key
-    for (const folder of foldersToTry) {
-      const absPath = folder.replace(/[/\\]+$/, '') + '\\' + key.replace(/\//g, '\\')
-      const exists = await window.api.checkFileExists(absPath)
-      if (exists) {
-        const soundNames = folder === settings.value.soundFolder ? (settings.value.soundNames ?? {}) : {}
-        const name = soundNames[key] ?? filename.replace(/\.[^.]+$/, '')
-        await playSound({ path: absPath, filename, name, key, originalFolder: '', isHidden: false, isMoved: false })
-        return
-      }
-    }
-  })
+  window.api.onWsPlaySound(({ key }) => handlePlaySoundByKey(key))
+  window.api.onGlobalPlaySound(({ key }) => handlePlaySoundByKey(key))
 
   window.api.onWsStopAll(() => {
     stopAll()
