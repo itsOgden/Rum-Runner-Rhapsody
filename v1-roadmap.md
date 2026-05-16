@@ -199,23 +199,25 @@
 
 ---
 
-### 3.3 View Mode: Solo Category [#12]
-**What:** Implement the solo category view mode from the design exploration in Phase 0.
+### 3.3 View Mode: Flat Grid [#12]
+**Status: Done 2026-05-15.**
 
-See R4 for design recommendation. Implement after the exploration confirms the approach.
+- ✅ `viewMode: 'accordion' | 'flat'` added to `GlobalSettings` (default `'accordion'`)
+- ✅ FolderBar: "Sections · Flat" text toggle in the right controls (before density toggle)
+- ✅ Flat mode sidebar: prepends "All" item; clicking a category sets `flatActiveCategoryId` to filter the grid; resets to 'all' on folder switch
+- ✅ Flat mode grid: single continuous `SoundButton` grid, no AccordionSection, no DnD (naturally absent — sound buttons aren't wrapped in section DnD containers)
+- ✅ Accordion mode: fully unchanged; sidebar still uses scroll-to-section behavior
 
 ---
 
 ### 3.4 Delete Sound File from UI [#9]
-**What:** Right-click a sound button → "Delete File" option in context menu. Show a confirmation dialog before actually deleting.
+**Status: Done.**
 
-**Implementation:**
-- Add `delete-sound-file` IPC handler in main.js that calls `fs.unlink`.
-- Add "Delete File" as the last/danger item in the SoundButton context menu.
-- Confirmation modal: show the filename, "This cannot be undone." Two buttons: Cancel (default focus) + Delete (danger red).
-- After deletion: remove the sound from the current library view, re-scan folder.
-
-**Note:** This permanently deletes from disk. The confirmation UX is critical.
+- ✅ `trash-sound-file` IPC handler added to main.js using `shell.trashItem(filePath)` — sends to OS Recycle Bin, not permanent delete
+- ✅ `trashSoundFile` exposed via preload.js and typed in `WindowApi`
+- ✅ "Move to Recycle Bin…" danger item at bottom of SoundButton context menu (scrollable section, top-border separator)
+- ✅ Inline confirmation: shows filename + Cancel / Delete buttons; resets on menu close or outside click
+- ✅ After deletion: calls `loadSounds()` to refresh the grid
 
 ---
 

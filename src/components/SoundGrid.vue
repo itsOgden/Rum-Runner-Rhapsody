@@ -5,12 +5,13 @@ import { useSoundManagement } from '../composables/useSoundManagement'
 import { filterQuery } from '../filterState'
 import { draggingSection } from '../dragState'
 import AccordionSection from './AccordionSection.vue'
+import SoundButton from './SoundButton.vue'
 import CategorySettingsModal from './CategorySettingsModal.vue'
 import Icon from '@/components/Icon.vue'
 import type { SoundSection } from '../types'
 
 const { settings, soundGroups, soundCount, isLoadingSounds } = useSettings()
-const { buildSections, addCategory, reorderCategories, showHidden, pinnedSectionIds } = useSoundManagement()
+const { buildSections, addCategory, reorderCategories, showHidden, pinnedSectionIds, pendingRenameId } = useSoundManagement()
 
 // ── Category reorder drag handling ───────────────────────────────────────────
 
@@ -59,6 +60,32 @@ const filteredSoundCount = computed(() => {
 })
 
 const sections = computed<SoundSection[]>(() => buildSections())
+
+// ── Flat view mode ────────────────────────────────────────────────────────────
+
+const isFlat = computed(() => settings.value.viewMode === 'flat')
+const flatActiveCategoryId = ref<string | 'all'>('all')
+
+watch(() => settings.value.soundFolder, () => { flatActiveCategoryId.value = 'all' })
+
+watch(sections, (newSections) => {
+  if (flatActiveCategoryId.value !== 'all' && !newSections.some(s => s.id === flatActiveCategoryId.value)) {
+    flatActiveCategoryId.value = 'all'
+  }
+})
+
+const flatSoundsWithSection = computed(() => {
+  const visibleSections = sections.value.filter(s => !s.isHidden || showHidden.value)
+  const source = flatActiveCategoryId.value === 'all'
+    ? visibleSections
+    : visibleSections.filter(s => s.id === flatActiveCategoryId.value)
+  let pairs = source.flatMap(s => s.sounds.map(sound => ({ sound, section: s })))
+  if (filterQuery.value) {
+    const q = filterQuery.value.toLowerCase()
+    pairs = pairs.filter(({ sound }) => sound.name.toLowerCase().includes(q) || sound.filename.toLowerCase().includes(q))
+  }
+  return pairs
+})
 
 // ── Category quick-nav ────────────────────────────────────────────────────────
 // Set to false to disable active-category highlight tracking entirely.
@@ -202,6 +229,19 @@ function openCategoryModal(section: SoundSection): void {
   pinnedSectionIds.value = new Set([...pinnedSectionIds.value, section.id])
 }
 
+function openCategoryModalById(sectionId: string): void {
+  const section = sections.value.find(s => s.id === sectionId)
+  if (section) openCategoryModal(section)
+}
+
+async function addCategoryFromSidebar(): Promise<void> {
+  const id = addCategory()
+  pendingRenameId.value = null  // prevent AccordionSection from also opening a modal
+  await nextTick()
+  const section = sections.value.find(s => s.id === id)
+  if (section) openCategoryModal(section)
+}
+
 function closeNavCategoryModal(): void {
   if (editingNavSectionId.value) {
     const next = new Set(pinnedSectionIds.value)
@@ -215,25 +255,38 @@ function closeNavCategoryModal(): void {
 <template>
   <div class="flex flex-1 min-h-0">
 
+    <!-- Category settings modal — outside nav so it works even when sidebar is hidden -->
+    <CategorySettingsModal
+      v-if="editingNavSection"
+      :open="true"
+      :section="editingNavSection"
+      @close="closeNavCategoryModal"
+    />
+
     <!-- Category quick-nav — fixed sibling outside scroll container -->
     <nav
       v-if="settings.showCategorySidebar && !isLoadingSounds && soundCount > 0 && navSections.length > 0"
       class="w-36 shrink-0 py-2 border-r border-border-light overflow-y-auto bg-bg-raised"
     >
-      <!-- Modal for category edits initiated from the sidebar -->
-      <CategorySettingsModal
-        v-if="editingNavSection"
-        :open="true"
-        :section="editingNavSection"
-        @close="closeNavCategoryModal"
-      />
+
+      <!-- "All" — flat mode only -->
+      <div
+        v-if="isFlat"
+        class="nav-btn group/nav-item relative flex items-center w-full text-xs leading-[1.6] transition-colors duration-100 select-none cursor-pointer"
+        :class="flatActiveCategoryId === 'all'
+          ? 'text-accent-text font-medium nav-btn--active'
+          : 'text-text-secondary hover:bg-bg-surface'"
+        @click="flatActiveCategoryId = 'all'"
+      >
+        <span class="flex-1 py-1.5 pl-3 text-left">All</span>
+      </div>
 
       <div
         v-for="section in navSections"
         :key="section.id"
         class="nav-btn group/nav-item relative flex items-center w-full text-xs leading-[1.6] transition-colors duration-100 select-none"
         :class="[
-          activeSectionId === section.id
+          (isFlat ? flatActiveCategoryId === section.id : activeSectionId === section.id)
             ? 'text-accent-text font-medium nav-btn--active'
             : 'text-text-secondary hover:bg-bg-surface',
           draggingNavSectionId === section.id
@@ -252,10 +305,10 @@ function closeNavCategoryModal(): void {
         @drop.prevent="onNavDrop(section.id)"
         @contextmenu.prevent="openCategoryModal(section)"
       >
-        <!-- Scroll click area -->
+        <!-- Click area — scroll in accordion mode, filter in flat mode -->
         <button
           class="flex items-center gap-1.5 flex-1 min-w-0 py-1.5 pl-3 text-left cursor-pointer"
-          @click="scrollToSection(section.id)"
+          @click="isFlat ? (flatActiveCategoryId = section.id) : scrollToSection(section.id)"
         >
           <span
             class="w-1.5 h-1.5 rounded-full shrink-0 transition-colors duration-150"
@@ -273,7 +326,19 @@ function closeNavCategoryModal(): void {
           <Icon name="pencil" class="text-[11px]" />
         </button>
       </div>
+
+      <!-- New Category -->
+      <div class="mt-1 px-2 pb-2">
+        <button
+          class="w-full py-1.5 text-[11px] text-text-dim hover:text-text-secondary border border-dashed border-border-light hover:border-text-dim flex items-center justify-center gap-1 transition-colors cursor-pointer bg-transparent outline-none"
+          @click="addCategoryFromSidebar"
+        >
+          <Icon name="plus" class="text-[9px]" />
+          New Category
+        </button>
+      </div>
     </nav>
+
 
     <!-- Scrollable content area -->
     <div class="flex-1 overflow-y-auto min-w-0" ref="scrollContainerRef">
@@ -299,16 +364,16 @@ function closeNavCategoryModal(): void {
         </div>
       </div>
 
-      <!-- No-matches state — filter active but nothing matches -->
+      <!-- No-matches state — accordion mode, filter active but nothing matches -->
       <div
-        v-else-if="filterQuery && filteredSoundCount === 0"
+        v-else-if="!isFlat && filterQuery && filteredSoundCount === 0"
         class="flex flex-col items-center justify-center h-full text-text-dim text-center gap-2 px-10"
       >
         <div class="text-sm text-text-secondary">No sounds match <span class="text-text-primary">"{{ filterQuery }}"</span></div>
       </div>
 
-      <!-- Sound grid -->
-      <div v-else class="px-5 py-4">
+      <!-- Accordion sections -->
+      <div v-else-if="!isFlat" class="px-5 py-4">
         <div
           v-for="section in sections"
           :key="section.id"
@@ -325,6 +390,7 @@ function closeNavCategoryModal(): void {
             :section="section"
             :density="settings.density || 'loose'"
             :filter="filterQuery"
+            @edit-category="openCategoryModalById"
           />
         </div>
 
@@ -334,6 +400,35 @@ function closeNavCategoryModal(): void {
             class="w-full py-2 text-sm text-text-secondary border border-dashed border-border-light hover:border-text-dim hover:text-text-primary flex items-center justify-center gap-1.5 transition-colors cursor-pointer bg-transparent outline-none"
             @click="addCategory"
           ><Icon name="plus" /> New Category</button>
+        </div>
+      </div>
+
+      <!-- Flat grid -->
+      <div v-else class="px-5 py-4">
+        <div
+          v-if="flatSoundsWithSection.length === 0"
+          class="flex flex-col items-center justify-center pt-20 text-text-dim text-center gap-2 px-10"
+        >
+          <div class="text-sm text-text-secondary">
+            <template v-if="filterQuery">No sounds match <span class="text-text-primary">"{{ filterQuery }}"</span></template>
+            <template v-else>No sounds in this category</template>
+          </div>
+        </div>
+        <div
+          v-else
+          class="grid gap-x-2 gap-y-2.5 items-stretch"
+          :style="{ gridTemplateColumns: `repeat(auto-fill, minmax(${settings.density === 'compact' ? '150px' : '200px'}, 1fr))` }"
+        >
+          <SoundButton
+            v-for="({ sound, section }, index) in flatSoundsWithSection"
+            :key="sound.path"
+            :sound="sound"
+            :density="settings.density || 'loose'"
+            :animation-delay="index * 8"
+            :category-color="section.color"
+            :category-name="section.displayName"
+            @edit-category="openCategoryModalById"
+          />
         </div>
       </div>
 

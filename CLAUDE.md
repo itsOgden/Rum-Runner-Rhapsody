@@ -73,9 +73,9 @@ Rum-Runner Rhapsody/
 │   ├── App.vue                  — Root component, layout (TitleBar + FolderBar + SoundGrid + StatusBar)
 │   ├── components/
 │   │   ├── TitleBar.vue         — Custom frameless titlebar (40px)
-│   │   ├── FolderBar.vue        — Sound library bar: left = soundboard switcher trigger (full gold/accent background, TavernloreBB text) with pencil icon inside left of chevron (opacity-0, group-hover/sb reveals it) + accent-colored Refresh button; center search (Space shortcut focuses it globally); right text density toggle (Loose · Compact) + Show Hidden toggle. Clicking pencil or right-clicking trigger opens SoundboardModal. Dropdown (teleported) shows all savedFolders with display names, no remove buttons (management is in SoundboardModal). "Add folder…" at dropdown bottom.
+│   │   ├── FolderBar.vue        — Sound library bar: left = soundboard switcher trigger (full gold/accent background, TavernloreBB text) with pencil icon inside left of chevron (opacity-0, group-hover/sb reveals it) + accent-colored Refresh button; center search (Space shortcut focuses it globally); right: Layout ghost AppSelect (Grouped/Grid), divider, Density ghost AppSelect (Loose/Compact), divider, Show Hidden text toggle. Ghost AppSelect variant = gold text + caret, no border/bg, dropdown min-width 200px. Clicking pencil or right-clicking trigger opens SoundboardModal. Dropdown (teleported) shows all savedFolders with display names, no remove buttons (management is in SoundboardModal). "Add folder…" at dropdown bottom.
 │   │   ├── SoundboardModal.vue  — Opened by pencil icon or right-clicking the soundboard trigger in FolderBar; General tab: name input (modal title updates live as you type; saves to folderDisplayNames on close), read-only location path. Footer: "Remove soundboard" danger button with inline confirmation (files not deleted warning + Cancel/Remove). Remove auto-switches to first remaining folder or clears if none left.
-│   │   ├── SoundGrid.vue        — Main grid: category quick-nav sidebar, accordion sections, drag-and-drop, empty states
+│   │   ├── SoundGrid.vue        — Main grid: category quick-nav sidebar, accordion sections (or flat grid), drag-and-drop, empty states
 │   │   ├── AccordionSection.vue — Category header (collapsible, draggable, right-click opens settings) + sound button grid + DnD
 │   │   ├── SoundButton.vue      — Individual sound button + context menu + preview; playing styles transition in instantly (~0.04s) but fade out slowly (~0.4–0.55s) via CSS cascade trick; halo glow is a real `<div>` with Vue `<Transition name="halo">` (not `::after`) so enter/leave work cleanly alongside the `btn-ambient-pulse` animation
 │   │   ├── BaseModal.vue        — Reusable modal wrapper with animations; optional `label` prop renders a small gold uppercase rubric above the title to identify modal type (e.g. "Category", "Soundboard"); scoped `.type-rubric` CSS: 9px, 0.16em tracking, accent color
@@ -92,7 +92,7 @@ Rum-Runner Rhapsody/
 │   │   ├── ToggleCircleButton.vue — Circle button with enabled state (accent bg when enabled, hover-reveal when not)
 │   │   ├── ToggleSwitch.vue     — Reusable boolean toggle switch (v-model); used in all settings modals; checked state shows accent glow ring (`box-shadow: 0 0 0 3px var(--color-accent-glow)`)
 │   │   ├── SettingRow.vue       — Label + control + optional description row; used in all settings modals (props: label, description)
-│   │   ├── AppSelect.vue        — Custom styled dropdown replacing native <select>; props: modelValue, options[{value,label}]; emits: update:modelValue; keyboard nav on trigger (arrow/enter/escape); teleported + animated; trigger shows accent border when open; items use same `::before` scaleY bar design language as ModalTabs
+│   │   ├── AppSelect.vue        — Custom styled dropdown replacing native <select>; props: modelValue, options[{value,label}], variant ('default'|'ghost'); emits: update:modelValue; keyboard nav on trigger (arrow/enter/escape); teleported + animated; default variant: trigger shows accent border when open, form-input style; ghost variant: gold text + small caret, no border/bg (for toolbar use), dropdown min-width 200px; items use same `::before` scaleY bar design language as ModalTabs
 │   │   ├── ColorPalette.vue     — Reusable 17-swatch color grid; props: modelValue (selected hex or ''), defaultValue (hex to highlight when modelValue is ''); emits: update:modelValue; used in Appearance tab and category color picker
 │   │   ├── MenuItem.vue         — Context menu button row; default slot for content, prop: topBorder
 │   │   ├── ImagePickerSlot.vue  — Single image picker card (label, preview, error, clear); used in StreamDeckImagePicker
@@ -189,6 +189,7 @@ interface GlobalSettings {
   autoStart: boolean
   launchMinimized: boolean
   showCategorySidebar: boolean
+  viewMode: 'accordion' | 'flat'   // controls SoundGrid layout; persisted globally
   streamDeckDefaultImages: { idle?: string, playing?: string, stop?: string }
   accentColor: string              // hex color override for --color-accent (empty string = use theme default gold)
   // Also contains all FolderSettings keys (GlobalSettings extends FolderSettings)
@@ -395,7 +396,7 @@ Sound buttons and category headers are both draggable.
 - **General tab**: Name field (modal title updates live as you type; empty input falls back to folder basename; saves to `folderDisplayNames` on close via `commitRename`), read-only location path
 - **Footer**: "Remove soundboard" danger button → inline confirmation row (files-not-deleted notice + Cancel + Remove). Remove calls `window.api.removeFolder`, auto-switches to first remaining saved folder or clears if none left
 
-**CategorySettingsModal.vue** — two side-tabs, opened by right-clicking a category header (no visible gear icon):
+**CategorySettingsModal.vue** — two side-tabs, opened by right-clicking a category header, clicking the sidebar pencil, or choosing "Edit category…" from a sound's context menu. Modal is rendered in `SoundGrid.vue` outside the `<nav>` block so it works even when the sidebar is hidden (`showCategorySidebar: false`):
 - **General**: Category rename (drives live modal title), hide/show toggle, color picker (17-swatch `ColorPalette`; "Remove" link when a color is active; Restore Defaults also clears the color), Restore Defaults button
 - **Stream Deck**: StreamDeckImagePicker for per-category idle/playing images
 - Modal stays open when hide is toggled; hidden categories remain mounted while modal is open
@@ -411,14 +412,15 @@ All settings auto-save on change (no Save button).
 - Always visible (controlled by `showCategorySidebar` setting); during search, only shows categories that have at least one matching sound (hides entirely if no category matches)
 - Each item shows a 6px colored dot (`w-1.5 h-1.5 rounded-full`) before the name; always rendered but `transparent` when no category color is assigned — keeps all items left-aligned regardless of color state
 - Shows full category display names, truncated with ellipsis if too long
-- Clicking a category smoothly scrolls the sound grid to that category header; each nav item is a flex row (`group/nav-item`) containing a scroll-click `<button>` (flex-1) and a pencil `<button>` (shrink-0) so nested interactivity works without nested `<button>` elements — outer element is a `<div>`
+- **Accordion mode**: clicking a category scrolls the grid to that section header; active item tracked by scroll position via `activeSectionId` ref + `manualActiveSection` veto; `ACTIVE_HIGHLIGHT_ENABLED` constant gates this behavior
+- **Flat mode**: sidebar prepends an "All" item; clicking a category sets `flatActiveCategoryId` (filters the flat grid to that category); `activeSectionId` is not used — active state is driven by `flatActiveCategoryId`; `flatActiveCategoryId` resets to `'all'` on folder switch or when the selected category is deleted (watched via `sections`)
+- Each nav item is a flex row (`group/nav-item`) containing a click `<button>` (flex-1) and a pencil `<button>` (shrink-0) — outer element is a `<div>` so nested interactivity works without nested `<button>` elements
 - Active/hover items use the same 2px `::before` scaleY bar design language as ModalTabs and AppSelect items
 - **Category color theming** (when `section.color` is set): hover text, active text, active background, and `::before` bar all use the category color. Implemented via CSS custom properties set as inline style on the nav div — `--nav-hover-color` (the color) and `--nav-active-bg` (`color-mix(in srgb, <color> 10%, transparent)`). Scoped rules `.nav-btn:hover` and `.nav-btn--active` read these with fallbacks to `--color-text-primary` / `--color-accent-text` / `--color-accent`, so uncolored items look identical to before.
 - Hidden categories omitted unless "show hidden" toggle is on; when shown (because Show Hidden is active), the nav item gets `opacity-40` to match the accordion section dimming
 - **Drag/drop reorder**: nav items are `draggable` (disabled during filter). Uses local `draggingNavSectionId` + `dragOverNavId` refs (independent of the main grid's `draggingSection` to avoid cross-area interference). Drop calls `reorderCategories` with the full `sections.value` order. Drop target highlighted with `outline-2 outline-accent`; dragged item gets `opacity-50`.
 - **Pencil edit button**: appears on the right of each nav row on hover (`group-hover/nav-item:opacity-100`). Right-clicking a nav item also opens the editor. Both open `CategorySettingsModal` via `openCategoryModal` / `closeNavCategoryModal` in `SoundGrid.vue`, which also manages `pinnedSectionIds` to keep the section mounted while the modal is open.
-- `ACTIVE_HIGHLIGHT_ENABLED` constant at top of `SoundGrid.vue` (not in settings) controls highlight behavior
-- Click-lock: after clicking, highlight stays on the clicked category until scroll has been idle for 300ms, using `manualActiveSection` ref as a veto against scroll-based tracking overriding it prematurely
+- Click-lock (accordion only): after clicking, highlight stays on the clicked category until scroll has been idle for 300ms, using `manualActiveSection` ref as a veto against scroll-based tracking overriding it prematurely
 
 ---
 
@@ -693,23 +695,30 @@ Light mode is toggled by adding the `light` class to `<html>`. Neutral gray pale
 
 ```
 ┌──────────────────────────────────┐
-│ Played X times       [× reset]   │  ← muted label + circle × to reset count (if count > 0)
+│ Played X times       [× reset]   │  ← fixed header; circle × resets count (if count > 0)
 ├──────────────────────────────────┤
-│ Hide / Restore                   │
-│ Rename                           │
-│ Move to…                         │
-├──────────────────────────────────┤  ← only when isMoved
-│ Reset                            │
+│ Hide / Restore                   │  ↑
+│ Rename                           │  │ scrollable actions section
+│ Reset name          (if renamed) │  │ (flex-1 overflow-y-auto)
+│ Move to…            (expandable) │  │
+│ Reset to original   (if moved)   │  ↓
 ├──────────────────────────────────┤
-│ Volume Offset                    │
+│ Edit category…                   │  ← fixed; shrink-0
+├──────────────────────────────────┤
+│ Volume Offset                    │  ← fixed; shrink-0
 │ [VolumeSlider -20 to +20 dB]     │
 │ Reset          [button]          │  ← only when offset !== 0
+├──────────────────────────────────┤
+│ Delete…           (danger)       │  ← fixed footer; shrink-0; inline confirm when clicked
 └──────────────────────────────────┘
 ```
 
-- "Move to…" expands inline (not a submenu popup) showing all available categories
+- Menu is a `flex flex-col` with `maxHeight` set dynamically from available viewport space; header, volume section, and "Edit category…" footer are `shrink-0`; middle actions section is `flex-1 min-h-0 overflow-y-auto`
+- Position computation: measures space above/below click point and opens in the direction with more room; upward opening uses `bottom` CSS positioning (anchored to click point) not `top`, so it never jumps to the top of the page
+- "Move to…" expands inline within the scrollable section showing all other categories
+- "Edit category…" opens `CategorySettingsModal` for the sound's current category; emits `edit-category` event that bubbles through AccordionSection → SoundGrid
 - Context menu is teleported to `<body>` to avoid scroll-container clipping
-- Menu flips upward if it would overflow the viewport bottom
+- Closes on outside click or any scroll event (capture phase)
 - Only one menu open at a time via `activeDropdownId` singleton
 - Menu items use a 2px accent `::before` scaleY bar (0→1, 0.12s) on hover — this is the **unified design language** shared by ModalTabs, category quick-nav, and AppSelect items
 

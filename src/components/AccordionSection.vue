@@ -13,6 +13,8 @@ const props = defineProps<{
   filter?: string
 }>()
 
+const emit = defineEmits<{ 'edit-category': [sectionId: string] }>()
+
 const {
   showHidden,
   moveSound,
@@ -306,6 +308,7 @@ function onAfterLeave(el: Element): void {
               :sound="sound" :density="density"
               :section-id="section.id"
               :animation-delay="index * 8"
+              @edit-category="emit('edit-category', $event)"
             />
           </div>
         </div>

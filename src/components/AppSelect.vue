@@ -6,6 +6,7 @@ import Icon from './Icon.vue'
 const props = defineProps<{
   modelValue: string
   options: Array<{ value: string; label: string }>
+  variant?: 'default' | 'ghost'
 }>()
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -95,19 +96,24 @@ onUnmounted(removeOutsideHandler)
 </script>
 
 <template>
-  <div class="relative w-full">
+  <div :class="variant === 'ghost' ? 'relative' : 'relative w-full'">
     <button
       ref="triggerRef"
-      class="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 font-sans text-sm bg-bg-surface text-text-primary border border-border-light outline-none cursor-pointer transition-colors hover:bg-bg-surface-hover"
-      :class="isOpen ? 'border-accent!' : 'focus:border-accent'"
+      class="outline-none cursor-pointer font-sans"
+      :class="variant === 'ghost'
+        ? 'flex items-center gap-1.5 text-xs text-accent'
+        : 'w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm bg-bg-surface text-text-primary border border-border-light transition-colors hover:bg-bg-surface-hover ' + (isOpen ? 'border-accent!' : 'focus:border-accent')"
       @click="toggle"
       @keydown="onTriggerKeydown"
     >
       <span class="truncate text-left">{{ selectedLabel }}</span>
       <Icon
         name="chevron-down-solid"
-        class="text-[9px] text-text-dim shrink-0 transition-transform duration-150"
-        :class="{ 'rotate-180': isOpen }"
+        class="shrink-0 transition-transform duration-150"
+        :class="[
+          variant === 'ghost' ? 'text-[8px] text-accent' : 'text-[9px] text-text-dim',
+          { 'rotate-180': isOpen }
+        ]"
       />
     </button>
 
@@ -117,7 +123,7 @@ onUnmounted(removeOutsideHandler)
           v-if="isOpen"
           ref="menuRef"
           class="fixed z-500 bg-bg-raised border border-border-light shadow-lg py-1 overflow-y-auto"
-          :style="{ left: pos.x + 'px', top: pos.y + 'px', width: pos.width + 'px', maxHeight: '240px' }"
+          :style="{ left: pos.x + 'px', top: pos.y + 'px', width: pos.width + 'px', minWidth: variant === 'ghost' ? '160px' : undefined, maxHeight: '240px' }"
           @click.stop
         >
           <button

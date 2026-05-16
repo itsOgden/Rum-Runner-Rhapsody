@@ -20,6 +20,7 @@ const settings = ref<GlobalSettings>({
   streamDeckButtonMode: true,
   streamDeckDefaultImages: {},
   showCategorySidebar: true,
+  viewMode: 'accordion',
   closeToTray: false,
   autoStart: false,
   launchMinimized: false,

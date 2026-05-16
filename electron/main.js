@@ -149,6 +149,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
   streamDeckButtonMode: true,
   streamDeckDefaultImages: {},
   showCategorySidebar: true,
+  viewMode: "accordion",
   closeToTray: false,
   autoStart: false,
   launchMinimized: false,
@@ -849,6 +850,10 @@ ipcMain.handle("remove-folder", async (_event, targetFolder) => {
 
 ipcMain.handle("check-file-exists", (_event, filePath) => {
   return fs.existsSync(filePath);
+});
+
+ipcMain.handle("trash-sound-file", async (_event, filePath) => {
+  await shell.trashItem(filePath);
 });
 
 ipcMain.handle("pick-image", async () => {

@@ -8,6 +8,7 @@ import { filterQuery } from '../filterState'
 import type { FolderRemoveResult } from '../types'
 import CircleButton from '@/components/CircleButton.vue'
 import Icon from '@/components/Icon.vue'
+import AppSelect from '@/components/AppSelect.vue'
 import SoundboardModal from '@/components/SoundboardModal.vue'
 
 const { settings, onFolderChanged, saveSettings, loadSounds } = useSettings()
@@ -109,10 +110,18 @@ async function handleRefresh() {
   await scanAll(settings.value)
 }
 
-function setDensity(val: 'loose' | 'compact') {
-  if (settings.value.density === val) return
-  settings.value.density = val
-  saveSettings({ density: val })
+function setDensity(val: string) {
+  const v = val as 'loose' | 'compact'
+  if (settings.value.density === v) return
+  settings.value.density = v
+  saveSettings({ density: v })
+}
+
+function setViewMode(val: string) {
+  const v = val as 'accordion' | 'flat'
+  if (settings.value.viewMode === v) return
+  settings.value.viewMode = v
+  saveSettings({ viewMode: v })
 }
 
 // ── Space → focus search ──────────────────────────────────────────────────────
@@ -204,20 +213,24 @@ onUnmounted(() => {
     <!-- Right: view controls -->
     <div class="flex items-center gap-3 ml-auto md:ml-0 md:justify-end text-xs select-none">
 
-      <!-- Density -->
-      <div class="flex items-center gap-1.5">
-        <button
-          class="transition-colors cursor-pointer outline-none"
-          :class="settings.density !== 'compact' ? 'text-accent-text font-medium' : 'text-text-dim hover:text-text-secondary'"
-          @click="setDensity('loose')"
-        >Loose</button>
-        <span class="text-text-dim">·</span>
-        <button
-          class="transition-colors cursor-pointer outline-none"
-          :class="settings.density === 'compact' ? 'text-accent-text font-medium' : 'text-text-dim hover:text-text-secondary'"
-          @click="setDensity('compact')"
-        >Compact</button>
-      </div>
+      <!-- Layout dropdown -->
+      <AppSelect
+        variant="ghost"
+        :modelValue="settings.viewMode"
+        :options="[{ value: 'accordion', label: 'Grouped' }, { value: 'flat', label: 'Grid' }]"
+        @update:modelValue="setViewMode"
+      />
+
+      <!-- Divider -->
+      <span class="w-px h-3.5 bg-border-light shrink-0" aria-hidden="true" />
+
+      <!-- Density dropdown -->
+      <AppSelect
+        variant="ghost"
+        :modelValue="settings.density"
+        :options="[{ value: 'loose', label: 'Loose' }, { value: 'compact', label: 'Compact' }]"
+        @update:modelValue="setDensity"
+      />
 
       <!-- Divider -->
       <span class="w-px h-3.5 bg-border-light shrink-0" aria-hidden="true" />

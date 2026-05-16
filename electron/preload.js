@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("api", {
   switchFolder: (path) => ipcRenderer.invoke("switch-folder", path),
   removeFolder: (path) => ipcRenderer.invoke("remove-folder", path),
   checkFileExists: (path) => ipcRenderer.invoke("check-file-exists", path),
+  trashSoundFile: (path) => ipcRenderer.invoke("trash-sound-file", path),
   pickImage: () => ipcRenderer.invoke("pick-image"),
   readSoundFile: (filePath) => ipcRenderer.invoke("read-sound-file", filePath),
   onWsPlaySound: (callback) => ipcRenderer.on("ws-play-sound", (_event, data) => callback(data)),

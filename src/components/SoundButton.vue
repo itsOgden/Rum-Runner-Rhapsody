@@ -17,11 +17,15 @@ const props = defineProps<{
   sectionId?: string
   density?: string
   animationDelay?: number
+  categoryColor?: string
+  categoryName?: string
 }>()
 
+const emit = defineEmits<{ 'edit-category': [sectionId: string] }>()
+
 const { playSound, playingPaths } = useAudioPlayer()
-const { hideSound, restoreSound, resetSound, getSoundCategory, renameSound } = useSoundManagement()
-const { settings, saveSettings } = useSettings()
+const { hideSound, restoreSound, resetSound, getSoundCategory, renameSound, moveSound, buildSections } = useSoundManagement()
+const { settings, saveSettings, loadSounds } = useSettings()
 
 const compact = computed(() => props.density === 'compact')
 const playCount = computed(() => settings.value.playCounts?.[props.sound.key] ?? 0)
@@ -56,7 +60,7 @@ function onDragEnd(): void {
 const btnClasses = computed(() => [
   props.sound.isHidden ? 'opacity-40' : '',
   isDragging.value ? 'opacity-50' : '',
-  compact.value ? 'py-2.5 px-2 min-h-12' : 'px-3.5 py-4.5',
+  compact.value ? 'pb-2.5 pt-3.5 px-2 min-h-12' : 'px-3.5 py-4.5',
   'text-text-primary',
   'btn-spin',
   isPlaying.value ? 'btn-spin-playing' : '',
@@ -66,17 +70,18 @@ const btnClasses = computed(() => [
 
 const dropdownId = `sound-${Math.random().toString(36).slice(2)}`
 const menuOpen = ref(false)
-const menuPos = ref({ x: 0, y: 0 })
+const menuPos = ref({ x: 0, y: 0, maxHeight: 480, openUpward: false })
 const confirmingReset = ref(false)
+const confirmingDelete = ref(false)
 
 watch(activeDropdownId, (id) => {
   if (id !== dropdownId) {
     menuOpen.value = false
     confirmingReset.value = false
+    confirmingDelete.value = false
   }
 })
 
-const MENU_HEIGHT_ESTIMATE = 220
 const menuRef = ref<HTMLElement | null>(null)
 
 function getMenuItems(): HTMLButtonElement[] {
@@ -109,22 +114,29 @@ function openMenu(event: MouseEvent): void {
   event.stopPropagation()
   confirmingReset.value = false
   let x = event.clientX
-  let y = event.clientY + 4
   if (x + MENU_WIDTH > window.innerWidth) x = window.innerWidth - MENU_WIDTH - 4
   if (x < 4) x = 4
-  if (y + MENU_HEIGHT_ESTIMATE > window.innerHeight) {
-    y = event.clientY - MENU_HEIGHT_ESTIMATE - 4
-    if (y < 4) y = 4
+
+  const spaceBelow = window.innerHeight - event.clientY - 12
+  const spaceAbove = event.clientY - 12
+  const openUpward = spaceAbove > spaceBelow && spaceBelow < 240
+
+  menuPos.value = {
+    x,
+    y: openUpward ? window.innerHeight - event.clientY + 4 : event.clientY + 4,
+    maxHeight: Math.max(openUpward ? spaceAbove : spaceBelow, 120),
+    openUpward,
   }
-  menuPos.value = { x, y }
   activeDropdownId.value = dropdownId
   menuOpen.value = true
   const close = () => {
     menuOpen.value = false
     confirmingReset.value = false
     document.removeEventListener('click', close)
+    document.removeEventListener('scroll', close, true)
   }
   document.addEventListener('click', close)
+  document.addEventListener('scroll', close, true)
 }
 
 function handleHide(): void {
@@ -150,6 +162,35 @@ function handleResetPlayCount(): void {
 }
 
 const isMoved = computed(() => !!getSoundCategory(props.sound.key))
+const isRenamed = computed(() => !!settings.value.soundNames?.[props.sound.key])
+
+function handleResetName(): void {
+  menuOpen.value = false
+  renameSound(props.sound.key, '')
+}
+
+// ── Move to… ─────────────────────────────────────────────────────────────────
+
+const showMoveTo = ref(false)
+const currentSectionId = computed(() => getSoundCategory(props.sound.key) ?? props.sound.originalFolder)
+const moveTargets = computed(() => buildSections().filter(s => s.id !== currentSectionId.value))
+
+function handleMoveTo(sectionId: string): void {
+  menuOpen.value = false
+  showMoveTo.value = false
+  moveSound(props.sound.key, sectionId)
+}
+
+function handleEditCategory(): void {
+  menuOpen.value = false
+  emit('edit-category', currentSectionId.value)
+}
+
+async function handleDeleteFile(): Promise<void> {
+  menuOpen.value = false
+  await window.api.trashSoundFile(props.sound.path)
+  await loadSounds()
+}
 
 // ── Inline rename ────────────────────────────────────────────────────────────
 
@@ -185,6 +226,8 @@ watch(menuOpen, (open) => {
     nextTick(() => (menuRef.value as HTMLElement)?.focus())
   } else {
     confirmingReset.value = false
+    confirmingDelete.value = false
+    showMoveTo.value = false
   }
 })
 
@@ -254,12 +297,24 @@ function resetVolumeOffset(): void {
     </template>
 
     <!-- ⋯ trigger — floats in top-right corner, visible on group hover -->
-    <div v-if="!isRenaming" class="absolute top-1 right-1 z-10" @click.stop>
+    <div v-if="!isRenaming" class="absolute top-0 right-1 z-10" @click.stop>
       <ToggleCircleButton
         icon="ellipsis-solid"
         title="Sound options"
         @click="openMenu"
       />
+    </div>
+
+    <!-- Category dot (flat mode) — dot always visible; name fades in on hover -->
+    <div
+      v-if="categoryColor && !isRenaming"
+      class="absolute top-1.5 left-1.5 z-10 flex items-center gap-1 pointer-events-none"
+    >
+      <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: categoryColor }" />
+      <span
+        class="opacity-0 group-hover/btn:opacity-100 transition-opacity duration-150 text-[10px] leading-none max-w-22 truncate"
+        :style="{ color: categoryColor }"
+      >{{ categoryName }}</span>
     </div>
 
     <!-- Sound ⋯ menu (teleported to avoid scroll-container clipping) -->
@@ -269,13 +324,15 @@ function resetVolumeOffset(): void {
         v-if="menuOpen"
         ref="menuRef"
         tabindex="-1"
-        class="sound-menu fixed z-500 w-56 bg-bg-raised border border-border-light outline-none"
-        :style="{ left: menuPos.x + 'px', top: menuPos.y + 'px' }"
+        class="sound-menu fixed z-500 w-56 bg-bg-raised border border-border-light outline-none flex flex-col"
+        :style="menuPos.openUpward
+          ? { left: menuPos.x + 'px', bottom: menuPos.y + 'px', maxHeight: menuPos.maxHeight + 'px' }
+          : { left: menuPos.x + 'px', top: menuPos.y + 'px', maxHeight: menuPos.maxHeight + 'px' }"
         @click.stop
         @keydown="onMenuKeydown"
       >
         <!-- Header: sound name + play count -->
-        <div class="bg-bg-deepest px-3 pt-2.5 pb-2 border-b border-border-light">
+        <div class="bg-bg-deepest px-3 pt-2.5 pb-2 border-b border-border-light shrink-0">
           <div class="text-sm font-medium text-text-primary truncate mb-1.5" :title="sound.name">{{ sound.name }}</div>
           <template v-if="!confirmingReset">
             <div class="flex items-center justify-between">
@@ -305,16 +362,41 @@ function resetVolumeOffset(): void {
           </template>
         </div>
 
-        <!-- Actions -->
-        <div class="py-1">
+        <!-- Actions (scrollable) -->
+        <div class="py-1 overflow-y-auto flex-1 min-h-0">
           <button v-if="!sound.isHidden" class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleHide">Hide</button>
           <button v-else class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleRestore">Unhide</button>
           <button class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="startRename">Rename</button>
+          <button v-if="isRenamed" class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleResetName">Reset name</button>
+          <button
+            v-if="moveTargets.length > 0"
+            class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer flex items-center justify-between"
+            @click="showMoveTo = !showMoveTo"
+          >
+            <span>Move to…</span>
+            <Icon name="chevron-down-solid" class="text-[8px] transition-transform duration-150" :class="{ 'rotate-180': showMoveTo }" />
+          </button>
+          <div v-if="showMoveTo">
+            <button
+              v-for="section in moveTargets"
+              :key="section.id"
+              class="sound-menu-item w-full text-left pl-6 pr-4 py-1.5 text-xs text-text-secondary cursor-pointer flex items-center gap-2"
+              @click="handleMoveTo(section.id)"
+            >
+              <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: section.color || 'transparent' }" />
+              <span class="truncate">{{ section.displayName }}</span>
+            </button>
+          </div>
           <button v-if="isMoved" class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleReset">Reset to original</button>
         </div>
 
+        <!-- Edit category -->
+        <div class="border-t border-border-light shrink-0">
+          <button class="sound-menu-item w-full text-left px-4 py-2 text-sm text-text-secondary cursor-pointer" @click="handleEditCategory">Edit category…</button>
+        </div>
+
         <!-- Volume Offset -->
-        <div class="border-t border-border-light px-3 pt-2 pb-3">
+        <div class="border-t border-border-light px-3 pt-2 pb-3 shrink-0">
           <div class="text-[10px] uppercase tracking-widest text-text-secondary mb-2">Volume Offset</div>
           <VolumeSlider
             :modelValue="localVolumeOffset"
@@ -331,6 +413,28 @@ function resetVolumeOffset(): void {
               @click="resetVolumeOffset"
             >reset</button>
           </div>
+        </div>
+
+        <!-- Delete (danger footer) -->
+        <div class="border-t border-border-light shrink-0">
+          <template v-if="!confirmingDelete">
+            <button class="sound-menu-item w-full text-left px-4 py-2 text-sm text-danger cursor-pointer" @click="confirmingDelete = true">Delete…</button>
+          </template>
+          <template v-else>
+            <div class="px-3 py-2">
+              <div class="text-[11px] text-text-secondary mb-2 leading-relaxed">Delete "{{ sound.filename }}"? The file will be sent to your Recycle Bin.</div>
+              <div class="flex gap-1.5 justify-end">
+                <button
+                  class="text-[10px] px-1.5 py-0.5 text-text-dim border border-border-light hover:bg-bg-surface cursor-pointer transition-colors"
+                  @click="confirmingDelete = false"
+                >Cancel</button>
+                <button
+                  class="text-[10px] px-1.5 py-0.5 text-danger border border-danger/40 hover:bg-danger/10 cursor-pointer transition-colors"
+                  @click="handleDeleteFile"
+                >Delete</button>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
       </Transition>

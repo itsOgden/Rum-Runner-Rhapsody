@@ -45,9 +45,12 @@ const nameInputEl = ref<HTMLInputElement | null>(null)
 watch(() => props.open, (open) => {
   if (open) {
     editingName.value = props.section.displayName
-    nextTick(() => nameInputEl.value?.select())
+    nextTick(() => {
+      const el = nameInputEl.value
+      if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length) }
+    })
   }
-})
+}, { immediate: true })
 
 function commitRename(): void {
   const trimmed = editingName.value.trim()
@@ -165,14 +168,7 @@ function onPlayingImageChange(path: string | null): void {
           </div>
 
           <div class="space-y-2.5">
-            <div class="flex items-center justify-between">
-              <div class="text-sm text-text-primary">Color</div>
-              <button
-                v-if="currentColor"
-                class="text-xs text-text-secondary hover:text-text-primary cursor-pointer transition-colors"
-                @click="clearColor"
-              >Remove</button>
-            </div>
+            <div class="text-sm text-text-primary">Color</div>
             <ColorPalette :modelValue="currentColor" @update:modelValue="handleColorChange" />
           </div>
 

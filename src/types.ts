@@ -81,6 +81,7 @@ export interface GlobalSettings extends FolderSettings {
   streamDeckButtonMode: boolean
   streamDeckDefaultImages: { idle?: string; playing?: string; stop?: string }
   showCategorySidebar: boolean
+  viewMode: 'accordion' | 'flat'
   closeToTray: boolean
   autoStart: boolean
   launchMinimized: boolean
@@ -108,6 +109,7 @@ export interface WindowApi {
   saveSettings(partial: Partial<GlobalSettings>): Promise<void>
   getSounds(): Promise<SoundGroup[]>
   checkFileExists(path: string): Promise<boolean>
+  trashSoundFile(path: string): Promise<void>
   pickFolder(): Promise<FolderChangeResult | null>
   switchFolder(path: string): Promise<FolderChangeResult | null>
   removeFolder(path: string): Promise<FolderRemoveResult>
