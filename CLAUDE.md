@@ -191,6 +191,7 @@ interface GlobalSettings {
   closeToTray: boolean
   autoStart: boolean
   launchMinimized: boolean
+  blockTypingConflicts: boolean    // when true, bare letters/digits/Shift+key combos are rejected as hotkeys
   showCategorySidebar: boolean
   viewMode: 'accordion' | 'flat'   // controls SoundGrid layout; persisted globally
   streamDeckDefaultImages: { idle?: string, playing?: string, stop?: string }

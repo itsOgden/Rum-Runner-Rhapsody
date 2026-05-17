@@ -24,6 +24,7 @@ const settings = ref<GlobalSettings>({
   closeToTray: false,
   autoStart: false,
   launchMinimized: false,
+  blockTypingConflicts: true,
   accentColor: '',
   hiddenSounds: [],
   hiddenCategories: [],

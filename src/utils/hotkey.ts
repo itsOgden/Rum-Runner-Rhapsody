@@ -1,3 +1,24 @@
+// Keys that are safe to bind without modifiers — non-printable, won't disrupt typing.
+const SAFE_SOLO_KEYS = new Set([
+  'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12',
+  'F13','F14','F15','F16','F17','F18','F19','F20','F21','F22','F23','F24',
+  'Up','Down','Left','Right',
+  'Home','End','PageUp','PageDown','Insert','Escape',
+  'PrintScreen','ScrollLock','Pause',
+  'MediaPlayPause','MediaStop','MediaNextTrack','MediaPreviousTrack',
+  'VolumeUp','VolumeDown','VolumeMute',
+])
+
+// Returns true if combo could block normal typing in other apps.
+// Safe = has Ctrl/Alt/Meta, OR is an unambiguous non-printable key.
+export function isTypingConflict(combo: string): boolean {
+  const parts = combo.split('+')
+  const key = parts[parts.length - 1]
+  const mods = parts.slice(0, -1)
+  if (mods.includes('Ctrl') || mods.includes('Alt') || mods.includes('Meta')) return false
+  return !SAFE_SOLO_KEYS.has(key)
+}
+
 // Maps KeyboardEvent.code → unshifted base key, so Shift+4 → "4" not "$"
 function codeToBaseKey(code: string): string | null {
   if (code.startsWith('Digit')) return code[5]

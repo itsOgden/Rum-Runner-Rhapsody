@@ -13,6 +13,7 @@ import VolumeSlider from '@/components/VolumeSlider.vue'
 import KeybindCapture from '@/components/KeybindCapture.vue'
 import { CLIP_VOLUME_MAX_DB, setClipVolumeOffset } from '../composables/useAudioPlayer'
 import { showToast } from '../toastState'
+import { isTypingConflict } from '@/utils/hotkey'
 
 const props = defineProps<{
   sound: Sound
@@ -39,6 +40,10 @@ const playCountLabel = computed(() => {
 
 const isPlaying = computed(() => playingPaths.value.has(props.sound.path))
 
+const isMoved = computed(() => !!getSoundCategory(props.sound.key))
+const soundHotkey = computed(() => settings.value.soundHotkeys?.[props.sound.key] || '')
+
+
 function handleClick(): void {
   if (!isDragging.value) playSound(props.sound)
 }
@@ -62,7 +67,7 @@ function onDragEnd(): void {
 const btnClasses = computed(() => [
   props.sound.isHidden ? 'opacity-40' : '',
   isDragging.value ? 'opacity-50' : '',
-  compact.value ? 'pb-2.5 pt-3.5 px-2 min-h-12' : 'px-3.5 py-4.5',
+  compact.value ? `${soundHotkey.value ? 'pb-4.5' : 'pb-2.5'} pt-3.5 px-2 min-h-12` : 'px-3.5 py-4.5',
   'text-text-primary',
   'btn-spin',
   isPlaying.value ? 'btn-spin-playing' : '',
@@ -180,13 +185,14 @@ function handleResetPlayCount(): void {
   confirmingReset.value = false
 }
 
-const isMoved = computed(() => !!getSoundCategory(props.sound.key))
-const soundHotkey = computed(() => settings.value.soundHotkeys?.[props.sound.key] || '')
-
 // ── Keybind capture ───────────────────────────────────────────────────────────
 
 function handleSoundHotkeyChange(combo: string): void {
   if (!combo) { clearSoundHotkey(); return }
+  if (settings.value.blockTypingConflicts && isTypingConflict(combo)) {
+    showToast(`"${combo}" conflicts with typing — use Ctrl/Alt or allow in Settings → Keybinds`, 'info')
+    return
+  }
   if (combo.toLowerCase() === (settings.value.hotkeys?.stop || 'Escape').toLowerCase()) {
     showToast(`"${combo}" is already used by Stop All`, 'info')
   } else {
@@ -372,10 +378,10 @@ function resetVolumeOffset(): void {
 
     <!-- Category dot (flat mode) — dot always visible; name fades in on hover -->
     <div
-      v-if="categoryColor && !isRenaming"
+      v-if="!isRenaming"
       class="absolute top-1.5 left-1.5 z-10 flex items-center gap-1 pointer-events-none"
     >
-      <span class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: categoryColor }" />
+      <span v-show="!!categoryColor" class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: categoryColor }" />
       <span
         class="opacity-0 group-hover/btn:opacity-100 transition-opacity duration-150 text-[10px] leading-none max-w-22 truncate"
         :style="{ color: categoryColor }"
@@ -610,14 +616,6 @@ function resetVolumeOffset(): void {
 /* Outer wrapper handles lift so ring + button move together */
 .sbtn {
   transition: transform 0.09s ease;
-}
-/* Extends the hover hit-area 2px below the element so the lift doesn't
-   move the cursor outside the hover zone and cause oscillation. */
-.sbtn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  bottom: -2px;
 }
 .sbtn:hover {
   transform: translateY(-2px) !important;

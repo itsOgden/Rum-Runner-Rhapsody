@@ -86,6 +86,7 @@ export interface GlobalSettings extends FolderSettings {
   closeToTray: boolean
   autoStart: boolean
   launchMinimized: boolean
+  blockTypingConflicts: boolean
   accentColor: string
 }
 

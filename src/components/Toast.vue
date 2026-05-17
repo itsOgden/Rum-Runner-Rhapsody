@@ -12,8 +12,8 @@ import { toast } from '../toastState'
         <div
           class="pointer-events-auto flex items-center gap-2 px-4 py-3 border text-sm font-medium shadow-lg"
           :class="toast.type === 'error'
-            ? 'bg-danger/10 border-danger/30 text-danger'
-            : 'bg-accent/10 border-accent/30 text-accent'"
+            ? 'bg-bg-surface border-danger/60 text-danger'
+            : 'bg-bg-surface border-accent/60 text-accent'"
         >
           <span>{{ toast.message }}</span>
         </div>

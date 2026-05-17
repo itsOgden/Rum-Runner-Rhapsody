@@ -153,6 +153,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
   closeToTray: false,
   autoStart: false,
   launchMinimized: false,
+  blockTypingConflicts: true,
   accentColor: "",
 };
 
@@ -188,13 +189,14 @@ const STATS_KEYS  = new Set(Object.keys(DEFAULT_STATS));
 // ── Per-sound global hotkeys ──────────────────────────────────────────────────
 const registeredSoundShortcuts = new Set();
 
-function registerSoundHotkeys(soundHotkeys) {
+function registerSoundHotkeys(soundHotkeys, hiddenSounds) {
+  const hiddenSet = new Set(hiddenSounds || []);
   for (const combo of registeredSoundShortcuts) {
     try { globalShortcut.unregister(combo); } catch {}
   }
   registeredSoundShortcuts.clear();
   for (const [soundKey, combo] of Object.entries(soundHotkeys || {})) {
-    if (!combo) continue;
+    if (!combo || hiddenSet.has(soundKey)) continue;
     try {
       const ok = globalShortcut.register(combo, () => {
         mainWindow?.webContents.send("global-play-sound", { key: soundKey });
@@ -587,7 +589,10 @@ function startWebSocketServer() {
           ws.send(JSON.stringify({ type: "folder-status", folderSelected: false, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" }));
         }
       } else if (msg.type === "play-sound" && msg.key) {
-        mainWindow?.webContents.send("ws-play-sound", { key: msg.key });
+        const hiddenSet = new Set(folderSettings.hiddenSounds || []);
+        if (!hiddenSet.has(msg.key)) {
+          mainWindow?.webContents.send("ws-play-sound", { key: msg.key });
+        }
       } else if (msg.type === "stop-all") {
         mainWindow?.webContents.send("ws-stop-all");
       }
@@ -679,7 +684,7 @@ app.whenReady().then(() => {
     applyAutoStart(globalSettings.autoStart);
 
     createWindow();
-    registerSoundHotkeys(folderSettings.soundHotkeys || {});
+    registerSoundHotkeys(folderSettings.soundHotkeys || {}, folderSettings.hiddenSounds || []);
 
     // Kill any lingering process occupying port 57432, then start the WS server.
     // At login time netstat/taskkill can hang or fail, so a 2-second timeout
@@ -787,8 +792,8 @@ ipcMain.handle("save-settings", (_event, newSettings) => {
   if ("autoStart" in newSettings) {
     applyAutoStart(newSettings.autoStart);
   }
-  if ("soundHotkeys" in newSettings) {
-    registerSoundHotkeys(folderSettings.soundHotkeys || {});
+  if ("soundHotkeys" in newSettings || "hiddenSounds" in newSettings) {
+    registerSoundHotkeys(folderSettings.soundHotkeys || {}, folderSettings.hiddenSounds || []);
   }
   if (folderDirty || "streamDeckButtonMode" in newSettings || "streamDeckDefaultImages" in newSettings || "accentColor" in newSettings) {
     broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
@@ -828,7 +833,7 @@ ipcMain.handle("pick-folder", async () => {
   // Device, hotkey, and playback settings are global and unaffected by folder changes.
   folderSettings = loadFolderSettings(newFolder);
   stats = loadStats(newFolder);
-  registerSoundHotkeys(folderSettings.soundHotkeys || {});
+  registerSoundHotkeys(folderSettings.soundHotkeys || {}, folderSettings.hiddenSounds || []);
 
   // Notify connected Stream Deck clients that the folder and sounds have changed.
   broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
@@ -844,7 +849,7 @@ ipcMain.handle("switch-folder", async (_event, newFolder) => {
   saveGlobalSettings(globalSettings);
   folderSettings = loadFolderSettings(newFolder);
   stats = loadStats(newFolder);
-  registerSoundHotkeys(folderSettings.soundHotkeys || {});
+  registerSoundHotkeys(folderSettings.soundHotkeys || {}, folderSettings.hiddenSounds || []);
   broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
   return { folder: newFolder, folderSettings: { ...folderSettings, ...stats }, savedFolders: globalSettings.savedFolders };
 });
@@ -861,7 +866,7 @@ ipcMain.handle("remove-folder", async (_event, targetFolder) => {
       globalSettings.soundFolder = nextFolder;
       folderSettings = loadFolderSettings(nextFolder);
       stats = loadStats(nextFolder);
-      registerSoundHotkeys(folderSettings.soundHotkeys || {});
+      registerSoundHotkeys(folderSettings.soundHotkeys || {}, folderSettings.hiddenSounds || []);
       switched = { folder: nextFolder, folderSettings: { ...folderSettings, ...stats }, savedFolders: globalSettings.savedFolders };
     } else {
       globalSettings.soundFolder = "";

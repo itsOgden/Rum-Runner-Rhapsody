@@ -15,6 +15,7 @@ import AppSelect from './AppSelect.vue'
 import ColorPalette from './ColorPalette.vue'
 import KeybindCapture from './KeybindCapture.vue'
 import { DEFAULT_ACCENT } from '../colorPalette'
+import { isTypingConflict } from '../utils/hotkey'
 import { useSoundManagement } from '../composables/useSoundManagement'
 
 const { settings, saveSettings } = useSettings()
@@ -197,12 +198,25 @@ const soundNameMap = computed((): Record<string, string> => {
   return map
 })
 
-const soundShortcuts = computed(() =>
-  Object.entries(settings.value.soundHotkeys ?? {}).filter(([, v]) => !!v)
-)
+const soundCategoryMap = computed((): Record<string, { name: string; color: string }> => {
+  const map: Record<string, { name: string; color: string }> = {}
+  for (const section of buildSections()) {
+    for (const sound of section.sounds) map[sound.key] = { name: section.displayName, color: section.color || '' }
+  }
+  return map
+})
+
+const soundShortcuts = computed(() => {
+  const hidden = new Set(settings.value.hiddenSounds ?? [])
+  return Object.entries(settings.value.soundHotkeys ?? {}).filter(([k, v]) => !!v && !hidden.has(k))
+})
 
 function onSoundHotkeyChange(soundKey: string, combo: string): void {
   if (!combo) { clearSoundHotkey(soundKey); return }
+  if (settings.value.blockTypingConflicts && isTypingConflict(combo)) {
+    showToast(`"${combo}" conflicts with typing — use Ctrl/Alt or disable the block below`, 'info')
+    return
+  }
   if (combo.toLowerCase() === (settings.value.hotkeys.stop || 'Escape').toLowerCase() ||
       combo.toLowerCase() === (settings.value.hotkeys.search || 'Space').toLowerCase()) {
     showToast(`"${combo}" conflicts with a global keybind`, 'info')
@@ -352,6 +366,16 @@ async function handleInstallPlugin(): Promise<void> {
 
         <!-- ── KEYBINDS tab ── -->
         <div v-else-if="activeTab === 'keybinds'" class="space-y-5">
+          <SettingRow
+            label="Block typing keys"
+            description="Prevents bare letters, digits, and Shift+key combinations from being assigned as hotkeys. These are captured system-wide and will interfere with typing in other apps. We strongly recommend keeping this on."
+          >
+            <ToggleSwitch
+              :modelValue="settings.blockTypingConflicts"
+              @update:modelValue="v => { settings.blockTypingConflicts = v; saveSettings({ blockTypingConflicts: v }) }"
+            />
+          </SettingRow>
+
           <div class="space-y-3">
             <div class="flex items-center gap-3 mb-4">
               <div class="w-0.5 h-3.5 bg-accent shrink-0" />
@@ -384,16 +408,28 @@ async function handleInstallPlugin(): Promise<void> {
             </div>
             <p class="text-xs text-text-secondary -mt-1">Set keybinds via right-clicking any sound button. Keybinds are saved per soundboard folder.</p>
             <template v-if="soundShortcuts.length > 0">
-              <SettingRow
+              <div
                 v-for="[soundKey, combo] in soundShortcuts"
                 :key="soundKey"
-                :label="soundNameMap[soundKey] || soundKey"
+                class="flex items-center justify-between gap-4"
               >
-                <KeybindCapture allow-delete
-                  :modelValue="combo"
-                  @update:modelValue="onSoundHotkeyChange(soundKey, $event)"
-                />
-              </SettingRow>
+                <div class="flex flex-col min-w-0 flex-1">
+                  <div class="flex items-center gap-1.5 mb-0.5">
+                    <span v-if="soundCategoryMap[soundKey]?.color"
+                      class="w-1.5 h-1.5 rounded-full shrink-0"
+                      :style="{ backgroundColor: soundCategoryMap[soundKey]?.color || 'transparent' }"
+                    />
+                    <span class="text-[10px] text-text-secondary truncate">{{ soundCategoryMap[soundKey]?.name }}</span>
+                  </div>
+                  <span class="text-sm text-text-primary truncate">{{ soundNameMap[soundKey] || soundKey }}</span>
+                </div>
+                <div class="shrink-0">
+                  <KeybindCapture allow-delete
+                    :modelValue="combo"
+                    @update:modelValue="onSoundHotkeyChange(soundKey, $event)"
+                  />
+                </div>
+              </div>
             </template>
             <p v-else class="text-xs text-text-dim">No per-sound keybinds assigned yet.</p>
           </div>
