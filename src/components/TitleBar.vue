@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAudioPlayer } from '@/composables/useAudioPlayer'
 import { useSettings } from '@/composables/useSettings'
+import { useShadowRecord } from '@/composables/useShadowRecord'
 import { settingsModalOpen, helpModalOpen } from '@/modalState'
 import WordmarkSvg from '@/assets/images/wordmark.svg'
 import LogoSvg from '@/assets/images/logo.svg'
@@ -10,6 +11,7 @@ import Icon from '@/components/Icon.vue'
 
 const { stopAll, playingPaths } = useAudioPlayer()
 const { settings, saveSettings } = useSettings()
+const { isRecording, isSaving, hasBuffer, saveClip } = useShadowRecord()
 
 const isMaximized = ref(false)
 
@@ -57,6 +59,20 @@ onMounted(async () => {
 
     <!-- Right: app controls + divider + window controls -->
     <div class="flex items-center justify-end">
+
+      <!-- Shadow record indicator + save -->
+      <div v-if="isRecording" class="flex items-center gap-1.5 mr-1 app-region-no-drag">
+        <div class="w-2 h-2 rounded-full bg-danger animate-pulse shrink-0" title="Shadow recording active" />
+        <button
+          class="wc-btn"
+          :class="{ 'opacity-40 pointer-events-none': !hasBuffer || isSaving }"
+          title="Save clip"
+          @click="saveClip"
+        >
+          <Icon name="scissors-solid" />
+        </button>
+      </div>
+
       <button
         class="wc-btn text-danger! hover:bg-danger/20! app-region-no-drag"
         title="Stop all sounds"

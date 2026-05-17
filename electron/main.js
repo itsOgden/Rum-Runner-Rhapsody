@@ -155,6 +155,11 @@ const DEFAULT_GLOBAL_SETTINGS = {
   launchMinimized: false,
   blockTypingConflicts: true,
   accentColor: "",
+  shadowInputDeviceLabel: "",
+  shadowBufferDuration: 30,
+  shadowClipsFolder: "",
+  shadowAutoOpenTrim: false,
+  shadowHotkey: "",
 };
 
 // Per-folder settings file — stored inside each sound folder
@@ -204,6 +209,23 @@ function registerSoundHotkeys(soundHotkeys, hiddenSounds) {
       if (ok) registeredSoundShortcuts.add(combo);
     } catch {}
   }
+}
+
+// ── Shadow record save hotkey ─────────────────────────────────────────────────
+let registeredShadowHotkey = '';
+
+function registerShadowHotkey(combo) {
+  if (registeredShadowHotkey) {
+    try { globalShortcut.unregister(registeredShadowHotkey); } catch {}
+    registeredShadowHotkey = '';
+  }
+  if (!combo) return;
+  try {
+    const ok = globalShortcut.register(combo, () => {
+      mainWindow?.webContents.send('global-save-shadow-clip');
+    });
+    if (ok) registeredShadowHotkey = combo;
+  } catch {}
 }
 
 function applyAutoStart(enabled) {
@@ -685,6 +707,7 @@ app.whenReady().then(() => {
 
     createWindow();
     registerSoundHotkeys(folderSettings.soundHotkeys || {}, folderSettings.hiddenSounds || []);
+    registerShadowHotkey(globalSettings.shadowHotkey || '');
 
     // Kill any lingering process occupying port 57432, then start the WS server.
     // At login time netstat/taskkill can hang or fail, so a 2-second timeout
@@ -795,6 +818,9 @@ ipcMain.handle("save-settings", (_event, newSettings) => {
   if ("soundHotkeys" in newSettings || "hiddenSounds" in newSettings) {
     registerSoundHotkeys(folderSettings.soundHotkeys || {}, folderSettings.hiddenSounds || []);
   }
+  if ("shadowHotkey" in newSettings) {
+    registerShadowHotkey(newSettings.shadowHotkey || '');
+  }
   if (folderDirty || "streamDeckButtonMode" in newSettings || "streamDeckDefaultImages" in newSettings || "accentColor" in newSettings) {
     broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
   }
@@ -887,6 +913,28 @@ ipcMain.handle("check-file-exists", (_event, filePath) => {
 
 ipcMain.handle("trash-sound-file", async (_event, filePath) => {
   await shell.trashItem(filePath);
+});
+
+ipcMain.handle("pick-clips-folder", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openDirectory"],
+    title: "Select Clips Folder",
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle("save-shadow-clip", (_event, data, folder) => {
+  try {
+    fs.mkdirSync(folder, { recursive: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `clip-${timestamp}.wav`;
+    const filePath = path.join(folder, filename);
+    fs.writeFileSync(filePath, Buffer.from(data));
+    return { success: true, filename, filePath };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 });
 
 ipcMain.handle("pick-image", async () => {

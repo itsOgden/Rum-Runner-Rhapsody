@@ -88,6 +88,11 @@ export interface GlobalSettings extends FolderSettings {
   launchMinimized: boolean
   blockTypingConflicts: boolean
   accentColor: string
+  shadowInputDeviceLabel: string
+  shadowBufferDuration: number
+  shadowClipsFolder: string
+  shadowAutoOpenTrim: boolean
+  shadowHotkey: string
 }
 
 // ── Folder-change IPC results ──────────────────────────────────────────────
@@ -120,6 +125,9 @@ export interface WindowApi {
   onWsPlaySound(callback: (data: { key: string }) => void): void
   onWsStopAll(callback: () => void): void
   onGlobalPlaySound(callback: (data: { key: string }) => void): void
+  onGlobalSaveClip(callback: () => void): void
+  pickClipsFolder(): Promise<string | null>
+  saveShadowClip(data: ArrayBuffer, folder: string): Promise<{ success: boolean; filename?: string; filePath?: string; error?: string }>
   updatePlayingStatus(keys: string[]): void
   installStreamDeckPlugin(): Promise<{ success: boolean; message: string; restartingStreamDeck: boolean }>
   getStreamDeckPluginStatus(): Promise<{ bundledVersion: string; installedVersion: string | null; needsUpdate: boolean; isInstalled: boolean }>

@@ -99,10 +99,11 @@ Rum-Runner Rhapsody/
 │   │   ├── ImagePickerSlot.vue  — Single image picker card (label, preview, error, clear); used in StreamDeckImagePicker
 │   │   └── InstructionStep.vue  — Numbered step with accent badge, title, slot body; used in HelpModal VB-Cable guide
 │   ├── composables/
-│   │   ├── useAudioDevices.ts   — Device enumeration, label cleaning, cross-session matching, hotplug
+│   │   ├── useAudioDevices.ts   — Device enumeration, label cleaning, cross-session matching, hotplug; also exposes `audioInputDevices` ref + `findInputDeviceId()` for shadow record
 │   │   ├── useAudioPlayer.ts    — Audio playback, gain, playing state tracking, preview playback
 │   │   ├── useSettings.ts       — Reactive settings, IPC sync, sound groups
 │   │   ├── useSoundManagement.ts — Sound list building, categories, ordering, drag helpers
+│   │   ├── useShadowRecord.ts   — Shadow record: AudioWorklet rolling ring buffer, WAV encode, save via IPC; module-level singleton; lifecycle (start/stop) managed by App.vue watch
 │   │   └── useStreamDeckImageErrors.ts — Singleton; scans image paths, tracks broken ones
 │   ├── assets/
 │   │   ├── fonts/               — Outfit (body), TavernloreBB (headers)
@@ -196,6 +197,11 @@ interface GlobalSettings {
   viewMode: 'accordion' | 'flat'   // controls SoundGrid layout; persisted globally
   streamDeckDefaultImages: { idle?: string, playing?: string, stop?: string }
   accentColor: string              // hex color override for --color-accent (empty string = use theme default gold)
+  shadowInputDeviceLabel: string   // audioinput device label to buffer (empty = not configured)
+  shadowBufferDuration: number     // rolling buffer length in seconds (5/10/15/30/60)
+  shadowClipsFolder: string        // output directory for saved WAV clips (empty = not configured)
+  shadowAutoOpenTrim: boolean      // open clip editor after save (wired up in Phase 4.2)
+  shadowHotkey: string             // Electron accelerator for save-clip global hotkey (empty = none)
   // Also contains all FolderSettings keys (GlobalSettings extends FolderSettings)
 }
 ```
@@ -318,6 +324,40 @@ export const CLIP_VOLUME_MAX_DB = 20  // in useAudioPlayer.ts
 
 ### Local file loading:
 Audio and image files are loaded via `window.api.readSoundFile(path)` (IPC → `fs.readFile`), wrapped in a Blob, and served as `URL.createObjectURL(...)`. This is the correct pattern for local files — do not use `file://` URLs or custom protocols.
+
+---
+
+## Shadow Record
+
+`useShadowRecord.ts` — module-level singleton (no lifecycle inside the composable; App.vue owns start/stop).
+
+### How it works:
+1. On startup (or when `shadowInputDeviceLabel` / `shadowClipsFolder` changes), App.vue calls `startRecording()`.
+2. `startRecording()` opens the input device via `getUserMedia`, creates a new `AudioContext`, registers an AudioWorklet processor (inlined as a blob URL — works in both dev and packaged builds), and connects the media stream source → worklet node.
+3. The worklet accumulates 4096 samples (≈85 ms at 48 kHz), then posts an interleaved stereo `Float32Array` to the main thread.
+4. The main thread appends chunks to a ring buffer; oldest chunks are dropped when the buffer exceeds `shadowBufferDuration × sampleRate / 4096` chunks.
+5. `saveClip()` snapshots the current ring buffer, encodes it as a 16-bit PCM WAV (`encodeWav()`), and writes it to `shadowClipsFolder` via the `save-shadow-clip` IPC handler.
+
+### State exposed by the composable:
+- `isRecording: Ref<boolean>` — true while the worklet is running
+- `isSaving: Ref<boolean>` — true during the encode + write
+- `hasBuffer: Ref<boolean>` — true after the first chunk arrives (safe to save)
+
+### IPC handlers (main.js):
+- `pick-clips-folder` — dialog to choose output directory; returns path string
+- `save-shadow-clip(data: ArrayBuffer, folder: string)` — writes `clip-<timestamp>.wav` to folder; returns `{ success, filename, filePath }` or `{ success: false, error }`
+- `registerShadowHotkey(combo)` — registers OS-level shortcut; fires `global-save-shadow-clip` IPC event → renderer calls `saveClip()`; re-registered whenever `shadowHotkey` is saved
+
+### TitleBar integration:
+- Pulsing red dot (`w-2 h-2 rounded-full bg-danger animate-pulse`) shown when `isRecording`
+- Scissors button (`scissors-solid` icon) saves clip; disabled (`opacity-40 pointer-events-none`) until `hasBuffer && !isSaving`
+
+### Settings → Shadow Record tab:
+- Input device picker (AppSelect over `audioInputDevices`)
+- Buffer duration (AppSelect: 5/10/15/30/60 s)
+- Clips folder (path display + Browse button → `pick-clips-folder`)
+- Save hotkey (KeybindCapture)
+- Auto-open trim toggle (wired to `shadowAutoOpenTrim`; clip editor built in Phase 4.2)
 
 ---
 

@@ -5,6 +5,7 @@ import { useAudioDevices } from './composables/useAudioDevices'
 import { useAudioPlayer } from './composables/useAudioPlayer'
 import { useSoundManagement } from './composables/useSoundManagement'
 import { useStreamDeckImageErrors } from './composables/useStreamDeckImageErrors'
+import { useShadowRecord } from './composables/useShadowRecord'
 import { filterQuery } from './filterState'
 import { formatAccelerator } from './utils/hotkey'
 import TitleBar from './components/TitleBar.vue'
@@ -21,6 +22,7 @@ const { refreshDevices } = useAudioDevices()
 const { playSound, stopAll } = useAudioPlayer()
 const { resetSessionState } = useSoundManagement()
 const { scanAll } = useStreamDeckImageErrors()
+const { startRecording, stopRecording, saveClip } = useShadowRecord()
 
 // Re-scan broken images whenever the image settings change (covers picks, clears, and folder switches).
 watch(
@@ -104,6 +106,15 @@ async function handleChooseFolder() {
   }
 }
 
+// Start/stop shadow recording whenever the input device setting changes (also covers initial load).
+watch(
+  () => [settings.value.shadowInputDeviceLabel, settings.value.shadowClipsFolder] as const,
+  ([device, folder]) => {
+    if (device && folder) startRecording()
+    else stopRecording()
+  }
+)
+
 onMounted(async () => {
   await loadSettings()
   await refreshDevices()
@@ -112,6 +123,7 @@ onMounted(async () => {
 
   window.api.onWsPlaySound(({ key }) => handlePlaySoundByKey(key))
   window.api.onGlobalPlaySound(({ key }) => handlePlaySoundByKey(key))
+  window.api.onGlobalSaveClip(() => saveClip())
 
   window.api.onWsStopAll(() => {
     stopAll()

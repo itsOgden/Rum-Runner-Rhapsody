@@ -248,22 +248,16 @@
 *These are tightly coupled — build them together as a unit.*
 
 ### 4.1 Shadow Record Feature [#4]
-**What:** Continuously buffer audio from a chosen input device. On trigger (button or hotkey), save the last X seconds to a clips folder as a file.
+**Status: Done 2026-05-17.**
 
-**Technical approach:**
-- Use the Web Audio API to record from a `MediaStream` (via `getUserMedia` or `getDisplayMedia` for system audio).
-- Maintain a rolling ring buffer of the last N seconds using `MediaRecorder` or manual `AudioBuffer` chunks.
-- On trigger: flush the buffer to a file via IPC → `fs.writeFile`.
-- Output format: `.wav` or `.ogg` (prefer `.wav` for no-loss, since these are going to be trimmed anyway).
-
-**Settings to add (in Settings → Shadow Record tab):**
-- Input device picker (which audio device to buffer)
-- Buffer duration (5 / 10 / 15 / 30 / 60 seconds)
-- Output folder (the clips folder)
-- Auto-open trim sidebar on save (bool)
-- Hotkey for save
-
-**Important:** Windows system audio capture (e.g., your friend's game chat) requires either VB-Cable loopback or the WASAPI loopback API. Clarify this for users — you can only capture what's routable as an audio input device. The VB-Cable tutorial tie-in is important here.
+- ✅ `shadowInputDeviceLabel`, `shadowBufferDuration`, `shadowClipsFolder`, `shadowAutoOpenTrim`, `shadowHotkey` added to `GlobalSettings` and `DEFAULT_GLOBAL_SETTINGS`
+- ✅ `useShadowRecord.ts` composable — AudioWorklet-based rolling ring buffer (interleaved stereo Float32Array chunks, 4096 samples each); WAV encoder; module-level singleton
+- ✅ `useAudioDevices` extended: `audioInputDevices` ref + `findInputDeviceId()` helper enumerate `audioinput` devices
+- ✅ `pick-clips-folder` + `save-shadow-clip` IPC handlers in `main.js`; `registerShadowHotkey()` registers/unregisters OS-level shortcut; sends `global-save-shadow-clip` to renderer
+- ✅ Settings → Shadow Record tab: input device picker, buffer duration (5/10/15/30/60s), clips folder browse, save hotkey capture, auto-open trim toggle
+- ✅ TitleBar: pulsing red dot when recording active; scissors button (disabled until buffer has data) to save clip
+- ✅ App.vue: watch on `[shadowInputDeviceLabel, shadowClipsFolder]` starts/stops recording; `onGlobalSaveClip` wired to `saveClip()`
+- ✅ `scissors-solid.svg` and `microphone-solid.svg` icons added
 
 ---
 

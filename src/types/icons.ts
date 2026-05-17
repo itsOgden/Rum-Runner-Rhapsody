@@ -37,7 +37,9 @@ export type IconName =
   | 'ellipsis-solid'
   | 'gear-solid'
   | 'headphones-simple-solid'
+  | 'microphone-solid'
   | 'pencil-solid'
+  | 'scissors-solid'
   | 'window-minimize-solid'
   | 'xmark-solid'
 

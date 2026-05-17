@@ -3,6 +3,7 @@ import { useSettings } from './useSettings'
 import { showToast } from '../toastState'
 
 const audioDevices = ref<MediaDeviceInfo[]>([])
+const audioInputDevices = ref<MediaDeviceInfo[]>([])
 
 // Returns true for Windows proxy aliases that the Web Audio API cannot route
 // to reliably via setSinkId: the explicit "default" deviceId, any label
@@ -86,6 +87,9 @@ export function useAudioDevices() {
 
       audioDevices.value = outputs
 
+      const inputs = devices.filter(d => d.kind === 'audioinput' && d.deviceId !== '' && !isDefaultDevice(d))
+      audioInputDevices.value = inputs
+
       // Warn if a previously saved device can no longer be resolved.
       // This covers the case where a device was disconnected, or the only
       // saved entry was a "Default - X" alias with no real match remaining.
@@ -119,11 +123,19 @@ export function useAudioDevices() {
     return d ? cleanDeviceLabel(d.label || `Device ${deviceId.slice(0, 8)}`) : ''
   }
 
+  function findInputDeviceId(savedLabel: string): string {
+    if (!savedLabel) return ''
+    const match = _findSpecificMatch(savedLabel, audioInputDevices.value)
+    return match?.deviceId ?? ''
+  }
+
   return {
     audioDevices,
+    audioInputDevices,
     refreshDevices,
     cleanDeviceLabel,
     findMatchingDeviceId,
+    findInputDeviceId,
     getDeviceLabel,
   }
 }

@@ -4,6 +4,7 @@ import { useSettings } from '../composables/useSettings'
 import { useAudioDevices } from '../composables/useAudioDevices'
 import { settingsModalOpen, helpModalOpen, helpModalInitialTab } from '../modalState'
 import { useStreamDeckImageErrors } from '../composables/useStreamDeckImageErrors'
+import { useShadowRecord } from '../composables/useShadowRecord'
 import { showToast } from '../toastState'
 import BaseModal from './BaseModal.vue'
 import ModalTabs from './ModalTabs.vue'
@@ -19,7 +20,8 @@ import { isTypingConflict } from '../utils/hotkey'
 import { useSoundManagement } from '../composables/useSoundManagement'
 
 const { settings, saveSettings } = useSettings()
-const { audioDevices, findMatchingDeviceId, cleanDeviceLabel, getDeviceLabel } = useAudioDevices()
+const { audioDevices, audioInputDevices, findMatchingDeviceId, findInputDeviceId, cleanDeviceLabel, getDeviceLabel } = useAudioDevices()
+const { startRecording, stopRecording } = useShadowRecord()
 const { brokenSources } = useStreamDeckImageErrors()
 const { buildSections } = useSoundManagement()
 
@@ -28,16 +30,17 @@ const hasStreamDeckErrors = computed(() =>
   pickerErrorCount.value > 0 || brokenSources.value.includes('Default')
 )
 
-type Tab = 'app' | 'keybinds' | 'appearance' | 'playback' | 'devices' | 'streamdeck'
+type Tab = 'app' | 'keybinds' | 'appearance' | 'playback' | 'devices' | 'shadowrecord' | 'streamdeck'
 const activeTab = ref<Tab>('app')
 
 const tabs = computed(() => [
-  { id: 'app',        label: 'App'           },
-  { id: 'appearance', label: 'Appearance'    },
-  { id: 'devices',    label: 'Audio Devices' },
-  { id: 'keybinds',   label: 'Keybinds'      },
-  { id: 'playback',   label: 'Playback'      },
-  { id: 'streamdeck', label: 'Stream Deck', badge: hasStreamDeckErrors.value },
+  { id: 'app',          label: 'App'           },
+  { id: 'appearance',   label: 'Appearance'    },
+  { id: 'devices',      label: 'Audio Devices' },
+  { id: 'keybinds',     label: 'Keybinds'      },
+  { id: 'playback',     label: 'Playback'      },
+  { id: 'shadowrecord', label: 'Shadow Record' },
+  { id: 'streamdeck',   label: 'Stream Deck', badge: hasStreamDeckErrors.value },
 ] as Array<{ id: Tab; label: string; badge?: boolean }>)
 
 type PluginState =
@@ -286,6 +289,42 @@ function setShowCategorySidebar(val: boolean) {
   saveSettings({ showCategorySidebar: val })
 }
 
+// ── Shadow record ───────────────────────────────────────────────────────────
+
+const shadowInputDeviceId = computed(() =>
+  findInputDeviceId(settings.value.shadowInputDeviceLabel)
+)
+
+function onShadowInputChange(deviceId: string): void {
+  const device = audioInputDevices.value.find(d => d.deviceId === deviceId)
+  const label = device ? cleanDeviceLabel(device.label || '') : ''
+  settings.value.shadowInputDeviceLabel = label
+  saveSettings({ shadowInputDeviceLabel: label })
+}
+
+async function pickClipsFolder(): Promise<void> {
+  const folder = await window.api.pickClipsFolder()
+  if (!folder) return
+  settings.value.shadowClipsFolder = folder
+  saveSettings({ shadowClipsFolder: folder })
+}
+
+function onShadowBufferDurationChange(val: string): void {
+  const n = Number(val)
+  settings.value.shadowBufferDuration = n
+  saveSettings({ shadowBufferDuration: n })
+}
+
+function onShadowHotkeyChange(combo: string): void {
+  settings.value.shadowHotkey = combo
+  saveSettings({ shadowHotkey: combo })
+}
+
+function onShadowAutoOpenTrimChange(val: boolean): void {
+  settings.value.shadowAutoOpenTrim = val
+  saveSettings({ shadowAutoOpenTrim: val })
+}
+
 // ── Stream Deck default images ──────────────────────────────────────────────
 
 const defaultIdlePath = computed(() => settings.value.streamDeckDefaultImages?.idle || null)
@@ -532,6 +571,77 @@ async function handleInstallPlugin(): Promise<void> {
           <div class="flex items-center gap-3 mt-3">
             <button class="btn flex items-center gap-1.5" :disabled="!canAddDevice" :class="{ 'opacity-40 cursor-default': !canAddDevice }" @click="addDevice"><Icon name="plus" /> Add Device</button>
             <span v-if="!canAddDevice" class="text-xs text-text-dim">No unused devices available</span>
+          </div>
+        </div>
+
+        <!-- ── SHADOW RECORD tab ── -->
+        <div v-else-if="activeTab === 'shadowrecord'" class="space-y-5">
+          <p class="text-xs text-text-secondary leading-relaxed">
+            Shadow Record continuously buffers audio from an input device. At any time, press the save hotkey or the scissors button in the toolbar to capture the last N seconds as a WAV clip.
+          </p>
+
+          <SettingRow label="Input Device" description="The audio input device to record from">
+            <AppSelect
+              class="min-w-48"
+              :modelValue="shadowInputDeviceId"
+              :options="[
+                { value: '', label: '— Not set —' },
+                ...audioInputDevices.map(d => ({ value: d.deviceId, label: cleanDeviceLabel(d.label || d.deviceId.slice(0, 12)) }))
+              ]"
+              @update:modelValue="onShadowInputChange"
+            />
+          </SettingRow>
+
+          <SettingRow label="Buffer Duration" description="How many seconds to keep in the rolling buffer">
+            <AppSelect
+              class="min-w-36"
+              :modelValue="String(settings.shadowBufferDuration ?? 30)"
+              :options="[
+                { value: '5',  label: '5 seconds'  },
+                { value: '10', label: '10 seconds' },
+                { value: '15', label: '15 seconds' },
+                { value: '30', label: '30 seconds' },
+                { value: '60', label: '60 seconds' },
+              ]"
+              @update:modelValue="onShadowBufferDurationChange"
+            />
+          </SettingRow>
+
+          <SettingRow label="Clips Folder" description="Where saved clips are written">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-xs text-text-secondary truncate max-w-48" :title="settings.shadowClipsFolder">
+                {{ settings.shadowClipsFolder || 'Not set' }}
+              </span>
+              <button class="btn flex items-center gap-1.5 shrink-0" @click="pickClipsFolder">
+                <Icon name="folder-open" />
+                Browse
+              </button>
+            </div>
+          </SettingRow>
+
+          <SettingRow label="Save Clip Hotkey">
+            <KeybindCapture
+              :modelValue="settings.shadowHotkey"
+              :allow-delete="true"
+              @update:modelValue="onShadowHotkeyChange"
+            />
+          </SettingRow>
+
+          <SettingRow label="Auto-open clip editor" description="Open the clip editor when a clip is saved (clip editor coming in the next update)">
+            <ToggleSwitch
+              :modelValue="settings.shadowAutoOpenTrim"
+              @update:modelValue="onShadowAutoOpenTrimChange"
+            />
+          </SettingRow>
+
+          <div class="bg-bg-surface-hover border border-border-light p-3 mt-2">
+            <p class="text-xs text-text-secondary leading-relaxed">
+              To capture system audio (Discord, game audio, etc.), route it through a virtual cable and select that cable as your input device here.
+            </p>
+            <button class="btn mt-2 flex items-center gap-1.5 text-xs self-start" @click="openVbCableHelp">
+              How to set up a virtual cable
+              <Icon name="chevron-down-solid" class="text-[10px] -rotate-90" />
+            </button>
           </div>
         </div>
 
