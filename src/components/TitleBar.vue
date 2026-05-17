@@ -44,8 +44,8 @@ onMounted(async () => {
     </div>
 
     <!-- Center: master volume (1/3 column, matches search bar below) -->
-    <div class="flex items-center gap-1.75 app-region-no-drag w-65 mx-auto">
-      <span class="text-xs text-text-primary font-medium uppercase tracking-[0.06em] whitespace-nowrap shrink-0">Master</span>
+    <div class="flex items-center gap-1.75 app-region-no-drag md:w-65 mx-auto">
+      <span class="text-xs max-md:hidden text-text-primary font-medium uppercase tracking-[0.06em] whitespace-nowrap shrink-0">Master</span>
       <input
         type="range"
         min="0"
@@ -60,16 +60,22 @@ onMounted(async () => {
     <!-- Right: app controls + divider + window controls -->
     <div class="flex items-center justify-end">
 
-      <!-- Shadow record indicator + save -->
-      <div v-if="isRecording" class="flex items-center gap-1.5 mr-1 app-region-no-drag">
-        <div class="w-2 h-2 rounded-full bg-danger animate-pulse shrink-0" title="Shadow recording active" />
+      <!-- Shadow record: status indicator + save action -->
+      <div v-if="isRecording" class="flex items-center gap-0.5 mr-1 app-region-no-drag">
+        <!-- Non-interactive status -->
+        <div class="flex items-center gap-1.5 px-2 select-none">
+          <span class="w-1.5 h-1.5 rounded-full bg-danger shrink-0 animate-pulse" />
+          <span class="text-[10px] font-medium tracking-[0.12em] text-danger/80 uppercase">Rec</span>
+        </div>
+        <!-- Save clip button -->
         <button
-          class="wc-btn"
-          :class="{ 'opacity-40 pointer-events-none': !hasBuffer || isSaving }"
-          title="Save clip"
+          class="rec-save-btn"
+          :class="(hasBuffer && !isSaving) ? '' : 'opacity-40 pointer-events-none'"
+          :title="isSaving ? 'Saving…' : !hasBuffer ? 'Buffering audio…' : 'Save clip'"
           @click="saveClip"
         >
-          <Icon name="scissors-solid" />
+          <Icon name="scissors" class="text-[13px] shrink-0" />
+          <span>{{ isSaving ? 'Saving…' : 'Save Clip' }}</span>
         </button>
       </div>
 
@@ -123,6 +129,28 @@ onMounted(async () => {
   font-size: 14px;
 }
 .wc-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary);
+}
+
+.rec-save-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 48px;
+  padding: 0 8px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+}
+.rec-save-btn:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--color-text-primary);
 }
