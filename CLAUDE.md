@@ -87,6 +87,7 @@ Rum-Runner Rhapsody/
 │   │   ├── StatusBar.vue        — Audio status text, SD image error warnings, sound count + hotkey reminder
 │   │   ├── KeybindCapture.vue   — Reusable keybind capture widget; displays assigned keybind as individual key chips ([Ctrl] [F5]); click to enter listening mode (pulsing dot + "Press a key…"); Escape cancels; emits accelerator string or empty string (clear); `allowDelete` prop (default true) shows × button — pass `false` for global keybinds that must always be set; used in SettingsModal Keybinds tab and SoundButton context menu
 │   │   ├── VolumeSlider.vue     — Reusable range slider (v-model, min/max/step/unit)
+│   │   ├── Tooltip.vue          — Custom themed tooltip; wraps slot in `display:contents` span, teleports tooltip div to body; props: `text` (string), `delay` (ms, default 400); tooltip follows the mouse cursor with 4-way flip logic (right→left, below→above) based on viewport edges; gold accent top border + dark bg; `.rrr-tooltip` class in style.css; never use native `title` attributes — always use this component or pass `title` prop to CircleButton/SquareButton/ToggleCircleButton
 │   │   ├── Icon.vue             — SVG icon component (wraps generated icon CSS classes)
 │   │   ├── SquareButton.vue     — 36×36px icon button; props: icon, title, active, disabled, variant ('default'|'danger')
 │   │   ├── CircleButton.vue     — 20×20px circle icon button; prop: noColors to skip accent styling
@@ -117,7 +118,7 @@ Rum-Runner Rhapsody/
 │   ├── filterState.ts           — Module singleton: filterQuery ref (search box value)
 │   ├── dragState.ts             — Module singletons: draggingSound, draggingSection refs
 │   ├── toastState.ts            — Module singleton: toast ref + showToast() helper
-│   ├── modalState.ts            — Module singletons: settingsModalOpen, helpModalOpen refs
+│   ├── modalState.ts            — Module singletons: settingsModalOpen, settingsModalInitialTab, helpModalOpen, helpModalInitialTab refs
 │   ├── colorPalette.ts          — Shared COLOR_PALETTE array (17 presets: Gold, Amber, Ember, Crimson, Rose, Hot Pink, Magenta, Violet, Indigo, Blue, Sky, Teal, Jade, Lime, Bronze, Slate, Gray), DEFAULT_ACCENT constant; imported by ColorPalette.vue and any future color pickers
 │   ├── utils/
 │   │   └── hotkey.ts            — `formatAccelerator(e: KeyboardEvent): string | null` — converts KeyboardEvent to Electron accelerator string (e.g. "Ctrl+F5", "Escape", "Space")
@@ -132,14 +133,15 @@ Rum-Runner Rhapsody/
 │       │   ├── svg.d.ts         — Type declaration for *.svg raw string imports
 │       │   └── actions/
 │       │       ├── play-sound.ts — Play Sound action, button state, title formatting
-│       │       └── stop-all.ts   — Stop All action, global default stop image support
+│       │       ├── stop-all.ts   — Stop All action, global default stop image support
+│       │       └── save-clip.ts  — Save Clip action; tracks `shadowEnabled`; shows accent image when enabled, dimmed when disabled; pressing when disabled opens shadow recording settings in the app
 │       ├── action_svgs/         — Source SVG assets (bundled into plugin.js at build time)
 │       │   ├── background@2x.svg        — Idle button frame (white fills → accent)
 │       │   ├── background-active@2x.svg — Active button fill (inverted, white → accent)
 │       │   ├── stop@2x.svg              — Stop square icon (white, on active bg)
 │       │   ├── playing@2x.svg           — Playing center icon (currently empty)
-│       │   ├── clip@2x.svg              — Future: clip mode icon
-│       │   └── save@2x.svg              — Future: shadow record icon
+│       │   ├── clip@2x.svg              — Clip mode icon (unused)
+│       │   └── save@2x.svg              — Shadow record save icon (used by Save Clip action)
 │       ├── com.pdog1.rum-runner-rhapsody.sdPlugin/  — Built plugin output
 │       │   └── ui/
 │       │       ├── play-sound.html  — Property inspector (accent color via CSS vars + global settings)
@@ -185,7 +187,7 @@ interface GlobalSettings {
   masterVolume: number
   density: 'loose' | 'compact'
   devices: Array<{ label: string, volume: number, enabled: boolean }>
-  hotkeys: { stop: string }
+  hotkeys: { stop: string; search: string }   // stop = system-wide global shortcut (default "Ctrl+Shift+X"); search = in-app only (default "Space")
   playbackMode: 'stop' | 'restart' | 'overlap'
   normalize: boolean
   streamDeckButtonMode: boolean
@@ -197,11 +199,12 @@ interface GlobalSettings {
   viewMode: 'accordion' | 'flat'   // controls SoundGrid layout; persisted globally
   streamDeckDefaultImages: { idle?: string, playing?: string, stop?: string }
   accentColor: string              // hex color override for --color-accent (empty string = use theme default gold)
-  shadowInputDeviceLabel: string   // audioinput device label to buffer (empty = not configured)
-  shadowBufferDuration: number     // rolling buffer length in seconds (5/10/15/30/60)
-  shadowClipsFolder: string        // output directory for saved WAV clips (empty = not configured)
-  shadowAutoOpenTrim: boolean      // open clip editor after save (wired up in Phase 4.2)
-  shadowHotkey: string             // Electron accelerator for save-clip global hotkey (empty = none)
+  shadowEnabled: boolean            // whether shadow recording is active (default true)
+  recordingInputDeviceLabel: string // audioinput device label to buffer (empty = not configured)
+  shadowBufferDuration: number      // rolling buffer length in seconds (5/10/15/30/60)
+  recordingFolder: string           // output directory for saved WAV clips (empty = not configured)
+  clipAutoOpenTrim: boolean         // open clip editor after save (wired up in Phase 4.2)
+  // hotkeys.saveClip: string       // Electron accelerator for save-clip global hotkey (inside hotkeys object)
   // Also contains all FolderSettings keys (GlobalSettings extends FolderSettings)
 }
 ```
@@ -332,11 +335,11 @@ Audio and image files are loaded via `window.api.readSoundFile(path)` (IPC → `
 `useShadowRecord.ts` — module-level singleton (no lifecycle inside the composable; App.vue owns start/stop).
 
 ### How it works:
-1. On startup (or when `shadowInputDeviceLabel` / `shadowClipsFolder` changes), App.vue calls `startRecording()`.
+1. On startup (or when `recordingInputDeviceLabel` / `recordingFolder` changes), App.vue calls `startRecording()`.
 2. `startRecording()` opens the input device via `getUserMedia`, creates a new `AudioContext`, registers an AudioWorklet processor (inlined as a blob URL — works in both dev and packaged builds), and connects the media stream source → worklet node.
 3. The worklet accumulates 4096 samples (≈85 ms at 48 kHz), then posts an interleaved stereo `Float32Array` to the main thread.
 4. The main thread appends chunks to a ring buffer; oldest chunks are dropped when the buffer exceeds `shadowBufferDuration × sampleRate / 4096` chunks.
-5. `saveClip()` snapshots the current ring buffer, encodes it as a 16-bit PCM WAV (`encodeWav()`), and writes it to `shadowClipsFolder` via the `save-shadow-clip` IPC handler.
+5. `saveClip()` snapshots the current ring buffer, encodes it as a 16-bit PCM WAV (`encodeWav()`), and writes it to `recordingFolder` via the `save-shadow-clip` IPC handler.
 
 ### State exposed by the composable:
 - `isRecording: Ref<boolean>` — true while the worklet is running
@@ -347,17 +350,19 @@ Audio and image files are loaded via `window.api.readSoundFile(path)` (IPC → `
 - `pick-clips-folder` — dialog to choose output directory; returns path string
 - `save-shadow-clip(data: ArrayBuffer, folder: string)` — writes `clip-<timestamp>.wav` to folder; returns `{ success, filename, filePath }` or `{ success: false, error }`
 - `registerShadowHotkey(combo)` — registers OS-level shortcut; fires `global-save-shadow-clip` IPC event → renderer calls `saveClip()`; re-registered whenever `shadowHotkey` is saved
+- `registerStopHotkey(combo)` — registers OS-level shortcut for Stop All (default `Ctrl+Shift+X`); fires `global-stop-all` IPC event → renderer calls `stopAll()`; re-registered whenever `hotkeys.stop` is saved; migration v2→v3 replaces any bare "Escape" value with the new default
 
 ### TitleBar integration:
-- Pulsing red dot (`w-2 h-2 rounded-full bg-danger animate-pulse`) shown when `isRecording`
-- Scissors button (`scissors-solid` icon) saves clip; disabled (`opacity-40 pointer-events-none`) until `hasBuffer && !isSaving`
+- **Recording state** (`isRecording`): single compact `[● ✂ Clip]` button — pulsing red dot + scissors icon + "Clip" label; danger color with `rgba(255,80,64,0.12)` hover; disabled (`.is-disabled`) until `hasBuffer && !isSaving`; label reads "Saving…" while saving; tooltip shows hotkey or buffer state
+- **Partially configured** (device or folder set but not both, shown via `shadowNotConfigured` computed): dim `[○ ✂ Clip]` button with hollow dot; clicking sets `settingsModalInitialTab = 'shadowrecord'` and opens Settings; hidden when neither device nor folder is set (user hasn't started setup)
 
-### Settings → Shadow Record tab:
-- Input device picker (AppSelect over `audioInputDevices`)
-- Buffer duration (AppSelect: 5/10/15/30/60 s)
-- Clips folder (path display + Browse button → `pick-clips-folder`)
-- Save hotkey (KeybindCapture)
-- Auto-open trim toggle (wired to `shadowAutoOpenTrim`; clip editor built in Phase 4.2)
+### Settings → Recording tab (tab id = `shadowrecord`):
+- **Top**: VB-Cable info box with link to Help → VB-Cable guide
+- **Always visible**: Input Device picker (no subtitle), Saved Recordings Folder (renamed from "Recording Folder"; shows selected path + Browse button, no subtitle)
+- **Shadow Recording enable toggle** (`shadowEnabled`): SettingRow with toggle + description
+- **Description** (below toggle, always visible): explains rolling buffer and clip hotkey
+- **Sub-section** (always visible, `opacity-40 pointer-events-none` when disabled, `border-l-2 border-border-light pl-4`): Buffer Duration (AppSelect 5/10/15/30/60 s), Auto-open clip editor toggle
+- Save hotkey is in **Keybinds → System-Wide** section (see Keybinds tab docs)
 
 ---
 
@@ -384,7 +389,7 @@ These files hold reactive state at module scope (not inside composables), so the
 | `filterState.ts` | `filterQuery: Ref<string>` | Search box value; shared between FolderBar and SoundGrid |
 | `dragState.ts` | `draggingSound: Ref<DraggingSound \| null>`, `draggingSection: Ref<DraggingSection \| null>` | Active DnD state; read by AccordionSection/SoundGrid |
 | `toastState.ts` | `toast: Ref<Toast \| null>`, `showToast(msg, type?)` | 4-second auto-dismiss toast; shown by Toast.vue; positioned `bottom-9` (36px) to clear the StatusBar |
-| `modalState.ts` | `settingsModalOpen: Ref<boolean>`, `helpModalOpen: Ref<boolean>`, `helpModalInitialTab: Ref<string \| null>` | Controls modal visibility; set `helpModalInitialTab` before opening HelpModal to land on a specific tab |
+| `modalState.ts` | `settingsModalOpen: Ref<boolean>`, `settingsModalInitialTab: Ref<string \| null>`, `helpModalOpen: Ref<boolean>`, `helpModalInitialTab: Ref<string \| null>` | Controls modal visibility; set `settingsModalInitialTab` / `helpModalInitialTab` before setting the open ref to land on a specific tab |
 | `dropdownState.ts` | `activeDropdownId: Ref<string \| null>` | Ensures only one SoundButton context menu is open at a time |
 
 ---
@@ -427,7 +432,9 @@ Sound buttons and category headers are both draggable.
 
 **SettingsModal.vue** — six side-tabs:
 - **App**: Close to tray, Start with Windows, Launch minimized, Show category sidebar
-- **Keybinds**: Global section (Stop All + Focus Search via `KeybindCapture` with `allowDelete: false`); Per-Sound section (lists all assigned `soundHotkeys` with `KeybindCapture` — the component's built-in × handles clearing; empty state when none set); section headers use gold left-bar + monospace label + hairline design
+- **Keybinds**: Three sections using the gold left-bar + uppercase label + hairline header pattern:
+  - **In-App** (first; handled via document keydown in FolderBar/App.vue): Focus Search (default `Space`); brief description "Only active when Rum-Runner Rhapsody is the focused window"
+  - **System-Wide** (second; includes per-sound keybinds): Stop All Sounds (default `Ctrl+Shift+X`), Save Clip (default `Ctrl+Shift+R`), then per-sound keybind list; hint "Add per-sound keybinds by right-clicking any sound button" always shown below list; description "Active across your whole computer, even when RRR is in the background"
 - **Appearance**: Theme (dark/light AppSelect) + Accent color (ColorPalette with 17 swatches, Reset to default button)
 - **Playback**: Playback mode, Normalize volumes
 - **Audio Devices**: N-device output list (enable toggle, AppSelect device picker, volume slider, add/remove); description links to VB-Cable help tab
@@ -493,11 +500,11 @@ Reusable component (`StreamDeckImagePicker.vue`) used in both CategorySettingsMo
 ### WebSocket server (port 57432):
 - Binds to `127.0.0.1` only
 - Broadcasts: `sounds-list`, `sounds-updated`, `playing-status`, `folder-status`
-- All broadcasts include: `sounds`, `folderSelected`, `buttonMode`, `categoryStreamDeckImages`, `streamDeckDefaultImages`, `accentColor`
+- All broadcasts include: `sounds`, `folderSelected`, `buttonMode`, `categoryStreamDeckImages`, `streamDeckDefaultImages`, `accentColor`, `shadowEnabled`
 - `accentColor` is resolved before sending: empty string (theme default) → `"#F9B71D"`
 - On new client connect: immediately sends full `sounds-list` payload to that client
 - `get-sounds` message from plugin: responds with fresh `sounds-list` to requesting client only
-- `save-settings` with `streamDeckDefaultImages` or `accentColor` triggers broadcast
+- `save-settings` with `streamDeckDefaultImages`, `accentColor`, or `shadowEnabled` triggers broadcast
 
 ### WebSocket message types (plugin → app):
 | Type | Payload | Effect |
@@ -505,6 +512,7 @@ Reusable component (`StreamDeckImagePicker.vue`) used in both CategorySettingsMo
 | `get-sounds` | — | App responds with `sounds-list` to that client only |
 | `play-sound` | `{ key: string }` | App forwards to renderer via `ws-play-sound` IPC event; renderer searches `savedFolders` in priority order (active first) — plays from the first folder that contains the key, never from multiple |
 | `stop-all` | — | App forwards to renderer via `ws-stop-all` IPC event |
+| `save-clip` | — | If `shadowEnabled`: forwards to renderer via `ws-save-clip` (calls `saveClip()`); if disabled: forwards via `ws-open-shadow-settings` (opens shadow recording settings modal) |
 
 ### WS sound list item shape:
 ```typescript
@@ -525,6 +533,12 @@ Reusable component (`StreamDeckImagePicker.vue`) used in both CategorySettingsMo
 ### Stop All action — image priority:
 1. Global default (`streamDeckDefaultImages.stop`)
 2. Composited SVG from `svg-compose.ts`: `background@2x.svg` + `stop@2x.svg` icon overlaid, accent color applied
+
+### Save Clip action:
+- Composited SVG from `svg-compose.ts`: `background@2x.svg` + `save@2x.svg` icon overlaid
+- Accent color when `shadowEnabled` is true; `#444444` (dim gray) when disabled
+- Title is empty when enabled; `"Disabled"` when shadow recording is off
+- Key press sends `{ type: "save-clip" }` via WS; app routes to `saveClip()` or opens shadow recording settings based on `shadowEnabled`
 
 `useCategoryImage` defaults to on (`undefined` treated as `true`); user can explicitly set to `false` to opt out. Toggle only appears in PI when category has images defined.
 

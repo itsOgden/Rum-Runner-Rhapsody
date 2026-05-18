@@ -2,12 +2,14 @@ import streamDeck from "@elgato/streamdeck";
 
 import { PlaySound } from "./actions/play-sound";
 import { StopAll } from "./actions/stop-all";
+import { SaveClip } from "./actions/save-clip";
 import { rrrClient } from "./rrr-client";
 
 streamDeck.logger.setLevel("trace");
 
 streamDeck.actions.registerAction(new PlaySound());
 streamDeck.actions.registerAction(new StopAll());
+streamDeck.actions.registerAction(new SaveClip());
 
 streamDeck.connect();
 

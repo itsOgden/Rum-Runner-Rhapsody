@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useSettings } from './composables/useSettings'
 import { useAudioDevices } from './composables/useAudioDevices'
 import { useAudioPlayer } from './composables/useAudioPlayer'
@@ -7,7 +7,7 @@ import { useSoundManagement } from './composables/useSoundManagement'
 import { useStreamDeckImageErrors } from './composables/useStreamDeckImageErrors'
 import { useShadowRecord } from './composables/useShadowRecord'
 import { filterQuery } from './filterState'
-import { formatAccelerator } from './utils/hotkey'
+import { settingsModalInitialTab, settingsModalOpen } from './modalState'
 import TitleBar from './components/TitleBar.vue'
 import FolderBar from './components/FolderBar.vue'
 import SoundGrid from './components/SoundGrid.vue'
@@ -70,13 +70,6 @@ function darkenHex(hex: string, factor: number): string {
   return `#${d(r)}${d(g)}${d(b)}`
 }
 
-function handleKeydown(e: KeyboardEvent): void {
-  const combo = formatAccelerator(e)
-  if (combo && combo.toLowerCase() === (settings.value.hotkeys?.stop || 'Escape').toLowerCase()) {
-    stopAll()
-  }
-}
-
 async function handlePlaySoundByKey(key: string): Promise<void> {
   if (!key) return
   const foldersToTry: string[] = []
@@ -106,11 +99,15 @@ async function handleChooseFolder() {
   }
 }
 
-// Start/stop shadow recording whenever the input device setting changes (also covers initial load).
+// Tracks whether initial load (loadSettings + refreshDevices) has completed.
+// The watch below skips during startup so it doesn't fire before devices are enumerated.
+let _initialLoadDone = false
+
 watch(
-  () => [settings.value.shadowInputDeviceLabel, settings.value.shadowClipsFolder] as const,
-  ([device, folder]) => {
-    if (device && folder) startRecording()
+  () => [settings.value.shadowEnabled, settings.value.recordingInputDeviceLabel, settings.value.recordingFolder] as const,
+  ([enabled, device, folder]) => {
+    if (!_initialLoadDone) return
+    if (enabled && device && folder) startRecording()
     else stopRecording()
   }
 )
@@ -119,19 +116,21 @@ onMounted(async () => {
   await loadSettings()
   await refreshDevices()
   await scanAll(settings.value)
-  document.addEventListener('keydown', handleKeydown)
+  _initialLoadDone = true
+  if (settings.value.shadowEnabled && settings.value.recordingInputDeviceLabel && settings.value.recordingFolder) {
+    startRecording()
+  }
 
   window.api.onWsPlaySound(({ key }) => handlePlaySoundByKey(key))
   window.api.onGlobalPlaySound(({ key }) => handlePlaySoundByKey(key))
   window.api.onGlobalSaveClip(() => saveClip())
-
-  window.api.onWsStopAll(() => {
-    stopAll()
+  window.api.onGlobalStopAll(() => stopAll())
+  window.api.onWsStopAll(() => stopAll())
+  window.api.onWsSaveClip(() => saveClip())
+  window.api.onWsOpenShadowSettings(() => {
+    settingsModalInitialTab.value = 'shadowrecord'
+    settingsModalOpen.value = true
   })
-})
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 

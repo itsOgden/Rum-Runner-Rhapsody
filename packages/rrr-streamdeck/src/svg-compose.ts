@@ -1,6 +1,7 @@
 import bgIdleSvg from "../action_svgs/background@2x.svg";
 import bgActiveSvg from "../action_svgs/background-active@2x.svg";
 import stopIconSvg from "../action_svgs/stop@2x.svg";
+import saveIconSvg from "../action_svgs/save@2x.svg";
 
 const DEFAULT_ACCENT = "#F9B71D";
 
@@ -32,4 +33,9 @@ export function buildPlaySoundImage(accent: string, isPlaying: boolean): string 
 
 export function buildStopImage(accent: string): string {
 	return compose(accent, bgIdleSvg, stopIconSvg);
+}
+
+export function buildClipImage(accent: string, isEnabled: boolean): string {
+	const color = isEnabled ? accent : "#444444";
+	return compose(color, bgIdleSvg, saveIconSvg);
 }

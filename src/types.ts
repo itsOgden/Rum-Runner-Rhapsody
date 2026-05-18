@@ -76,7 +76,7 @@ export interface GlobalSettings extends FolderSettings {
   theme: 'dark' | 'light'
   density: 'loose' | 'compact'
   devices: DeviceSettings[]
-  hotkeys: { stop: string; search: string }
+  hotkeys: { stop: string; search: string; saveClip: string }
   playbackMode: 'overlap' | 'restart' | 'stop'
   normalize: boolean
   streamDeckButtonMode: boolean
@@ -88,11 +88,11 @@ export interface GlobalSettings extends FolderSettings {
   launchMinimized: boolean
   blockTypingConflicts: boolean
   accentColor: string
-  shadowInputDeviceLabel: string
+  shadowEnabled: boolean
+  recordingInputDeviceLabel: string
   shadowBufferDuration: number
-  shadowClipsFolder: string
-  shadowAutoOpenTrim: boolean
-  shadowHotkey: string
+  recordingFolder: string
+  clipAutoOpenTrim: boolean
 }
 
 // ── Folder-change IPC results ──────────────────────────────────────────────
@@ -124,8 +124,11 @@ export interface WindowApi {
   readSoundFile(filePath: string): Promise<ArrayBuffer | null>
   onWsPlaySound(callback: (data: { key: string }) => void): void
   onWsStopAll(callback: () => void): void
+  onWsSaveClip(callback: () => void): void
+  onWsOpenShadowSettings(callback: () => void): void
   onGlobalPlaySound(callback: (data: { key: string }) => void): void
   onGlobalSaveClip(callback: () => void): void
+  onGlobalStopAll(callback: () => void): void
   pickClipsFolder(): Promise<string | null>
   saveShadowClip(data: ArrayBuffer, folder: string): Promise<{ success: boolean; filename?: string; filePath?: string; error?: string }>
   updatePlayingStatus(keys: string[]): void

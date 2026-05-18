@@ -2,7 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { useSettings } from '../composables/useSettings'
 import { useAudioDevices } from '../composables/useAudioDevices'
-import { settingsModalOpen, helpModalOpen, helpModalInitialTab } from '../modalState'
+import { settingsModalOpen, settingsModalInitialTab, helpModalOpen, helpModalInitialTab } from '../modalState'
 import { useStreamDeckImageErrors } from '../composables/useStreamDeckImageErrors'
 import { useShadowRecord } from '../composables/useShadowRecord'
 import { showToast } from '../toastState'
@@ -15,6 +15,7 @@ import SettingRow from './SettingRow.vue'
 import AppSelect from './AppSelect.vue'
 import ColorPalette from './ColorPalette.vue'
 import KeybindCapture from './KeybindCapture.vue'
+import Tooltip from '@/components/Tooltip.vue'
 import { DEFAULT_ACCENT } from '../colorPalette'
 import { isTypingConflict } from '../utils/hotkey'
 import { useSoundManagement } from '../composables/useSoundManagement'
@@ -39,7 +40,7 @@ const tabs = computed(() => [
   { id: 'devices',      label: 'Audio Devices' },
   { id: 'keybinds',     label: 'Keybinds'      },
   { id: 'playback',     label: 'Playback'      },
-  { id: 'shadowrecord', label: 'Shadow Record' },
+  { id: 'shadowrecord', label: 'Recording' },
   { id: 'streamdeck',   label: 'Stream Deck', badge: hasStreamDeckErrors.value },
 ] as Array<{ id: Tab; label: string; badge?: boolean }>)
 
@@ -79,6 +80,10 @@ async function checkPluginStatus() {
 
 watch(settingsModalOpen, (open) => {
   if (open) {
+    if (settingsModalInitialTab.value) {
+      activeTab.value = settingsModalInitialTab.value as Tab
+      settingsModalInitialTab.value = null
+    }
     checkPluginStatus()
     syncAllDeviceState()
   }
@@ -104,7 +109,6 @@ function syncDeviceIds() {
 
 watch(() => settings.value.devices.map(d => d.label).join('|'), syncDeviceIds)
 watch(audioDevices, syncDeviceIds)
-watch(() => settings.value.devices.length, syncAllDeviceState)
 
 function onDeviceSelectChange(idx: number, newId: string): void {
   deviceSelectedIds.value[idx] = newId
@@ -170,6 +174,7 @@ function addDevice(): void {
   const newLabel = unused ? cleanDeviceLabel(unused.label) : (audioDevices.value[0] ? cleanDeviceLabel(audioDevices.value[0].label) : '')
   const updated = [...settings.value.devices.map(plainDevice), { label: newLabel, volume: 1.0, enabled: true }]
   settings.value.devices = updated
+  syncAllDeviceState()
   saveSettings({ devices: updated })
 }
 
@@ -177,6 +182,7 @@ function removeDevice(idx: number): void {
   if (settings.value.devices.length <= 1) return
   const updated = settings.value.devices.filter((_, i) => i !== idx).map(plainDevice)
   settings.value.devices = updated
+  syncAllDeviceState()
   saveSettings({ devices: updated })
 }
 
@@ -188,7 +194,11 @@ function openVbCableHelp(): void {
 
 // ── Auto-save handlers ──────────────────────────────────────────────────────
 
-function onGlobalHotkeyChange(key: 'stop' | 'search', combo: string): void {
+function onGlobalHotkeyChange(key: 'stop' | 'search' | 'saveClip', combo: string): void {
+  if (combo && key !== 'search' && settings.value.blockTypingConflicts && isTypingConflict(combo)) {
+    showToast(`"${combo}" conflicts with typing — use Ctrl/Alt or disable the block setting`, 'info')
+    return
+  }
   settings.value.hotkeys = { ...settings.value.hotkeys, [key]: combo }
   saveSettings({ hotkeys: { ...settings.value.hotkeys } })
 }
@@ -217,11 +227,12 @@ const soundShortcuts = computed(() => {
 function onSoundHotkeyChange(soundKey: string, combo: string): void {
   if (!combo) { clearSoundHotkey(soundKey); return }
   if (settings.value.blockTypingConflicts && isTypingConflict(combo)) {
-    showToast(`"${combo}" conflicts with typing — use Ctrl/Alt or disable the block below`, 'info')
+    showToast(`"${combo}" conflicts with typing — use Ctrl/Alt or disable the block setting`, 'info')
     return
   }
-  if (combo.toLowerCase() === (settings.value.hotkeys.stop || 'Escape').toLowerCase() ||
-      combo.toLowerCase() === (settings.value.hotkeys.search || 'Space').toLowerCase()) {
+  if (combo.toLowerCase() === (settings.value.hotkeys.stop || '').toLowerCase() ||
+      combo.toLowerCase() === (settings.value.hotkeys.search || '').toLowerCase() ||
+      combo.toLowerCase() === (settings.value.hotkeys.saveClip || '').toLowerCase()) {
     showToast(`"${combo}" conflicts with a global keybind`, 'info')
   } else {
     const conflict = Object.entries(settings.value.soundHotkeys ?? {}).find(([k, c]) => k !== soundKey && c.toLowerCase() === combo.toLowerCase())
@@ -292,21 +303,21 @@ function setShowCategorySidebar(val: boolean) {
 // ── Shadow record ───────────────────────────────────────────────────────────
 
 const shadowInputDeviceId = computed(() =>
-  findInputDeviceId(settings.value.shadowInputDeviceLabel)
+  findInputDeviceId(settings.value.recordingInputDeviceLabel)
 )
 
 function onShadowInputChange(deviceId: string): void {
   const device = audioInputDevices.value.find(d => d.deviceId === deviceId)
   const label = device ? cleanDeviceLabel(device.label || '') : ''
-  settings.value.shadowInputDeviceLabel = label
-  saveSettings({ shadowInputDeviceLabel: label })
+  settings.value.recordingInputDeviceLabel = label
+  saveSettings({ recordingInputDeviceLabel: label })
 }
 
 async function pickClipsFolder(): Promise<void> {
   const folder = await window.api.pickClipsFolder()
   if (!folder) return
-  settings.value.shadowClipsFolder = folder
-  saveSettings({ shadowClipsFolder: folder })
+  settings.value.recordingFolder = folder
+  saveSettings({ recordingFolder: folder })
 }
 
 function onShadowBufferDurationChange(val: string): void {
@@ -315,14 +326,14 @@ function onShadowBufferDurationChange(val: string): void {
   saveSettings({ shadowBufferDuration: n })
 }
 
-function onShadowHotkeyChange(combo: string): void {
-  settings.value.shadowHotkey = combo
-  saveSettings({ shadowHotkey: combo })
+function onShadowAutoOpenTrimChange(val: boolean): void {
+  settings.value.clipAutoOpenTrim = val
+  saveSettings({ clipAutoOpenTrim: val })
 }
 
-function onShadowAutoOpenTrimChange(val: boolean): void {
-  settings.value.shadowAutoOpenTrim = val
-  saveSettings({ shadowAutoOpenTrim: val })
+function setShadowEnabled(val: boolean): void {
+  settings.value.shadowEnabled = val
+  saveSettings({ shadowEnabled: val })
 }
 
 // ── Stream Deck default images ──────────────────────────────────────────────
@@ -399,53 +410,63 @@ async function handleInstallPlugin(): Promise<void> {
             <SettingRow label="Show category sidebar" description="Show the category quick-nav sidebar in the sound list">
               <ToggleSwitch :modelValue="settings.showCategorySidebar" @update:modelValue="setShowCategorySidebar" />
             </SettingRow>
+
           </div>
 
         </div>
 
         <!-- ── KEYBINDS tab ── -->
         <div v-else-if="activeTab === 'keybinds'" class="space-y-5">
-          <SettingRow
-            label="Block typing keys"
-            description="Prevents bare letters, digits, and Shift+key combinations from being assigned as hotkeys. These are captured system-wide and will interfere with typing in other apps. We strongly recommend keeping this on."
-          >
-            <ToggleSwitch
-              :modelValue="settings.blockTypingConflicts"
-              @update:modelValue="v => { settings.blockTypingConflicts = v; saveSettings({ blockTypingConflicts: v }) }"
-            />
-          </SettingRow>
 
+          <!-- In-App -->
           <div class="space-y-3">
-            <div class="flex items-center gap-3 mb-4">
+            <div class="flex items-center gap-3">
               <div class="w-0.5 h-3.5 bg-accent shrink-0" />
-              <span class="text-sm uppercase tracking-widest text-text-primary">Global</span>
+              <span class="text-sm uppercase tracking-widest text-text-primary">In-App</span>
               <div class="flex-1 h-px bg-border-light" />
             </div>
-            <SettingRow label="Stop All">
-              <KeybindCapture
-                :modelValue="settings.hotkeys.stop"
-                :allow-delete="false"
-                placeholder="Escape"
-                @update:modelValue="onGlobalHotkeyChange('stop', $event)"
-              />
-            </SettingRow>
+            <p class="text-xs text-text-secondary">Only active when Rum-Runner Rhapsody is the focused window.</p>
             <SettingRow label="Focus Search">
               <KeybindCapture
                 :modelValue="settings.hotkeys.search"
                 :allow-delete="false"
-                placeholder="Space"
                 @update:modelValue="onGlobalHotkeyChange('search', $event)"
               />
             </SettingRow>
           </div>
 
+          <!-- System-Wide (includes per-sound) -->
           <div class="space-y-3">
-            <div class="flex items-center gap-3 mb-4">
+            <div class="flex items-center gap-3">
               <div class="w-0.5 h-3.5 bg-accent shrink-0" />
-              <span class="text-sm uppercase tracking-widest text-text-primary">Per-Sound</span>
+              <span class="text-sm uppercase tracking-widest text-text-primary">System-Wide</span>
               <div class="flex-1 h-px bg-border-light" />
             </div>
-            <p class="text-xs text-text-secondary -mt-1">Set keybinds via right-clicking any sound button. Keybinds are saved per soundboard folder.</p>
+            <p class="text-xs text-text-secondary">Active across your whole computer, even when RRR is in the background.</p>
+
+            <SettingRow
+                label="Block typing keys"
+                description="Prevents commonly typed keys and key pairs from being assigned as hotkeys to help avoid issues while typing."
+            >
+              <ToggleSwitch
+                  :modelValue="settings.blockTypingConflicts"
+                  @update:modelValue="v => { settings.blockTypingConflicts = v; saveSettings({ blockTypingConflicts: v }) }"
+              />
+            </SettingRow>
+            <SettingRow label="Stop All Sounds">
+              <KeybindCapture
+                :modelValue="settings.hotkeys.stop"
+                :allow-delete="true"
+                @update:modelValue="onGlobalHotkeyChange('stop', $event)"
+              />
+            </SettingRow>
+            <SettingRow label="Save Clip">
+              <KeybindCapture
+                :modelValue="settings.hotkeys.saveClip"
+                :allow-delete="true"
+                @update:modelValue="onGlobalHotkeyChange('saveClip', $event)"
+              />
+            </SettingRow>
             <template v-if="soundShortcuts.length > 0">
               <div
                 v-for="[soundKey, combo] in soundShortcuts"
@@ -470,7 +491,7 @@ async function handleInstallPlugin(): Promise<void> {
                 </div>
               </div>
             </template>
-            <p v-else class="text-xs text-text-dim">No per-sound keybinds assigned yet.</p>
+            <p v-if="!soundShortcuts.length" class="text-xs text-text-dim">Add per-sound keybinds by right-clicking any sound button.</p>
           </div>
         </div>
 
@@ -550,12 +571,13 @@ async function handleInstallPlugin(): Promise<void> {
                   :options="availableDevicesFor(idx).map(d => ({ value: d.deviceId, label: cleanDeviceLabel(d.label || `Device ${d.deviceId.slice(0, 8)}`) }))"
                   @update:modelValue="v => onDeviceSelectChange(idx, v)"
                 />
-                <button
-                  class="text-text-dim text-lg leading-none cursor-pointer p-[2px_4px] rounded-sm bg-transparent border-none transition-colors shrink-0 hover:text-danger disabled:opacity-25 disabled:cursor-default"
-                  :disabled="settings.devices.length <= 1"
-                  @click="removeDevice(idx)"
-                  title="Remove device"
-                ><Icon name="xmark-solid" /></button>
+                <Tooltip text="Remove device">
+                  <button
+                    class="text-text-dim text-lg leading-none cursor-pointer p-[2px_4px] rounded-sm bg-transparent border-none transition-colors shrink-0 hover:text-danger disabled:opacity-25 disabled:cursor-default"
+                    :disabled="settings.devices.length <= 1"
+                    @click="removeDevice(idx)"
+                  ><Icon name="xmark-solid" /></button>
+                </Tooltip>
               </div>
               <div class="flex items-center gap-1.5 pl-11">
                 <input
@@ -574,13 +596,19 @@ async function handleInstallPlugin(): Promise<void> {
           </div>
         </div>
 
-        <!-- ── SHADOW RECORD tab ── -->
+        <!-- ── RECORDING tab ── -->
         <div v-else-if="activeTab === 'shadowrecord'" class="space-y-5">
-          <p class="text-xs text-text-secondary leading-relaxed">
-            Shadow Record continuously buffers audio from an input device. At any time, press the save hotkey or the scissors button in the toolbar to capture the last N seconds as a WAV clip.
-          </p>
+          <div class="bg-bg-surface-hover border border-border-light p-3">
+            <p class="text-xs text-text-secondary leading-relaxed">
+              To capture system audio (Discord, game audio, etc.), route it through a virtual cable and select that cable as your input device here.
+            </p>
+            <button class="btn mt-2 flex items-center gap-1.5 text-xs self-start" @click="openVbCableHelp">
+              How to set up a virtual cable
+              <Icon name="chevron-down-solid" class="text-[10px] -rotate-90" />
+            </button>
+          </div>
 
-          <SettingRow label="Input Device" description="The audio input device to record from">
+          <SettingRow label="Input Device">
             <AppSelect
               class="min-w-48"
               :modelValue="shadowInputDeviceId"
@@ -592,26 +620,8 @@ async function handleInstallPlugin(): Promise<void> {
             />
           </SettingRow>
 
-          <SettingRow label="Buffer Duration" description="How many seconds to keep in the rolling buffer">
-            <AppSelect
-              class="min-w-36"
-              :modelValue="String(settings.shadowBufferDuration ?? 30)"
-              :options="[
-                { value: '5',  label: '5 seconds'  },
-                { value: '10', label: '10 seconds' },
-                { value: '15', label: '15 seconds' },
-                { value: '30', label: '30 seconds' },
-                { value: '60', label: '60 seconds' },
-              ]"
-              @update:modelValue="onShadowBufferDurationChange"
-            />
-          </SettingRow>
-
-          <SettingRow label="Clips Folder" description="Where saved clips are written">
+          <SettingRow label="Saved Recordings Folder" :description="settings.recordingFolder ?? 'No Folder Selected'">
             <div class="flex items-center gap-2 min-w-0">
-              <span class="text-xs text-text-secondary truncate max-w-48" :title="settings.shadowClipsFolder">
-                {{ settings.shadowClipsFolder || 'Not set' }}
-              </span>
               <button class="btn flex items-center gap-1.5 shrink-0" @click="pickClipsFolder">
                 <Icon name="folder-open" />
                 Browse
@@ -619,29 +629,32 @@ async function handleInstallPlugin(): Promise<void> {
             </div>
           </SettingRow>
 
-          <SettingRow label="Save Clip Hotkey">
-            <KeybindCapture
-              :modelValue="settings.shadowHotkey"
-              :allow-delete="true"
-              @update:modelValue="onShadowHotkeyChange"
-            />
+          <SettingRow label="Shadow Recording" description="Keep a rolling audio buffer ready to save as a clip at any time">
+            <ToggleSwitch :modelValue="settings.shadowEnabled" @update:modelValue="setShadowEnabled" />
           </SettingRow>
 
-          <SettingRow label="Auto-open clip editor" description="Open the clip editor when a clip is saved (clip editor coming in the next update)">
-            <ToggleSwitch
-              :modelValue="settings.shadowAutoOpenTrim"
-              @update:modelValue="onShadowAutoOpenTrimChange"
-            />
-          </SettingRow>
+          <div class="pl-4 border-l-2 border-border-light space-y-3 transition-opacity" :class="{ 'opacity-40 pointer-events-none': !settings.shadowEnabled }">
+            <SettingRow label="Buffer Duration" description="How many seconds to keep in the rolling buffer">
+              <AppSelect
+                class="min-w-36"
+                :modelValue="String(settings.shadowBufferDuration ?? 30)"
+                :options="[
+                  { value: '5',  label: '5 seconds'  },
+                  { value: '10', label: '10 seconds' },
+                  { value: '15', label: '15 seconds' },
+                  { value: '30', label: '30 seconds' },
+                  { value: '60', label: '60 seconds' },
+                ]"
+                @update:modelValue="onShadowBufferDurationChange"
+              />
+            </SettingRow>
 
-          <div class="bg-bg-surface-hover border border-border-light p-3 mt-2">
-            <p class="text-xs text-text-secondary leading-relaxed">
-              To capture system audio (Discord, game audio, etc.), route it through a virtual cable and select that cable as your input device here.
-            </p>
-            <button class="btn mt-2 flex items-center gap-1.5 text-xs self-start" @click="openVbCableHelp">
-              How to set up a virtual cable
-              <Icon name="chevron-down-solid" class="text-[10px] -rotate-90" />
-            </button>
+            <SettingRow label="Auto-open clip editor" description="Open the clip editor after saving a clip (coming in next update)">
+              <ToggleSwitch
+                :modelValue="settings.clipAutoOpenTrim"
+                @update:modelValue="onShadowAutoOpenTrimChange"
+              />
+            </SettingRow>
           </div>
         </div>
 

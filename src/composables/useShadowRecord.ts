@@ -116,7 +116,7 @@ export function useShadowRecord() {
   async function startRecording(): Promise<void> {
     await _teardown()
 
-    const label = settings.value.shadowInputDeviceLabel
+    const label = settings.value.recordingInputDeviceLabel
     if (!label) return
 
     const deviceId = findInputDeviceId(label)
@@ -166,7 +166,7 @@ export function useShadowRecord() {
 
   async function saveClip(): Promise<void> {
     if (isSaving.value || _chunks.length === 0) return
-    const folder = settings.value.shadowClipsFolder
+    const folder = settings.value.recordingFolder
     if (!folder) {
       showToast('Shadow record: no clips folder set — configure one in Settings', 'info')
       return
@@ -178,9 +178,9 @@ export function useShadowRecord() {
       const wav = encodeWav(snapshot, _sampleRate)
       const result = await window.api.saveShadowClip(wav, folder)
       if (result.success) {
-        showToast(`Clip saved: ${result.filename}`)
+        showToast(`Clip saved: ${result.filename}`, 'info')
       } else {
-        showToast(`Clip save failed: ${result.error}`, 'info')
+        showToast(`Clip save failed: ${result.error}`)
       }
     } finally {
       isSaving.value = false

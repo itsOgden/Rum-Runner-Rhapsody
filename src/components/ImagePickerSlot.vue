@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Icon from './Icon.vue'
+import Tooltip from '@/components/Tooltip.vue'
 
 defineProps<{
   label: string
@@ -36,14 +37,15 @@ const emit = defineEmits<{
       <div v-else class="w-full h-full flex items-center justify-center p-2">
         <span class="text-sm text-text-dim text-center leading-snug">{{ emptyText ?? 'Select Icon' }}</span>
       </div>
-      <button
-        v-if="path"
-        class="absolute top-1 right-1 w-[18px] h-4.5 rounded-full bg-black/60 border-none text-white text-sm leading-none cursor-pointer flex items-center justify-center p-0 z-[1] transition-colors duration-100 hover:bg-danger"
-        title="Clear override"
-        @click.stop="emit('clear')"
-      >
-        <Icon name="xmark-solid" />
-      </button>
+      <Tooltip text="Clear override">
+        <button
+          v-if="path"
+          class="absolute top-1 right-1 w-[18px] h-4.5 rounded-full bg-black/60 border-none text-white text-sm leading-none cursor-pointer flex items-center justify-center p-0 z-[1] transition-colors duration-100 hover:bg-danger"
+          @click.stop="emit('clear')"
+        >
+          <Icon name="xmark-solid" />
+        </button>
+      </Tooltip>
       <div v-if="!disabled" class="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity duration-150 pointer-events-none group-hover/slot:opacity-100 group-focus-visible/slot:opacity-100">
         <span class="text-sm font-semibold text-white uppercase tracking-[0.05em]">Change Icon</span>
       </div>

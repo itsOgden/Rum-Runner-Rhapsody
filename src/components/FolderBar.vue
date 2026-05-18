@@ -11,6 +11,7 @@ import CircleButton from '@/components/CircleButton.vue'
 import Icon from '@/components/Icon.vue'
 import AppSelect from '@/components/AppSelect.vue'
 import SoundboardModal from '@/components/SoundboardModal.vue'
+import Tooltip from '@/components/Tooltip.vue'
 
 const { settings, onFolderChanged, saveSettings, loadSounds } = useSettings()
 const { refreshDevices } = useAudioDevices()
@@ -157,7 +158,6 @@ onUnmounted(() => {
           ref="triggerRef"
           class="soundboard-trigger flex items-center gap-2 h-9 px-3 outline-none cursor-pointer max-w-[260px] min-w-50"
           :class="{ 'is-open': dropdownOpen }"
-          :title="settings.soundFolder || 'No soundboard selected'"
           @click="toggleDropdown"
           @contextmenu.prevent="handlePencilClick"
         >
@@ -168,13 +168,14 @@ onUnmounted(() => {
             >{{ activeDisplayName ?? 'No soundboard' }}</span>
           </span>
           <!-- Pencil — appears on hover, left of chevron -->
-          <span
-            v-if="settings.soundFolder"
-            class="opacity-0 group-hover/sb:opacity-100 transition-opacity duration-150 flex items-center shrink-0"
-            @click.stop="handlePencilClick"
-          >
-            <Icon name="pencil-solid" class="text-[10px] text-text-on-accent/70 hover:text-text-on-accent" />
-          </span>
+          <Tooltip v-if="settings.soundFolder" text="Edit soundboard">
+            <span
+              class="opacity-0 group-hover/sb:opacity-100 transition-opacity duration-150 flex items-center shrink-0"
+              @click.stop="handlePencilClick"
+            >
+              <Icon name="pencil-solid" class="text-[10px] text-text-on-accent/70 hover:text-text-on-accent" />
+            </span>
+          </Tooltip>
           <Icon
             name="chevron-down-solid"
             class="text-[9px] shrink-0 transition-transform duration-200 text-text-on-accent/60"
@@ -184,13 +185,14 @@ onUnmounted(() => {
       </div>
 
       <!-- Refresh (accent-colored, always visible) -->
-      <button
-        class="toolbar-icon-btn !text-accent hover:!text-accent"
-        title="Refresh devices and sounds"
-        @click="handleRefresh"
-      >
-        <Icon name="arrow-rotate-right" />
-      </button>
+      <Tooltip text="Refresh devices and sounds">
+        <button
+          class="toolbar-icon-btn !text-accent hover:!text-accent"
+          @click="handleRefresh"
+        >
+          <Icon name="arrow-rotate-right" />
+        </button>
+      </Tooltip>
 
     </div>
 
@@ -217,37 +219,42 @@ onUnmounted(() => {
     <div class="flex items-center gap-3 ml-auto md:ml-0 md:justify-end text-xs select-none">
 
       <!-- Layout dropdown -->
-      <AppSelect
-        variant="ghost"
-        :modelValue="settings.viewMode"
-        :options="[{ value: 'accordion', label: 'Grouped' }, { value: 'flat', label: 'Grid' }]"
-        @update:modelValue="setViewMode"
-      />
+      <Tooltip text="Sound grid layout">
+        <AppSelect
+          variant="ghost"
+          :modelValue="settings.viewMode"
+          :options="[{ value: 'accordion', label: 'Grouped' }, { value: 'flat', label: 'Grid' }]"
+          @update:modelValue="setViewMode"
+        />
+      </Tooltip>
 
       <!-- Divider -->
       <span class="w-px h-3.5 bg-border-light shrink-0" aria-hidden="true" />
 
       <!-- Density dropdown -->
-      <AppSelect
-        variant="ghost"
-        :modelValue="settings.density"
-        :options="[{ value: 'loose', label: 'Loose' }, { value: 'compact', label: 'Compact' }]"
-        @update:modelValue="setDensity"
-      />
+      <Tooltip text="Button size">
+        <AppSelect
+          variant="ghost"
+          :modelValue="settings.density"
+          :options="[{ value: 'loose', label: 'Loose' }, { value: 'compact', label: 'Compact' }]"
+          @update:modelValue="setDensity"
+        />
+      </Tooltip>
 
       <!-- Divider -->
       <span class="w-px h-3.5 bg-border-light shrink-0" aria-hidden="true" />
 
       <!-- Show hidden toggle -->
-      <button
-        class="flex items-center gap-1 transition-colors cursor-pointer outline-none"
-        :class="showHidden ? 'text-accent-text' : 'text-text-dim hover:text-text-secondary'"
-        :title="showHidden ? 'Hide hidden sounds' : 'Show hidden sounds'"
-        @click="toggleShowHidden"
-      >
-        <span class="text-[11px] w-3.5 flex items-center"><Icon :name="showHidden ? 'eye' : 'eye-slash'" /></span>
-        Show hidden
-      </button>
+      <Tooltip :text="showHidden ? 'Hide hidden sounds' : 'Show hidden sounds'">
+        <button
+          class="flex items-center gap-1 transition-colors cursor-pointer outline-none"
+          :class="showHidden ? 'text-accent-text' : 'text-text-dim hover:text-text-secondary'"
+          @click="toggleShowHidden"
+        >
+          <span class="text-[11px] w-3.5 flex items-center"><Icon :name="showHidden ? 'eye' : 'eye-slash'" /></span>
+          Show hidden
+        </button>
+      </Tooltip>
 
     </div>
 
@@ -273,9 +280,11 @@ onUnmounted(() => {
             : 'text-text-secondary hover:bg-bg-surface hover:text-text-primary'"
           @click="handleSwitch(folder)"
         >
-          <span class="flex-1 py-2 text-sm font-sans truncate text-left" :title="folder">
-            {{ getDisplayName(folder) }}
-          </span>
+          <Tooltip :text="folder">
+            <span class="flex-1 py-2 text-sm font-sans truncate text-left">
+              {{ getDisplayName(folder) }}
+            </span>
+          </Tooltip>
         </div>
 
         <!-- Divider + add folder -->

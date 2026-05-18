@@ -39,6 +39,21 @@
 					"TitleAlignment": "middle"
 				}
 			]
+		},
+		{
+			"Name": "Save Clip",
+			"UUID": "com.pdog1.rum-runner-rhapsody.saveclip",
+			"Icon": "imgs/actions/save-clip/icon",
+			"Tooltip": "Save a shadow recording clip from Rum-Runner Rhapsody.",
+			"Controllers": [
+				"Keypad"
+			],
+			"States": [
+				{
+					"Image": "imgs/actions/save-clip/key",
+					"TitleAlignment": "middle"
+				}
+			]
 		}
 	],
 	"Category": "Rum-Runner Rhapsody",

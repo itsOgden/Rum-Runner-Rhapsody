@@ -9,6 +9,7 @@ import Icon from '@/components/Icon.vue'
 import type { Sound } from '../types'
 import CircleButton from '@/components/CircleButton.vue'
 import ToggleCircleButton from '@/components/ToggleCircleButton.vue'
+import Tooltip from '@/components/Tooltip.vue'
 import VolumeSlider from '@/components/VolumeSlider.vue'
 import KeybindCapture from '@/components/KeybindCapture.vue'
 import { CLIP_VOLUME_MAX_DB, setClipVolumeOffset } from '../composables/useAudioPlayer'
@@ -155,10 +156,12 @@ function openMenu(event: MouseEvent): void {
     confirmingReset.value = false
     capturingKeybind.value = false
     document.removeEventListener('click', close)
+    document.removeEventListener('contextmenu', close)
     document.removeEventListener('scroll', close, true)
     document.removeEventListener('keydown', onEsc, true)
   }
   document.addEventListener('click', close)
+  document.addEventListener('contextmenu', close)
   document.addEventListener('scroll', close, true)
   document.addEventListener('keydown', onEsc, true)
 }
@@ -411,12 +414,13 @@ function resetVolumeOffset(): void {
             <template v-if="!confirmingReset">
               <div class="flex items-center justify-between">
                 <span class="text-xs text-text-secondary select-none">{{ playCountLabel }}</span>
-                <button
-                  v-if="playCount > 0"
-                  class="text-xs text-text-secondary hover:text-danger cursor-pointer transition-colors"
-                  title="Reset play count"
-                  @click="confirmingReset = true"
-                >reset</button>
+                <Tooltip text="Reset play count">
+                  <button
+                    v-if="playCount > 0"
+                    class="text-xs text-text-secondary hover:text-danger cursor-pointer transition-colors"
+                    @click="confirmingReset = true"
+                  >reset</button>
+                </Tooltip>
               </div>
             </template>
             <template v-else>

@@ -143,7 +143,7 @@ const DEFAULT_GLOBAL_SETTINGS = {
     { label: "", volume: 1.0, enabled: true },
     { label: "", volume: 1.0, enabled: true },
   ],
-  hotkeys: { stop: "Escape", search: "Space" },
+  hotkeys: { stop: "Ctrl+Shift+X", search: "Space", saveClip: "Ctrl+Shift+R" },
   playbackMode: "stop",
   normalize: false,
   streamDeckButtonMode: true,
@@ -155,11 +155,11 @@ const DEFAULT_GLOBAL_SETTINGS = {
   launchMinimized: false,
   blockTypingConflicts: true,
   accentColor: "",
-  shadowInputDeviceLabel: "",
+  recordingInputDeviceLabel: "",
   shadowBufferDuration: 30,
-  shadowClipsFolder: "",
-  shadowAutoOpenTrim: false,
-  shadowHotkey: "",
+  recordingFolder: "",
+  shadowEnabled: true,
+  clipAutoOpenTrim: false,
 };
 
 // Per-folder settings file — stored inside each sound folder
@@ -225,6 +225,23 @@ function registerShadowHotkey(combo) {
       mainWindow?.webContents.send('global-save-shadow-clip');
     });
     if (ok) registeredShadowHotkey = combo;
+  } catch {}
+}
+
+// ── Stop All system-wide hotkey ───────────────────────────────────────────────
+let registeredStopHotkey = '';
+
+function registerStopHotkey(combo) {
+  if (registeredStopHotkey) {
+    try { globalShortcut.unregister(registeredStopHotkey); } catch {}
+    registeredStopHotkey = '';
+  }
+  if (!combo) return;
+  try {
+    const ok = globalShortcut.register(combo, () => {
+      mainWindow?.webContents.send('global-stop-all');
+    });
+    if (ok) registeredStopHotkey = combo;
   } catch {}
 }
 
@@ -594,9 +611,9 @@ function startWebSocketServer() {
   wss.on("connection", (ws) => {
     const folder = globalSettings.soundFolder;
     if (folder) {
-      ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" }));
+      ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D", shadowEnabled: !!globalSettings.shadowEnabled }));
     } else {
-      ws.send(JSON.stringify({ type: "folder-status", folderSelected: false, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" }));
+      ws.send(JSON.stringify({ type: "folder-status", folderSelected: false, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D", shadowEnabled: !!globalSettings.shadowEnabled }));
     }
 
     ws.on("message", (raw) => {
@@ -606,9 +623,9 @@ function startWebSocketServer() {
       if (msg.type === "get-sounds") {
         const folder = globalSettings.soundFolder;
         if (folder) {
-          ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" }));
+          ws.send(JSON.stringify({ type: "sounds-list", sounds: buildWsSoundList(), folderSelected: true, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D", shadowEnabled: !!globalSettings.shadowEnabled }));
         } else {
-          ws.send(JSON.stringify({ type: "folder-status", folderSelected: false, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" }));
+          ws.send(JSON.stringify({ type: "folder-status", folderSelected: false, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D", shadowEnabled: !!globalSettings.shadowEnabled }));
         }
       } else if (msg.type === "play-sound" && msg.key) {
         const hiddenSet = new Set(folderSettings.hiddenSounds || []);
@@ -617,6 +634,12 @@ function startWebSocketServer() {
         }
       } else if (msg.type === "stop-all") {
         mainWindow?.webContents.send("ws-stop-all");
+      } else if (msg.type === "save-clip") {
+        if (globalSettings.shadowEnabled) {
+          mainWindow?.webContents.send("ws-save-clip");
+        } else {
+          mainWindow?.webContents.send("ws-open-shadow-settings");
+        }
       }
     });
   });
@@ -707,7 +730,8 @@ app.whenReady().then(() => {
 
     createWindow();
     registerSoundHotkeys(folderSettings.soundHotkeys || {}, folderSettings.hiddenSounds || []);
-    registerShadowHotkey(globalSettings.shadowHotkey || '');
+    registerShadowHotkey(globalSettings.hotkeys?.saveClip || '');
+    registerStopHotkey(globalSettings.hotkeys?.stop || '');
 
     // Kill any lingering process occupying port 57432, then start the WS server.
     // At login time netstat/taskkill can hang or fail, so a 2-second timeout
@@ -818,18 +842,19 @@ ipcMain.handle("save-settings", (_event, newSettings) => {
   if ("soundHotkeys" in newSettings || "hiddenSounds" in newSettings) {
     registerSoundHotkeys(folderSettings.soundHotkeys || {}, folderSettings.hiddenSounds || []);
   }
-  if ("shadowHotkey" in newSettings) {
-    registerShadowHotkey(newSettings.shadowHotkey || '');
+  if ("hotkeys" in newSettings) {
+    registerStopHotkey(newSettings.hotkeys?.stop || '');
+    registerShadowHotkey(newSettings.hotkeys?.saveClip || '');
   }
-  if (folderDirty || "streamDeckButtonMode" in newSettings || "streamDeckDefaultImages" in newSettings || "accentColor" in newSettings) {
-    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
+  if (folderDirty || "streamDeckButtonMode" in newSettings || "streamDeckDefaultImages" in newSettings || "accentColor" in newSettings || "shadowEnabled" in newSettings) {
+    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D", shadowEnabled: !!globalSettings.shadowEnabled });
   }
   return { ...globalSettings, ...folderSettings, ...stats };
 });
 
 ipcMain.handle("get-sounds", () => {
   const groups = discoverSounds(globalSettings.soundFolder);
-  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
+  broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D", shadowEnabled: !!globalSettings.shadowEnabled });
   return groups;
 });
 
@@ -900,7 +925,7 @@ ipcMain.handle("remove-folder", async (_event, targetFolder) => {
       stats = { ...DEFAULT_STATS };
       registerSoundHotkeys({});
     }
-    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D" });
+    broadcastToClients({ type: "sounds-updated", sounds: buildWsSoundList(), folderSelected: !!globalSettings.soundFolder, buttonMode: globalSettings.streamDeckButtonMode, categoryStreamDeckImages: folderSettings.categoryStreamDeckImages || {}, streamDeckDefaultImages: globalSettings.streamDeckDefaultImages || {}, accentColor: globalSettings.accentColor || "#F9B71D", shadowEnabled: !!globalSettings.shadowEnabled });
   }
 
   saveGlobalSettings(globalSettings);
@@ -927,8 +952,10 @@ ipcMain.handle("pick-clips-folder", async () => {
 ipcMain.handle("save-shadow-clip", (_event, data, folder) => {
   try {
     fs.mkdirSync(folder, { recursive: true });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `clip-${timestamp}.wav`;
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+    const filename = `${timestamp}.wav`;
     const filePath = path.join(folder, filename);
     fs.writeFileSync(filePath, Buffer.from(data));
     return { success: true, filename, filePath };

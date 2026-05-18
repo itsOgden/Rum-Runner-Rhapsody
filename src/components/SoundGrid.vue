@@ -8,6 +8,7 @@ import AccordionSection from './AccordionSection.vue'
 import SoundButton from './SoundButton.vue'
 import CategorySettingsModal from './CategorySettingsModal.vue'
 import Icon from '@/components/Icon.vue'
+import Tooltip from '@/components/Tooltip.vue'
 import type { SoundSection } from '../types'
 
 const { settings, soundGroups, soundCount, isLoadingSounds } = useSettings()
@@ -296,7 +297,6 @@ function closeNavCategoryModal(): void {
           !filterQuery ? 'cursor-grab' : '',
         ]"
         :style="section.color ? { '--nav-hover-color': section.color, '--nav-active-bg': `color-mix(in srgb, ${section.color} 10%, transparent)` } : undefined"
-        :title="section.displayName"
         :draggable="!filterQuery"
         @dragstart="onNavDragStart($event, section)"
         @dragend="onNavDragEnd"
@@ -318,13 +318,14 @@ function closeNavCategoryModal(): void {
         </button>
 
         <!-- Pencil edit button — reveals on row hover -->
-        <button
-          class="opacity-0 group-hover/nav-item:opacity-100 shrink-0 pr-2 py-1.5 cursor-pointer text-text-dim hover:text-text-secondary transition-opacity duration-150"
-          title="Edit category"
-          @click.stop="openCategoryModal(section)"
-        >
-          <Icon name="pencil" class="text-[11px]" />
-        </button>
+        <Tooltip text="Edit category">
+          <button
+            class="opacity-0 group-hover/nav-item:opacity-100 shrink-0 pr-2 py-1.5 cursor-pointer text-text-dim hover:text-text-secondary transition-opacity duration-150"
+            @click.stop="openCategoryModal(section)"
+          >
+            <Icon name="pencil" class="text-[11px]" />
+          </button>
+        </Tooltip>
       </div>
 
       <!-- New Category -->

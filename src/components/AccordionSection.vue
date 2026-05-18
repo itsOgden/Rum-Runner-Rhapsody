@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import SoundButton from './SoundButton.vue'
 import Icon from '@/components/Icon.vue'
 import CategorySettingsModal from './CategorySettingsModal.vue'
+import Tooltip from '@/components/Tooltip.vue'
 import { useSoundManagement } from '../composables/useSoundManagement'
 import { draggingSound, draggingSection } from '../dragState'
 import type { SoundSection } from '../types'
@@ -264,14 +265,15 @@ function onAfterLeave(el: Element): void {
       <span class="font-display text-base text-text-primary flex-1 min-w-0 truncate leading-none">{{ section.displayName }}</span>
 
       <!-- Pencil — hover-reveal, opens category settings modal -->
-      <button
-        v-if="!filter"
-        class="opacity-0 group-hover/hdr:opacity-100 cursor-pointer transition-opacity duration-150 text-text-dim hover:text-text-secondary shrink-0"
-        title="Edit category"
-        @click.stop="categorySettingsOpen = true"
-      >
-        <Icon name="pencil" class="text-[11px]" />
-      </button>
+      <Tooltip text="Edit category">
+        <button
+          v-if="!filter"
+          class="opacity-0 group-hover/hdr:opacity-100 cursor-pointer transition-opacity duration-150 text-text-dim hover:text-text-secondary shrink-0"
+          @click.stop="categorySettingsOpen = true"
+        >
+          <Icon name="pencil" class="text-[11px]" />
+        </button>
+      </Tooltip>
 
       <!-- Count -->
       <span class="text-xs text-text-secondary tabular-nums shrink-0">{{ visibleSounds.length }}</span>

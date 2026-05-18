@@ -256,3 +256,32 @@ html.light .bg-bg-deepest {
   --color-text-secondary: #B8B5B3;
   --color-text-dim:       #5A5857;
 }
+
+/* ─── Custom tooltip ─────────────────────────────────────────────────────── */
+.rrr-tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border-light);
+  border-top: 1.5px solid var(--color-accent);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  padding: 4px 9px;
+  max-width: 260px;
+  white-space: normal;
+  word-break: break-word;
+  user-select: none;
+}
+.rrr-tt-enter-active,
+.rrr-tt-leave-active {
+  transition: opacity 0.12s ease;
+}
+.rrr-tt-enter-from,
+.rrr-tt-leave-to {
+  opacity: 0;
+}
