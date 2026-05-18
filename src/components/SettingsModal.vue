@@ -629,6 +629,11 @@ async function handleInstallPlugin(): Promise<void> {
             </div>
           </SettingRow>
 
+          <div v-if="!settings.recordingInputDeviceLabel || !settings.recordingFolder" class="flex items-center gap-2.5 px-3 py-2.5 text-xs text-danger border border-danger/30 bg-danger/5">
+            <Icon name="triangle-exclamation-rrr" class="text-[14px] shrink-0" />
+            Recording is inactive — set an input device and a recordings folder above to enable it.
+          </div>
+
           <SettingRow label="Shadow Recording" description="Keep a rolling audio buffer ready to save as a clip at any time">
             <ToggleSwitch :modelValue="settings.shadowEnabled" @update:modelValue="setShadowEnabled" />
           </SettingRow>
