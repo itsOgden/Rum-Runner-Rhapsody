@@ -8,10 +8,13 @@ import { useStreamDeckImageErrors } from './composables/useStreamDeckImageErrors
 import { useShadowRecord } from './composables/useShadowRecord'
 import { filterQuery } from './filterState'
 import { settingsModalInitialTab, settingsModalOpen } from './modalState'
+import { clipEditorOpen, trimSidebarOpen } from './clipEditorState'
 import TitleBar from './components/TitleBar.vue'
 import FolderBar from './components/FolderBar.vue'
 import SoundGrid from './components/SoundGrid.vue'
 import StatusBar from './components/StatusBar.vue'
+import ClipEditor from './components/ClipEditor.vue'
+import ClipTrimSidebar from './components/ClipTrimSidebar.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import HelpModal from './components/HelpModal.vue'
 import Toast from './components/Toast.vue'
@@ -155,11 +158,25 @@ onMounted(async () => {
       </div>
     </template>
 
-    <!-- ── Normal app chrome ─────────────────────────────────────────────── -->
+    <!-- ── Normal app chrome + clip editor overlay ───────────────────────── -->
     <template v-else>
-      <FolderBar />
-      <SoundGrid />
-      <StatusBar />
+      <div class="relative flex-1 min-h-0 flex flex-col">
+        <FolderBar />
+        <div class="flex flex-1 min-h-0">
+          <SoundGrid class="flex-1 min-w-0" />
+          <Transition name="trim-sidebar">
+            <ClipTrimSidebar v-if="trimSidebarOpen" />
+          </Transition>
+        </div>
+        <StatusBar />
+
+        <!-- Clip editor slides up as an overlay over the content area -->
+        <Transition name="clip-editor">
+          <div v-if="clipEditorOpen" class="absolute inset-0 z-40">
+            <ClipEditor />
+          </div>
+        </Transition>
+      </div>
     </template>
 
     <!-- Overlays always available (toasts, settings, help) -->
@@ -168,4 +185,15 @@ onMounted(async () => {
     <Toast />
   </div>
 </template>
+
+<style scoped>
+.clip-editor-enter-active,
+.clip-editor-leave-active {
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.clip-editor-enter-from,
+.clip-editor-leave-to {
+  transform: translateY(100%);
+}
+</style>
 

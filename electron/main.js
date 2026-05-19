@@ -964,6 +964,54 @@ ipcMain.handle("save-shadow-clip", (_event, data, folder) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Clip file management
+// ---------------------------------------------------------------------------
+
+ipcMain.handle("list-clips-folder", (_event, folder) => {
+  try {
+    if (!folder || !fs.existsSync(folder)) return [];
+    const entries = fs.readdirSync(folder);
+    const clips = entries
+      .filter(f => f.toLowerCase().endsWith('.wav'))
+      .map(f => {
+        const filePath = path.join(folder, f);
+        const stat = fs.statSync(filePath);
+        return { path: filePath, filename: f, size: stat.size, mtime: stat.mtimeMs };
+      })
+      .sort((a, b) => b.mtime - a.mtime);
+    return clips;
+  } catch (e) {
+    return [];
+  }
+});
+
+ipcMain.handle("trash-clip-file", async (_event, filePath) => {
+  try {
+    await shell.trashItem(filePath);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle("reveal-in-explorer", (_event, folderPath) => {
+  shell.openPath(folderPath);
+});
+
+ipcMain.handle("save-exported-clip", (_event, data, destFolder, filename) => {
+  try {
+    fs.mkdirSync(destFolder, { recursive: true });
+    const safe = filename.replace(/[<>:"/\\|?*]/g, '_').replace(/\.wav$/i, '');
+    const finalName = safe + '.wav';
+    const filePath = path.join(destFolder, finalName);
+    fs.writeFileSync(filePath, Buffer.from(data));
+    return { success: true, filePath, filename: finalName };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
 ipcMain.handle("pick-image", async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ["openFile"],

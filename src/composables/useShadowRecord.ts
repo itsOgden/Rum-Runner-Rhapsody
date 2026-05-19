@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { useSettings } from './useSettings'
 import { useAudioDevices } from './useAudioDevices'
 import { showToast } from '../toastState'
+import { trimSidebarOpen, trimSidebarFile } from '../clipEditorState'
 
 // Each chunk is interleaved stereo (L0, R0, L1, R1, …) at the AudioContext sample rate.
 // At 48 kHz, 4096 samples ≈ 85 ms per chunk.
@@ -179,6 +180,10 @@ export function useShadowRecord() {
       const result = await window.api.saveShadowClip(wav, folder)
       if (result.success) {
         showToast(`Clip saved: ${result.filename}`, 'info')
+        if (settings.value.clipAutoOpenTrim && result.filePath) {
+          trimSidebarFile.value = result.filePath
+          trimSidebarOpen.value = true
+        }
       } else {
         showToast(`Clip save failed: ${result.error}`)
       }

@@ -4,6 +4,7 @@ import { useAudioPlayer } from '@/composables/useAudioPlayer'
 import { useSettings } from '@/composables/useSettings'
 import { useShadowRecord } from '@/composables/useShadowRecord'
 import { settingsModalOpen, settingsModalInitialTab, helpModalOpen } from '@/modalState'
+import { clipEditorOpen, trimSidebarOpen } from '@/clipEditorState'
 import WordmarkSvg from '@/assets/images/wordmark.svg'
 import LogoSvg from '@/assets/images/logo.svg'
 import Icon from '@/components/Icon.vue'
@@ -80,6 +81,17 @@ onMounted(async () => {
 
     <!-- Right: app controls + divider + window controls -->
     <div class="flex items-center justify-end">
+
+      <!-- Clip editor access — when recording folder is configured -->
+      <Tooltip v-if="settings.recordingFolder" text="Clip Editor">
+        <button
+          class="wc-btn app-region-no-drag"
+          :class="{ 'text-accent!': clipEditorOpen }"
+          @click="clipEditorOpen ? (clipEditorOpen = false) : (trimSidebarOpen = false, clipEditorOpen = true)"
+        >
+          <Icon name="scissors" class="text-[13px]" />
+        </button>
+      </Tooltip>
 
       <!-- Shadow record: recording → combined dot + scissors save button -->
       <Tooltip v-if="isRecording" :text="saveTooltip">

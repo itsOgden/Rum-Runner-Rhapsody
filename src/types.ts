@@ -131,6 +131,10 @@ export interface WindowApi {
   onGlobalStopAll(callback: () => void): void
   pickClipsFolder(): Promise<string | null>
   saveShadowClip(data: ArrayBuffer, folder: string): Promise<{ success: boolean; filename?: string; filePath?: string; error?: string }>
+  listClipsFolder(folder: string): Promise<Array<{ path: string; filename: string; size: number; mtime: number }>>
+  trashClipFile(path: string): Promise<{ success: boolean; error?: string }>
+  revealInExplorer(folderPath: string): Promise<void>
+  saveExportedClip(data: ArrayBuffer, destFolder: string, filename: string): Promise<{ success: boolean; filePath?: string; filename?: string; error?: string }>
   updatePlayingStatus(keys: string[]): void
   installStreamDeckPlugin(): Promise<{ success: boolean; message: string; restartingStreamDeck: boolean }>
   getStreamDeckPluginStatus(): Promise<{ bundledVersion: string; installedVersion: string | null; needsUpdate: boolean; isInstalled: boolean }>

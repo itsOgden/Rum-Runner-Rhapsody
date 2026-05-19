@@ -5,7 +5,7 @@ import Icon from './Icon.vue'
 
 const props = defineProps<{
   modelValue: string
-  options: Array<{ value: string; label: string }>
+  options: Array<{ value: string; label: string; color?: string }>
   variant?: 'default' | 'ghost'
 }>()
 
@@ -18,9 +18,8 @@ const menuRef = ref<HTMLElement | null>(null)
 const pos = ref({ x: 0, y: 0, width: 0 })
 const focusedIndex = ref(-1)
 
-const selectedLabel = computed(
-  () => props.options.find(o => o.value === props.modelValue)?.label ?? ''
-)
+const selectedOption = computed(() => props.options.find(o => o.value === props.modelValue))
+const selectedLabel = computed(() => selectedOption.value?.label ?? '')
 
 // Close when another dropdown opens
 watch(activeDropdownId, (id) => { if (id !== dropdownId) isOpen.value = false })
@@ -106,7 +105,10 @@ onUnmounted(removeOutsideHandler)
       @click="toggle"
       @keydown="onTriggerKeydown"
     >
-      <span class="truncate text-left">{{ selectedLabel }}</span>
+      <span class="flex items-center gap-2 min-w-0 truncate text-left">
+        <span v-if="selectedOption?.color" class="w-2 h-2 rounded-full shrink-0" :style="{ backgroundColor: selectedOption.color }" />
+        <span class="truncate">{{ selectedLabel }}</span>
+      </span>
       <Icon
         name="chevron-down-solid"
         class="shrink-0 transition-transform duration-150"
@@ -130,7 +132,7 @@ onUnmounted(removeOutsideHandler)
             v-for="(option, i) in options"
             :key="option.value"
             tabindex="-1"
-            class="select-item w-full text-left px-3 py-1.5 font-sans text-sm cursor-pointer outline-none transition-colors"
+            class="select-item w-full text-left px-3 py-1.5 font-sans text-sm cursor-pointer outline-none transition-colors flex items-center gap-2"
             :class="[
               option.value === modelValue
                 ? 'text-accent bg-bg-surface select-item--selected'
@@ -142,7 +144,8 @@ onUnmounted(removeOutsideHandler)
             @click="select(option.value)"
             @mousemove="focusedIndex = i"
           >
-            {{ option.label }}
+            <span v-if="option.color" class="w-1.5 h-1.5 rounded-full shrink-0" :style="{ backgroundColor: option.color }" />
+            <span class="truncate">{{ option.label }}</span>
           </button>
         </div>
       </Transition>

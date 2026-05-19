@@ -2,17 +2,7 @@
 
 ## Keeping This File Current
 
-**This file is the source of truth for how RRR works. Keep it up to date.**
-
-**Updating this document is the last step of every task.** Do not consider a task complete until the relevant section(s) reflect the current state. This is not optional — a task that changes the codebase without updating the doc is an incomplete task.
-
-After completing any phase of work or making any non-trivial change, update the relevant section(s) before closing out. This includes:
-- Architecture changes (new files, renamed fields, new IPC handlers, new composables)
-- Settings schema changes (covered separately in the Modifying settings checklist)
-- New components, new behaviors, or changes to existing ones
-- Anything that would mislead a future Claude session if left stale
-
-If you finish a task and nothing in the doc needed to change, that's fine — but check first.
+**Updating this document is the last step of every task.** Do not consider a task complete until relevant sections reflect the current state — architecture changes, new files, IPC handlers, settings fields, component behaviors. If nothing changed, that's fine, but check first.
 
 ---
 
@@ -35,8 +25,6 @@ Rum-Runner Rhapsody (RRR) is a **dual-output Windows soundboard application** bu
 | Stream Deck | SDK v3 plugin (separate package, bundled into exe) |
 | Build | electron-builder (portable .exe + NSIS installer targets) |
 | Package manager | pnpm (monorepo with packages/rrr-streamdeck) |
-
-Tailwind v4 is used for layout/spacing utility classes. Design tokens (colors, radii, fonts) are defined in `style.css` under `@theme` and are available both as Tailwind utilities (e.g. `bg-bg-raised`, `text-text-dim`) and as CSS custom properties (e.g. `var(--color-bg-raised)`).
 
 ---
 
@@ -72,87 +60,79 @@ Rum-Runner Rhapsody/
 ├── src/
 │   ├── App.vue                  — Root component, layout (TitleBar + FolderBar + SoundGrid + StatusBar)
 │   ├── components/
-│   │   ├── TitleBar.vue         — Custom frameless titlebar (40px)
-│   │   ├── FolderBar.vue        — Sound library bar: left = soundboard switcher trigger (full gold/accent background, TavernloreBB text) with pencil icon inside left of chevron (opacity-0, group-hover/sb reveals it) + accent-colored Refresh button; center search (Space shortcut focuses it globally); right: Layout ghost AppSelect (Grouped/Grid), divider, Density ghost AppSelect (Loose/Compact), divider, Show Hidden text toggle. Ghost AppSelect variant = gold text + caret, no border/bg, dropdown min-width 200px. Clicking pencil or right-clicking trigger opens SoundboardModal. Dropdown (teleported) shows all savedFolders with display names, no remove buttons (management is in SoundboardModal). "Add folder…" at dropdown bottom.
-│   │   ├── SoundboardModal.vue  — Opened by pencil icon or right-clicking the soundboard trigger in FolderBar; General tab: name input (modal title updates live as you type; saves to folderDisplayNames on close), read-only location path. Footer: "Remove soundboard" danger button with inline confirmation (files not deleted warning + Cancel/Remove). Remove auto-switches to first remaining folder or clears if none left.
-│   │   ├── SoundGrid.vue        — Main grid: category quick-nav sidebar, accordion sections (or flat grid), drag-and-drop, empty states
-│   │   ├── AccordionSection.vue — Category header (collapsible, draggable, right-click opens settings) + sound button grid + DnD
-│   │   ├── SoundButton.vue      — Individual sound button + context menu + preview; playing styles transition in instantly (~0.04s) but fade out slowly (~0.4–0.55s) via CSS cascade trick; halo glow is a real `<div>` with Vue `<Transition name="halo">` (not `::after`) so enter/leave work cleanly alongside the `btn-ambient-pulse` animation
-│   │   ├── BaseModal.vue        — Reusable modal wrapper with animations; optional `label` prop renders a small gold uppercase rubric above the title to identify modal type (e.g. "Category", "Soundboard"); scoped `.type-rubric` CSS: 9px, 0.16em tracking, accent color
-│   │   ├── ModalTabs.vue        — Shared left-sidebar tab nav used by all modals (v-model activeTab, badge support); active/hover state uses a 2px accent `::before` scaleY bar (0→1, 0.12s) matching the context menu design language; active state reveals bar instantly (transition: none)
-│   │   ├── SettingsModal.vue    — Settings (side-tab: App / Keybinds / Appearance / Playback / Audio Devices / Stream Deck)
-│   │   ├── HelpModal.vue        — Help (side-tab: Patch Notes / VB-Cable guide)
+│   │   ├── TitleBar.vue         — Custom frameless titlebar (48px); grid-cols-3; shadow record buttons
+│   │   ├── FolderBar.vue        — Soundboard switcher, search, layout/density controls
+│   │   ├── SoundboardModal.vue  — Edit/remove soundboard name and path
+│   │   ├── SoundGrid.vue        — Main grid: category sidebar, accordion/flat view, DnD, CategorySettingsModal
+│   │   ├── AccordionSection.vue — Category header + sound button grid + DnD
+│   │   ├── SoundButton.vue      — Sound button + context menu + preview
+│   │   ├── BaseModal.vue        — Reusable modal wrapper; optional `label` rubric above title
+│   │   ├── ModalTabs.vue        — Left-sidebar tab nav (v-model, badge support); 2px accent ::before bar
+│   │   ├── SettingsModal.vue    — Settings (App / Keybinds / Appearance / Playback / Audio Devices / Stream Deck)
+│   │   ├── HelpModal.vue        — Help (Patch Notes / VB-Cable guide)
 │   │   ├── CategorySettingsModal.vue — Per-category settings (General / Stream Deck tabs)
-│   │   ├── StreamDeckImagePicker.vue — Reusable image picker for SD button images
-│   │   ├── StatusBar.vue        — Audio status text, SD image error warnings, sound count + hotkey reminder
-│   │   ├── KeybindCapture.vue   — Reusable keybind capture widget; displays assigned keybind as individual key chips ([Ctrl] [F5]); click to enter listening mode (pulsing dot + "Press a key…"); Escape cancels; emits accelerator string or empty string (clear); `allowDelete` prop (default true) shows × button — pass `false` for global keybinds that must always be set; used in SettingsModal Keybinds tab and SoundButton context menu
+│   │   ├── StreamDeckImagePicker.vue — Reusable SD button image picker (idle/playing/stop slots)
+│   │   ├── ClipEditor.vue       — Full-tab clip trim editor (overlays content area, slides up from bottom); 3-panel: file list with sort (newest/oldest/A-Z/Z-A) / waveform / export (Save to Category); per-clip edit state persists in `clipEditStates` Map (survives open/close); cleared on export/delete/reset
+│   │   ├── ClipTrimSidebar.vue  — Quick-trim sidebar (320px, in-layout beside SoundGrid — not a fixed overlay); auto-opens after save; reloads soundboard on export
+│   │   ├── ClipPlaybackControls.vue — Shared playback controls (skip/play/stop/loop/reset) + time display (In/Out/selection); used by both ClipEditor and ClipTrimSidebar; `compact` prop switches to smaller 30×28px buttons for the sidebar
+│   │   ├── WaveformCanvas.vue   — Canvas waveform: peaks drawn once on canvas; selection dim overlays are pointer-events-none divs (no repaint on drag); `accentColor` prop triggers redraw on color change
+│   │   ├── StatusBar.vue        — Audio status, SD image error warnings, sound count
+│   │   ├── KeybindCapture.vue   — Keybind capture widget; key chips; `allowDelete` prop
 │   │   ├── VolumeSlider.vue     — Reusable range slider (v-model, min/max/step/unit)
-│   │   ├── Tooltip.vue          — Custom themed tooltip; wraps slot in `display:contents` span, teleports tooltip div to body; props: `text` (string), `delay` (ms, default 400); tooltip follows the mouse cursor with 4-way flip logic (right→left, below→above) based on viewport edges; gold accent top border + dark bg; `.rrr-tooltip` class in style.css; never use native `title` attributes — always use this component or pass `title` prop to CircleButton/SquareButton/ToggleCircleButton
-│   │   ├── Icon.vue             — SVG icon component (wraps generated icon CSS classes)
-│   │   ├── SquareButton.vue     — 36×36px icon button; props: icon, title, active, disabled, variant ('default'|'danger')
-│   │   ├── CircleButton.vue     — 20×20px circle icon button; prop: noColors to skip accent styling
-│   │   ├── ToggleCircleButton.vue — Circle button with enabled state (accent bg when enabled, hover-reveal when not)
-│   │   ├── ToggleSwitch.vue     — Reusable boolean toggle switch (v-model); used in all settings modals; checked state shows accent glow ring (`box-shadow: 0 0 0 3px var(--color-accent-glow)`)
-│   │   ├── SettingRow.vue       — Label + control + optional description row; used in all settings modals (props: label, description)
-│   │   ├── AppSelect.vue        — Custom styled dropdown replacing native <select>; props: modelValue, options[{value,label}], variant ('default'|'ghost'); emits: update:modelValue; keyboard nav on trigger (arrow/enter/escape); teleported + animated; default variant: trigger shows accent border when open, form-input style; ghost variant: gold text + small caret, no border/bg (for toolbar use), dropdown min-width 200px; items use same `::before` scaleY bar design language as ModalTabs
-│   │   ├── ColorPalette.vue     — Reusable 17-swatch color grid; props: modelValue (selected hex or ''), defaultValue (hex to highlight when modelValue is ''); emits: update:modelValue; used in Appearance tab and category color picker
-│   │   ├── MenuItem.vue         — Context menu button row; default slot for content, prop: topBorder
-│   │   ├── ImagePickerSlot.vue  — Single image picker card (label, preview, error, clear); used in StreamDeckImagePicker
-│   │   └── InstructionStep.vue  — Numbered step with accent badge, title, slot body; used in HelpModal VB-Cable guide
+│   │   ├── Tooltip.vue          — Custom tooltip; teleports to body; 4-way flip; never use native `title`
+│   │   ├── Icon.vue             — SVG icon component
+│   │   ├── SquareButton.vue     — 36×36px icon button (icon, title, active, disabled, variant)
+│   │   ├── CircleButton.vue     — 20×20px circle icon button
+│   │   ├── ToggleCircleButton.vue — Circle button with enabled state
+│   │   ├── ToggleSwitch.vue     — Boolean toggle switch (v-model)
+│   │   ├── SettingRow.vue       — Label + control + optional description row
+│   │   ├── AppSelect.vue        — Custom dropdown; variants: 'default' | 'ghost'; teleported + animated; options support optional `color?: string` for a colored dot
+│   │   ├── ColorPalette.vue     — 17-swatch color grid (modelValue, defaultValue)
+│   │   ├── MenuItem.vue         — Context menu button row
+│   │   ├── ImagePickerSlot.vue  — Single image picker card; used in StreamDeckImagePicker
+│   │   └── InstructionStep.vue  — Numbered step with accent badge; used in HelpModal
 │   ├── composables/
-│   │   ├── useAudioDevices.ts   — Device enumeration, label cleaning, cross-session matching, hotplug; also exposes `audioInputDevices` ref + `findInputDeviceId()` for shadow record
-│   │   ├── useAudioPlayer.ts    — Audio playback, gain, playing state tracking, preview playback
+│   │   ├── useAudioDevices.ts   — Device enumeration, label cleaning, hotplug; `audioInputDevices` + `findInputDeviceId()`
+│   │   ├── useAudioPlayer.ts    — Audio playback, gain, playing state, preview
 │   │   ├── useSettings.ts       — Reactive settings, IPC sync, sound groups
 │   │   ├── useSoundManagement.ts — Sound list building, categories, ordering, drag helpers
-│   │   ├── useShadowRecord.ts   — Shadow record: AudioWorklet rolling ring buffer, WAV encode, save via IPC; module-level singleton; lifecycle (start/stop) managed by App.vue watch
+│   │   ├── useShadowRecord.ts   — Shadow record singleton; AudioWorklet ring buffer, WAV encode, save via IPC
+│   │   ├── useClipLibrary.ts    — Singleton; lists .wav clips in recordingFolder, manages selection/delete
+│   │   ├── useClipPlayer.ts     — Instance composable; WAV decode, waveform peaks, playback, export; accepts optional `normalize: Ref<boolean>`; `hasSelection` tracks whether user has made a trim selection
 │   │   └── useStreamDeckImageErrors.ts — Singleton; scans image paths, tracks broken ones
-│   ├── assets/
-│   │   ├── fonts/               — Outfit (body), TavernloreBB (headers)
-│   │   ├── images/              — vb-cables-listen-tab.png, vb-cables-rrr-selection.png
-│   │   └── css/
-│   │       ├── style.css        — Global styles, Tailwind @theme tokens, .btn classes, scrollbar, light mode
-│   │       ├── icons.css        — Base icon mask/background rules (referenced by vite-plugin-icons)
-│   │       └── icon-data.css    — Generated icon CSS (SVG data-URIs + .i-* classes; do not edit)
+│   ├── assets/css/
+│   │   ├── style.css            — Global styles, Tailwind @theme tokens, .btn classes, scrollbar, light mode
+│   │   ├── icons.css            — Base icon mask/background rules
+│   │   └── icon-data.css        — Generated icon CSS (do not edit)
 │   ├── types/
 │   │   └── icons.ts             — Generated IconName type + IconsFolder array (do not edit)
-│   ├── filterState.ts           — Module singleton: filterQuery ref (search box value)
-│   ├── dragState.ts             — Module singletons: draggingSound, draggingSection refs
-│   ├── toastState.ts            — Module singleton: toast ref + showToast() helper
-│   ├── modalState.ts            — Module singletons: settingsModalOpen, settingsModalInitialTab, helpModalOpen, helpModalInitialTab refs
-│   ├── colorPalette.ts          — Shared COLOR_PALETTE array (17 presets: Gold, Amber, Ember, Crimson, Rose, Hot Pink, Magenta, Violet, Indigo, Blue, Sky, Teal, Jade, Lime, Bronze, Slate, Gray), DEFAULT_ACCENT constant; imported by ColorPalette.vue and any future color pickers
+│   ├── filterState.ts           — `filterQuery: Ref<string>` singleton
+│   ├── dragState.ts             — `draggingSound`, `draggingSection` singletons
+│   ├── toastState.ts            — `toast`, `showToast()` singleton
+│   ├── modalState.ts            — `settingsModalOpen/InitialTab`, `helpModalOpen/InitialTab` singletons
+│   ├── clipEditorState.ts       — `clipEditorOpen`, `trimSidebarOpen`, `trimSidebarFile` singletons
+│   ├── dropdownState.ts         — `activeDropdownId` singleton (one-at-a-time dropdown coordination)
+│   ├── colorPalette.ts          — `COLOR_PALETTE` array (17 presets) + `DEFAULT_ACCENT`
 │   ├── utils/
-│   │   └── hotkey.ts            — `formatAccelerator(e: KeyboardEvent): string | null` — converts KeyboardEvent to Electron accelerator string (e.g. "Ctrl+F5", "Escape", "Space")
-│   ├── dropdownState.ts         — Module singleton: activeDropdownId (one-at-a-time dropdown coordination)
-│   └── types.ts                 — GlobalSettings, FolderSettings, WindowApi, Sound, SoundSection interfaces
-├── packages/
-│   └── rrr-streamdeck/          — Stream Deck plugin (separate rollup build)
-│       ├── src/
-│       │   ├── plugin.ts        — SDK v3 entry point
-│       │   ├── rrr-client.ts    — WebSocket client (port 57432, exponential backoff)
-│       │   ├── svg-compose.ts   — SVG compositing: imports assets, applies accent color, returns base64 data URIs
-│       │   ├── svg.d.ts         — Type declaration for *.svg raw string imports
-│       │   └── actions/
-│       │       ├── play-sound.ts — Play Sound action, button state, title formatting
-│       │       ├── stop-all.ts   — Stop All action, global default stop image support
-│       │       └── save-clip.ts  — Save Clip action; tracks `shadowEnabled`; shows accent image when enabled, dimmed when disabled; pressing when disabled opens shadow recording settings in the app
-│       ├── action_svgs/         — Source SVG assets (bundled into plugin.js at build time)
-│       │   ├── background@2x.svg        — Idle button frame (white fills → accent)
-│       │   ├── background-active@2x.svg — Active button fill (inverted, white → accent)
-│       │   ├── stop@2x.svg              — Stop square icon (white, on active bg)
-│       │   ├── playing@2x.svg           — Playing center icon (currently empty)
-│       │   ├── clip@2x.svg              — Clip mode icon (unused)
-│       │   └── save@2x.svg              — Shadow record save icon (used by Save Clip action)
-│       ├── com.pdog1.rum-runner-rhapsody.sdPlugin/  — Built plugin output
-│       │   └── ui/
-│       │       ├── play-sound.html  — Property inspector (accent color via CSS vars + global settings)
-│       │       └── stop-all.html
+│   │   ├── hotkey.ts            — `formatAccelerator(e: KeyboardEvent): string | null`
+│   │   └── audio.ts             — `encodeWavFromAudioBuffer()`, `trimAudioBuffer()`, `generatePeaks()`
+│   └── types.ts                 — GlobalSettings, FolderSettings, WindowApi, Sound, SoundSection
+├── packages/rrr-streamdeck/     — Stream Deck plugin (separate rollup build)
+│   ├── src/
+│   │   ├── plugin.ts            — SDK v3 entry point
+│   │   ├── rrr-client.ts        — WebSocket client (port 57432, exponential backoff)
+│   │   ├── svg-compose.ts       — SVG compositing: applies accent color, returns base64 data URIs
+│   │   └── actions/
+│   │       ├── play-sound.ts    — Play Sound action
+│   │       ├── stop-all.ts      — Stop All action
+│   │       └── save-clip.ts     — Save Clip action
+│   └── action_svgs/             — Source SVGs bundled at build time (background, stop, save, etc.)
 ├── scripts/
 │   ├── vite-plugin-icons.ts     — Custom Vite plugin for SVG icon system
-│   └── update-changelog.md      — Reusable Claude Code prompt for bumping versions/changelog
-├── CHANGELOG.md                 — Keepachangelog format, split into App / Stream Deck sections per version
-├── app-icon.png                 — App icon (project root)
+│   └── update-changelog.md      — Reusable prompt for bumping versions/changelog
+├── CHANGELOG.md
 ├── package.json                 — Root package, electron-builder config
-└── vite.config.ts               — Vite config: Vue + Tailwind + Electron + iconsPlugin; alias @ → src/
+└── vite.config.ts               — Vue + Tailwind + Electron + iconsPlugin; alias @ → src/
 ```
 
 ---
@@ -166,7 +146,6 @@ pnpm build:installer        # build NSIS installer → release/RRR-Setup.exe
 pnpm typecheck              # vue-tsc --noEmit (should always be zero errors)
 pnpm streamdeck:dev         # build SD plugin + restart Stream Deck
 pnpm streamdeck:link        # symlink plugin for dev (run once from project root)
-pnpm streamdeck:unlink      # remove the symlink
 ```
 
 ---
@@ -178,33 +157,32 @@ pnpm streamdeck:unlink      # remove the symlink
 **`rrr-settings.json`** (next to the exe, global):
 ```typescript
 interface GlobalSettings {
-  soundFolder: string              // currently active folder path (empty string if none)
-  savedFolders: string[]           // ordered list of all saved folder paths
-  folderDisplayNames: Record<string, string>  // path → custom display name override (falls back to basename)
+  soundFolder: string
+  savedFolders: string[]
+  folderDisplayNames: Record<string, string>
   windowWidth: number
   windowHeight: number
   theme: 'dark' | 'light'
   masterVolume: number
   density: 'loose' | 'compact'
   devices: Array<{ label: string, volume: number, enabled: boolean }>
-  hotkeys: { stop: string; search: string }   // stop = system-wide global shortcut (default "Ctrl+Shift+X"); search = in-app only (default "Space")
+  hotkeys: { stop: string; search: string; saveClip: string }
   playbackMode: 'stop' | 'restart' | 'overlap'
   normalize: boolean
   streamDeckButtonMode: boolean
   closeToTray: boolean
   autoStart: boolean
   launchMinimized: boolean
-  blockTypingConflicts: boolean    // when true, bare letters/digits/Shift+key combos are rejected as hotkeys
+  blockTypingConflicts: boolean
   showCategorySidebar: boolean
-  viewMode: 'accordion' | 'flat'   // controls SoundGrid layout; persisted globally
+  viewMode: 'accordion' | 'flat'
   streamDeckDefaultImages: { idle?: string, playing?: string, stop?: string }
-  accentColor: string              // hex color override for --color-accent (empty string = use theme default gold)
-  shadowEnabled: boolean            // whether shadow recording is active (default true)
-  recordingInputDeviceLabel: string // audioinput device label to buffer (empty = not configured)
-  shadowBufferDuration: number      // rolling buffer length in seconds (5/10/15/30/60)
-  recordingFolder: string           // output directory for saved WAV clips (empty = not configured)
-  clipAutoOpenTrim: boolean         // open clip editor after save (wired up in Phase 4.2)
-  // hotkeys.saveClip: string       // Electron accelerator for save-clip global hotkey (inside hotkeys object)
+  accentColor: string              // hex override for --color-accent; empty = theme default gold
+  shadowEnabled: boolean
+  recordingInputDeviceLabel: string
+  shadowBufferDuration: number     // seconds: 5/10/15/30/60
+  recordingFolder: string
+  clipAutoOpenTrim: boolean
   // Also contains all FolderSettings keys (GlobalSettings extends FolderSettings)
 }
 ```
@@ -214,429 +192,223 @@ interface GlobalSettings {
 interface FolderSettings {
   hiddenSounds: string[]
   hiddenCategories: string[]
-  sectionRenames: Record<string, string>           // display-name overrides for folder sections
+  sectionRenames: Record<string, string>
   customCategories: Array<{ id: string; name: string }>
-  movedSounds: Record<string, string>              // soundKey → categoryId
+  movedSounds: Record<string, string>
   collapsedCategories: string[]
   soundNames: Record<string, string>
   soundOrder: Record<string, string[]>
   categoryOrder: string[]
   soundVolumes: Record<string, number>             // dB offset, -20 to +20
   categoryStreamDeckImages: Record<string, { idle?: string, playing?: string }>
-  categoryColors: Record<string, string>           // categoryId → hex color string
-  soundHotkeys: Record<string, string>             // soundKey → Electron accelerator string (e.g. "F5", "Ctrl+1")
-  playCounts: Record<string, number>               // actually stored in rrr-stats.json; merged into FolderSettings on load
+  categoryColors: Record<string, string>
+  soundHotkeys: Record<string, string>
+  playCounts: Record<string, number>               // stored in rrr-stats.json; merged on load
 }
 ```
 
-**`rrr-stats.json`** (inside the selected sound folder, separate from soundboard settings):
-```typescript
-// Kept separate so stats writes don't dirty the soundboard settings file.
-{ playCounts: Record<string, number> }
-```
+**`rrr-stats.json`** — `{ playCounts: Record<string, number> }` kept separate so stats writes don't dirty soundboard settings.
 
-**Important**: `GlobalSettings extends FolderSettings` in TypeScript — all folder keys are present in the global type. The main process routes save keys using `GLOBAL_KEYS` (keys of `DEFAULT_GLOBAL_SETTINGS`) and `STATS_KEYS` (keys of `DEFAULT_STATS`); everything else goes to `rrr-soundboard.json`.
-
-### Folder-change IPC result types:
-
-```typescript
-// Returned by pick-folder and switch-folder
-interface FolderChangeResult {
-  folder: string
-  folderSettings: Partial<FolderSettings>  // includes stats (playCounts merged in)
-  savedFolders?: string[]                  // updated list (always present from pick-folder)
-}
-
-// Returned by remove-folder
-interface FolderRemoveResult {
-  savedFolders: string[]
-  switched: FolderChangeResult | null  // null if no folders remain
-}
-```
-
-`useSettings.onFolderChanged(result)` handles both: sets `soundFolder`, merges `savedFolders` if present, `Object.assign`s `folderSettings`, then calls `loadSounds()`.
-
-### Multi-folder IPC handlers (added for Phase 3.1):
-- **`switch-folder(path)`** — saves current folder settings, loads new folder settings + stats, broadcasts to Stream Deck, returns `FolderChangeResult`
-- **`remove-folder(path)`** — removes from `savedFolders`, auto-switches to first remaining or clears, returns `FolderRemoveResult`
-- **`check-file-exists(path)`** — synchronous `fs.existsSync`; used by renderer to find which saved folder contains a given sound key for Stream Deck play routing
+**Important**: `GlobalSettings extends FolderSettings`. Main process routes keys via `GLOBAL_KEYS` and `STATS_KEYS`; everything else goes to `rrr-soundboard.json`.
 
 ### Modifying settings — required checklist
 
-**Any time you add, remove, or rename a settings field**, you must update ALL of the following:
+**Any time you add, remove, or rename a settings field**, update ALL of the following:
 
-1. **`DEFAULT_GLOBAL_SETTINGS` / `DEFAULT_FOLDER_SETTINGS` / `DEFAULT_STATS`** in `electron/main.js` — add/remove the key with its default value. This also controls routing: global keys go in `rrr-settings.json`, stats keys go in `rrr-stats.json`, everything else goes in `rrr-soundboard.json`.
-
-2. **`src/types.ts`** — update `GlobalSettings`, `FolderSettings`, or the inline stats type to match.
-
-3. **`src/composables/useSettings.ts`** — update the initial `settings` ref value to include the new key with its default.
-
-4. **Write a migration** if renaming or removing a field that exists in user save files:
-   - Add a migration function (`_migrateGlobalV0toV1`, etc.) to `electron/main.js`
-   - Append it to the relevant `_*_MIGRATIONS` array (index 0 = v1→v2, index 1 = v2→v3, etc.)
-   - Increment the relevant `GLOBAL_VERSION` / `FOLDER_VERSION` / `STATS_VERSION` constant
-   - Simply adding a new key with a default does NOT require a migration (defaults handle it)
-
-5. **Update this file** if the change is significant enough to affect the architecture docs above.
+1. **`DEFAULT_GLOBAL_SETTINGS` / `DEFAULT_FOLDER_SETTINGS` / `DEFAULT_STATS`** in `electron/main.js`
+2. **`src/types.ts`** — update the matching interface
+3. **`src/composables/useSettings.ts`** — update the initial `settings` ref value
+4. **Write a migration** if renaming or removing an existing field:
+   - Add migration function to `electron/main.js`, append to `_*_MIGRATIONS` array
+   - Increment the relevant `GLOBAL_VERSION` / `FOLDER_VERSION` / `STATS_VERSION`
+   - Simply adding a new key with a default does NOT require a migration
+5. **Update this file** if the change affects architecture docs
 
 ### Reactive Proxy and IPC
-`useSettings.saveSettings` wraps its payload in `toRaw()` before sending over IPC, so top-level reactive objects are safe to pass directly. However, `toRaw()` is shallow — nested reactive objects (e.g. a Proxy inside a Proxy) are not unwrapped. When constructing a value that contains a nested object from `settings.value`, always spread it into a new plain object first:
+`saveSettings` wraps its payload in `toRaw()` — shallow only. Nested objects from `settings.value` must be spread into a new plain object first:
 
 ```typescript
-// Safe — toRaw handles the top-level ref
+// Safe
 saveSettings({ theme: settings.value.theme })
 
-// Still required — nested object must be spread to avoid a nested Proxy
+// Required — spread nested objects to avoid nested Proxy
 const newCounts = { ...settings.value.playCounts, [key]: value }
-settings.value.playCounts = newCounts
 saveSettings({ playCounts: newCounts })
 ```
 
-This applies to: `playCounts`, `soundVolumes`, `soundOrder`, `devices`, `categoryStreamDeckImages`, `streamDeckDefaultImages`, and any other nested object in settings.
+Applies to: `playCounts`, `soundVolumes`, `soundOrder`, `devices`, `categoryStreamDeckImages`, `streamDeckDefaultImages`.
 
 ---
 
 ## Audio System
 
-### Dual output:
-- Two AudioContext instances, one per output device
-- Each has a GainNode chain: normalize gain → clip volume offset → master volume → device volume
-
-### Gain calculation order:
+### Gain chain (per device):
 1. Normalize gain (if enabled)
 2. **+ clip dB offset** (`soundVolumes[key]`, additive, -20 to +20 dB)
 3. × master volume
 4. × device volume
 
-```typescript
-export const CLIP_VOLUME_MAX_DB = 20  // in useAudioPlayer.ts
-```
-
-### Live volume updates:
-`setClipVolumeOffset(soundKey, dbOffset)` — exported from `useAudioPlayer.ts`; updates gain on all currently active AudioBufferSourceNodes matching that key. Called while the volume slider in the context menu is being dragged so changes are heard in real time.
-
-### Preview playback:
-- `previewSound(sound)` — plays the sound on the **primary device only**, does NOT affect `playingPaths` (so it doesn't light up the button or block Stop All)
-- `stopPreview()` — stops in-flight preview
-- `previewingPath: Ref<string | null>` — tracks which sound is previewing
-- Generation counter prevents stale async loads from completing after cancellation
-- SoundButton shows a headphones icon on hover (bottom-right); preview stops on mouse-leave
-
-### Supported audio formats:
-`.wav`, `.flac`, `.ogg`, `.mp3`, `.webm`, `.aac`, `.m4a`
-
-### Local file loading:
-Audio and image files are loaded via `window.api.readSoundFile(path)` (IPC → `fs.readFile`), wrapped in a Blob, and served as `URL.createObjectURL(...)`. This is the correct pattern for local files — do not use `file://` URLs or custom protocols.
+### Key notes:
+- Two `AudioContext` instances, one per output device
+- Local files loaded via `window.api.readSoundFile(path)` (IPC → `fs.readFile`), wrapped in a Blob → `URL.createObjectURL()`. Never use `file://` URLs.
+- `previewSound()` plays primary device only, does NOT affect `playingPaths` (no button glow, doesn't block Stop All)
+- Supported formats: `.wav`, `.flac`, `.ogg`, `.mp3`, `.webm`, `.aac`, `.m4a`
 
 ---
 
 ## Shadow Record
 
-`useShadowRecord.ts` — module-level singleton (no lifecycle inside the composable; App.vue owns start/stop).
+`useShadowRecord.ts` — module-level singleton. AudioWorklet ring buffer captures mic input; `saveClip()` encodes as 16-bit PCM WAV and writes to `recordingFolder` via IPC. App.vue owns start/stop lifecycle.
 
-### How it works:
-1. On startup (or when `recordingInputDeviceLabel` / `recordingFolder` changes), App.vue calls `startRecording()`.
-2. `startRecording()` opens the input device via `getUserMedia`, creates a new `AudioContext`, registers an AudioWorklet processor (inlined as a blob URL — works in both dev and packaged builds), and connects the media stream source → worklet node.
-3. The worklet accumulates 4096 samples (≈85 ms at 48 kHz), then posts an interleaved stereo `Float32Array` to the main thread.
-4. The main thread appends chunks to a ring buffer; oldest chunks are dropped when the buffer exceeds `shadowBufferDuration × sampleRate / 4096` chunks.
-5. `saveClip()` snapshots the current ring buffer, encodes it as a 16-bit PCM WAV (`encodeWav()`), and writes it to `recordingFolder` via the `save-shadow-clip` IPC handler.
+### Composable state:
+- `isRecording: Ref<boolean>`, `isSaving: Ref<boolean>`, `hasBuffer: Ref<boolean>`
 
-### State exposed by the composable:
-- `isRecording: Ref<boolean>` — true while the worklet is running
-- `isSaving: Ref<boolean>` — true during the encode + write
-- `hasBuffer: Ref<boolean>` — true after the first chunk arrives (safe to save)
-
-### IPC handlers (main.js):
-- `pick-clips-folder` — dialog to choose output directory; returns path string
-- `save-shadow-clip(data: ArrayBuffer, folder: string)` — writes `clip-<timestamp>.wav` to folder; returns `{ success, filename, filePath }` or `{ success: false, error }`
-- `registerShadowHotkey(combo)` — registers OS-level shortcut; fires `global-save-shadow-clip` IPC event → renderer calls `saveClip()`; re-registered whenever `shadowHotkey` is saved
-- `registerStopHotkey(combo)` — registers OS-level shortcut for Stop All (default `Ctrl+Shift+X`); fires `global-stop-all` IPC event → renderer calls `stopAll()`; re-registered whenever `hotkeys.stop` is saved; migration v2→v3 replaces any bare "Escape" value with the new default
+### IPC handlers:
+- `pick-clips-folder` — folder picker dialog
+- `save-shadow-clip(data, folder)` — writes `clip-<timestamp>.wav`; returns `{ success, filename, filePath }`
+- `registerShadowHotkey(combo)` / `registerStopHotkey(combo)` — OS-level shortcuts
 
 ### TitleBar integration:
-- **Recording state** (`isRecording`): single compact `[● ✂ Clip]` button — pulsing red dot + scissors icon + "Clip" label; danger color with `rgba(255,80,64,0.12)` hover; disabled (`.is-disabled`) until `hasBuffer && !isSaving`; label reads "Saving…" while saving; tooltip shows hotkey or buffer state
-- **Partially configured** (device or folder set but not both, shown via `shadowNotConfigured` computed): dim `[○ ✂ Clip]` button with hollow dot; clicking sets `settingsModalInitialTab = 'shadowrecord'` and opens Settings; hidden when neither device nor folder is set (user hasn't started setup)
+- **Recording active**: `[● ✂ Clip]` button — pulsing red dot; disabled until `hasBuffer && !isSaving`; label reads "Saving…" while saving
+- **Partially configured** (only device or folder set, not both): dim `[○ ✂ Clip]` button; clicking opens Settings → `shadowrecord` tab
+- **Clip editor toggle**: scissors icon; shown when `recordingFolder` is set; accent when editor is open
+- If `clipAutoOpenTrim` is true, `saveClip()` auto-sets `trimSidebarFile` and opens the trim sidebar
 
-### Settings → Recording tab (tab id = `shadowrecord`):
-- **Top**: VB-Cable info box with link to Help → VB-Cable guide
-- **Always visible**: Input Device picker (no subtitle), Saved Recordings Folder (renamed from "Recording Folder"; shows selected path + Browse button, no subtitle)
-- **Shadow Recording enable toggle** (`shadowEnabled`): SettingRow with toggle + description
-- **Description** (below toggle, always visible): explains rolling buffer and clip hotkey
-- **Sub-section** (always visible, `opacity-40 pointer-events-none` when disabled, `border-l-2 border-border-light pl-4`): Buffer Duration (AppSelect 5/10/15/30/60 s), Auto-open clip editor toggle
-- Save hotkey is in **Keybinds → System-Wide** section (see Keybinds tab docs)
+### Settings tab (id = `shadowrecord`):
+Input Device, Saved Recordings Folder, `shadowEnabled` toggle. Sub-section (indented, disabled when off): Buffer Duration (5/10/15/30/60 s), Auto-open clip editor. Save hotkey is in Keybinds → System-Wide.
+
+---
+
+## Clip Editor
+
+Two UI modes: full-tab editor (`ClipEditor.vue`) and quick-trim sidebar (`ClipTrimSidebar.vue`). State in `clipEditorState.ts`.
+
+- `clipEditorOpen = true` → App.vue renders `<ClipEditor />` as an `absolute inset-0` overlay with a 0.28s slide-up transition; normal chrome stays mounted behind it
+- `trimSidebarOpen = true` → `<ClipTrimSidebar />` appears in-layout beside SoundGrid (320px, squashes grid width); not a fixed overlay
+- Set `trimSidebarFile` before `trimSidebarOpen = true` to auto-load a clip
+
+### Clip Editor interactions:
+- **Waveform drag**: Click-drag on the waveform body to set in/out selection. Small movement (< 5px) = seek instead. Handles remain for fine-tuning.
+- **`hasSelection`**: `useClipPlayer` tracks whether the user has explicitly made a trim selection. Export is disabled until `hasSelection = true`. Reset by `resetTrim()` or loading a new file.
+- **Clip list delete**: Hover a clip row to reveal an ✕ button (top-right). Clicking it shows an inline two-button confirmation (Cancel / Delete) that replaces the row content. Escape or selecting another clip cancels. Rows are `<div role="button">` (not `<button>`) to allow a proper `<button>` for the delete action inside.
+- **Save to Category**: Export dropdown lists current soundboard's physical categories (`soundGroups[].folderPath`) with category color dots. Reloads soundboard (`loadSounds()`) after export.
+- **Per-clip state persistence**: `clipEditStates` Map (in `clipEditorState.ts`) stores filename, export folder, delete-original toggle, in/out points per clip path. State survives clip switches and editor open/close. Cleared on export, delete, or "Reset" button click.
+
+### IPC handlers:
+- `list-clips-folder(folder)` → `Array<{path, filename, size, mtime}>` newest-first
+- `trash-clip-file(path)` → `shell.trashItem`
+- `reveal-in-explorer(folderPath)` → `shell.openPath`
+- `save-exported-clip(data, destFolder, filename)` → sanitizes filename, writes `.wav`
 
 ---
 
 ## Custom Titlebar
 
-The window is **frameless** (`frame: false`). TitleBar.vue uses a `grid grid-cols-3` layout so all three columns share equal width — this aligns the center master volume slider with FolderBar's center search input.
+Frameless window (`frame: false`). `TitleBar.vue` uses `grid grid-cols-3` — aligns center volume slider with FolderBar search.
+- Left: brandmark SVG (`-webkit-app-region: drag`; buttons get `no-drag`)
+- Center: master volume slider (`w-[260px] mx-auto`)
+- Right: Stop All + Help + Settings, then 1px divider, then Minimize / Maximize / Close
 
-- **Left (1/3)**: brandmark SVG (`src/assets/images/wordmark.svg`, 34px tall) — `-webkit-app-region: drag` on the bar, `no-drag` on interactive elements
-- **Center (1/3)**: master volume slider in a `w-[260px] mx-auto` wrapper — matches FolderBar search width
-- **Right (1/3)**: Stop All (danger, visible when playing) + Help + Settings gear, then a 1px divider, then Minimize / Maximize / Close
-
-App control buttons (Stop All, Help, Settings) use `.wc-btn` scoped style: 32×40px, transparent, `rgba(255,255,255,0.08)` on hover. Window control buttons (Minimize, Maximize, Close) share the same class; Close additionally turns red on hover.
-
-Bar height: `h-12` (48px). Titlebar has `-webkit-app-region: drag`; all buttons have `-webkit-app-region: no-drag`.
+Bar height: `h-12` (48px).
 
 ---
 
 ## Module-Level State Singletons
 
-These files hold reactive state at module scope (not inside composables), so they are shared across all component instances without prop-drilling:
-
 | File | Export(s) | Purpose |
 |---|---|---|
-| `filterState.ts` | `filterQuery: Ref<string>` | Search box value; shared between FolderBar and SoundGrid |
-| `dragState.ts` | `draggingSound: Ref<DraggingSound \| null>`, `draggingSection: Ref<DraggingSection \| null>` | Active DnD state; read by AccordionSection/SoundGrid |
-| `toastState.ts` | `toast: Ref<Toast \| null>`, `showToast(msg, type?)` | 4-second auto-dismiss toast; shown by Toast.vue; positioned `bottom-9` (36px) to clear the StatusBar |
-| `modalState.ts` | `settingsModalOpen: Ref<boolean>`, `settingsModalInitialTab: Ref<string \| null>`, `helpModalOpen: Ref<boolean>`, `helpModalInitialTab: Ref<string \| null>` | Controls modal visibility; set `settingsModalInitialTab` / `helpModalInitialTab` before setting the open ref to land on a specific tab |
-| `dropdownState.ts` | `activeDropdownId: Ref<string \| null>` | Ensures only one SoundButton context menu is open at a time |
+| `filterState.ts` | `filterQuery: Ref<string>` | Search box value |
+| `dragState.ts` | `draggingSound`, `draggingSection` | Active DnD state |
+| `toastState.ts` | `toast`, `showToast(msg, type?)` | 4-second auto-dismiss toast; positioned `bottom-9` |
+| `modalState.ts` | `settingsModalOpen/InitialTab`, `helpModalOpen/InitialTab` | Set `InitialTab` before open ref to land on a specific tab |
+| `dropdownState.ts` | `activeDropdownId` | One context menu open at a time |
+| `clipEditorState.ts` | `clipEditorOpen`, `trimSidebarOpen`, `trimSidebarFile`, `clipEditStates` (Map) | `clipEditStates` stores per-clip edit state (filename, folder, in/out points); set `trimSidebarFile` before `trimSidebarOpen = true` |
 
 ---
 
 ## Drag and Drop
 
-Sound buttons and category headers are both draggable.
-
-### Sound reorder (same-section):
-- Dragging a SoundButton within its section and dropping onto another slot reorders sounds in that section
-- `reorderSoundsInSection(sectionId, orderedKeys)` in `useSoundManagement` persists the new order to `soundOrder`
-- `dragOverSoundIndex` in AccordionSection tracks hover position; outline highlights the target slot
-
-### Sound move (cross-section):
-- Dropping a SoundButton onto a different AccordionSection calls `moveSound(key, targetSectionId)`
-- Drop target shows accent outline; section header itself is a valid drop target (fallback)
-
-### Category reorder:
-- Dragging a category header (`.group/hdr` div) sets `draggingSection`
-- Dropping onto a different category's wrapper div in SoundGrid calls `reorderCategories(newOrder)`
-- Dragged section dims to 50%; drop target gets accent outline
-
-### DnD is disabled when a search filter is active.
+- **Same-section reorder**: drop onto another slot → `reorderSoundsInSection(sectionId, orderedKeys)`
+- **Cross-section move**: drop onto different AccordionSection → `moveSound(key, targetSectionId)`
+- **Category reorder**: drag section header → drop onto SoundGrid wrapper → `reorderCategories(newOrder)`
+- DnD is disabled when a search filter is active
 
 ---
 
 ## Modal System
 
-**BaseModal.vue** — reusable wrapper:
-- Props: `title: string`, `label?: string` (optional type rubric shown above title), `size`, `open`
-- Emits: `close`
-- Escape key closes; enter animation scales 0.95→1 + translateY; leave 0.15s
-- Container has `border border-border-light` (no border-radius — matches 0px radius design system)
+**Design language** shared across all interactive lists (ModalTabs, AppSelect, category nav, context menu): 2px accent `::before` scaleY bar (0→1, 0.12s) on hover/active. Active state reveals instantly (`transition: none`).
 
-**ModalTabs.vue** — shared left-sidebar tab nav:
-- Props: `tabs: Array<{ id, label, badge? }>`, `modelValue: string`
-- Emits: `update:modelValue`
-- Fully inline Tailwind; optional `badge` prop shows warning icon on the tab
-- Sidebar uses `bg-bg-base` (#0C0C0C) so it recedes behind the `bg-bg-raised` (#161616) content area — not `bg-bg-surface`
+**BaseModal.vue**: `title`, `label?` (type rubric above title), `size`, `open`. Escape closes. No border-radius — 0px matches angular design system.
 
-**SettingsModal.vue** — six side-tabs:
-- **App**: Close to tray, Start with Windows, Launch minimized, Show category sidebar
-- **Keybinds**: Three sections using the gold left-bar + uppercase label + hairline header pattern:
-  - **In-App** (first; handled via document keydown in FolderBar/App.vue): Focus Search (default `Space`); brief description "Only active when Rum-Runner Rhapsody is the focused window"
-  - **System-Wide** (second; includes per-sound keybinds): Stop All Sounds (default `Ctrl+Shift+X`), Save Clip (default `Ctrl+Shift+R`), then per-sound keybind list; hint "Add per-sound keybinds by right-clicking any sound button" always shown below list; description "Active across your whole computer, even when RRR is in the background"
-- **Appearance**: Theme (dark/light AppSelect) + Accent color (ColorPalette with 17 swatches, Reset to default button)
-- **Playback**: Playback mode, Normalize volumes
-- **Audio Devices**: N-device output list (enable toggle, AppSelect device picker, volume slider, add/remove); description links to VB-Cable help tab
-- **Stream Deck**: Grid mode, Install/Update plugin, Default Button Icons (idle/playing/stop via StreamDeckImagePicker)
+**ModalTabs.vue**: Left-sidebar nav. Sidebar uses `bg-bg-base` (#0C0C0C) to recede behind `bg-bg-raised` content area.
 
-**HelpModal.vue** — two side-tabs:
-- **Patch Notes** (first tab): Reads `CHANGELOG.md` via `get-changelog` IPC, parses and renders with version heading in TavernloreBB, date below it, App/Stream Deck subsections
-- **VB-Cable**: Setup guide with screenshots
+**SettingsModal.vue** tabs: App / Keybinds / Appearance / Playback / Audio Devices / Stream Deck (Recording tab id = `shadowrecord`).
+- Keybinds: **In-App** section (Focus Search) + **System-Wide** section (Stop All, Save Clip, per-sound list)
 
-**SoundboardModal.vue** — opened by pencil icon inside soundboard trigger or right-clicking the trigger; uses `label="Soundboard"` rubric:
-- **General tab**: Name field (modal title updates live as you type; empty input falls back to folder basename; saves to `folderDisplayNames` on close via `commitRename`), read-only location path
-- **Footer**: "Remove soundboard" danger button → inline confirmation row (files-not-deleted notice + Cancel + Remove). Remove calls `window.api.removeFolder`, auto-switches to first remaining saved folder or clears if none left
-
-**CategorySettingsModal.vue** — two side-tabs, opened by right-clicking a category header, clicking the sidebar pencil, or choosing "Edit category…" from a sound's context menu. Modal is rendered in `SoundGrid.vue` outside the `<nav>` block so it works even when the sidebar is hidden (`showCategorySidebar: false`):
-- **General**: Category rename (drives live modal title), hide/show toggle, color picker (17-swatch `ColorPalette`; "Remove" link when a color is active; Restore Defaults also clears the color), Restore Defaults button
-- **Stream Deck**: StreamDeckImagePicker for per-category idle/playing images
-- Modal stays open when hide is toggled; hidden categories remain mounted while modal is open
-- Restore Defaults resets name and hide state without closing modal
-
-All settings auto-save on change (no Save button).
+**CategorySettingsModal.vue**: General (rename, hide/show, color) + Stream Deck tabs. Rendered in `SoundGrid.vue` outside `<nav>` so it works when sidebar is hidden. Settings auto-save; no Save button.
 
 ---
 
 ## Category Quick-Nav Sidebar
 
-- Rendered inside `SoundGrid.vue` to the left of the scroll container as a fixed flex sibling
-- Always visible (controlled by `showCategorySidebar` setting); during search, only shows categories that have at least one matching sound (hides entirely if no category matches)
-- Each item shows a 6px colored dot (`w-1.5 h-1.5 rounded-full`) before the name; always rendered but `transparent` when no category color is assigned — keeps all items left-aligned regardless of color state
-- Shows full category display names, truncated with ellipsis if too long
-- **Accordion mode**: clicking a category scrolls the grid to that section header; active item tracked by scroll position via `activeSectionId` ref + `manualActiveSection` veto; `ACTIVE_HIGHLIGHT_ENABLED` constant gates this behavior
-- **Flat mode**: sidebar prepends an "All" item; clicking a category sets `flatActiveCategoryId` (filters the flat grid to that category); `activeSectionId` is not used — active state is driven by `flatActiveCategoryId`; `flatActiveCategoryId` resets to `'all'` on folder switch or when the selected category is deleted (watched via `sections`)
-- Each nav item is a flex row (`group/nav-item`) containing a click `<button>` (flex-1) and a pencil `<button>` (shrink-0) — outer element is a `<div>` so nested interactivity works without nested `<button>` elements
-- Active/hover items use the same 2px `::before` scaleY bar design language as ModalTabs and AppSelect items
-- **Category color theming** (when `section.color` is set): hover text, active text, active background, and `::before` bar all use the category color. Implemented via CSS custom properties set as inline style on the nav div — `--nav-hover-color` (the color) and `--nav-active-bg` (`color-mix(in srgb, <color> 10%, transparent)`). Scoped rules `.nav-btn:hover` and `.nav-btn--active` read these with fallbacks to `--color-text-primary` / `--color-accent-text` / `--color-accent`, so uncolored items look identical to before.
-- Hidden categories omitted unless "show hidden" toggle is on; when shown (because Show Hidden is active), the nav item gets `opacity-40` to match the accordion section dimming
-- **Drag/drop reorder**: nav items are `draggable` (disabled during filter). Uses local `draggingNavSectionId` + `dragOverNavId` refs (independent of the main grid's `draggingSection` to avoid cross-area interference). Drop calls `reorderCategories` with the full `sections.value` order. Drop target highlighted with `outline-2 outline-accent`; dragged item gets `opacity-50`.
-- **Pencil edit button**: appears on the right of each nav row on hover (`group-hover/nav-item:opacity-100`). Right-clicking a nav item also opens the editor. Both open `CategorySettingsModal` via `openCategoryModal` / `closeNavCategoryModal` in `SoundGrid.vue`, which also manages `pinnedSectionIds` to keep the section mounted while the modal is open.
-- Click-lock (accordion only): after clicking, highlight stays on the clicked category until scroll has been idle for 300ms, using `manualActiveSection` ref as a veto against scroll-based tracking overriding it prematurely
-
----
-
-## StreamDeckImagePicker Component
-
-Reusable component (`StreamDeckImagePicker.vue`) used in both CategorySettingsModal and SettingsModal.
-
-**Props:**
-- `idlePath`, `playingPath`, `stopPath` — current override paths (nullable); stop slot only renders when prop is explicitly passed
-- `defaultIdlePath`, `defaultPlayingPath`, `defaultStopPath` — fallback preview images
-
-**Behavior:**
-- Each slot shows override image if set, otherwise fallback preview
-- Playing slot disabled until idle is set; stop slot is fully independent
-- Clearing idle also clears playing
-- Image as button: clicking preview opens file picker; × button in top-right clears override
-- Load errors tracked per slot: shows red-tinted placeholder + "File not found: filename" below slot
-- Emits `errors` count whenever broken image count changes
-- Uses blob URLs via `readSoundFile` IPC; revokes old URLs on change and unmount
+- Each item: 6px colored dot (`w-1.5 h-1.5 rounded-full`) — always rendered but `transparent` when no color assigned
+- **Accordion mode**: click scrolls to section; active item tracked by scroll via `activeSectionId` + `manualActiveSection` veto (300ms idle debounce)
+- **Flat mode**: prepends "All" item; click sets `flatActiveCategoryId` to filter grid; resets on folder switch
+- **Category color theming**: CSS custom properties `--nav-hover-color` + `--nav-active-bg` set as inline style; scoped rules read these with fallbacks, so uncolored items are identical to before
+- Nav items are `<div>` (not `<button>`) wrapping a flex `<button>` + pencil `<button>` to avoid nested interactives
+- Pencil and right-click open `CategorySettingsModal`; `pinnedSectionIds` keeps section mounted while modal is open
 
 ---
 
 ## Stream Deck Integration
 
-### WebSocket server (port 57432):
-- Binds to `127.0.0.1` only
-- Broadcasts: `sounds-list`, `sounds-updated`, `playing-status`, `folder-status`
-- All broadcasts include: `sounds`, `folderSelected`, `buttonMode`, `categoryStreamDeckImages`, `streamDeckDefaultImages`, `accentColor`, `shadowEnabled`
-- `accentColor` is resolved before sending: empty string (theme default) → `"#F9B71D"`
-- On new client connect: immediately sends full `sounds-list` payload to that client
-- `get-sounds` message from plugin: responds with fresh `sounds-list` to requesting client only
-- `save-settings` with `streamDeckDefaultImages`, `accentColor`, or `shadowEnabled` triggers broadcast
+### WebSocket server (port 57432, `127.0.0.1` only):
+- Broadcasts `sounds-list` / `sounds-updated` / `playing-status` / `folder-status`
+- All broadcasts include: `sounds`, `folderSelected`, `buttonMode`, `categoryStreamDeckImages`, `streamDeckDefaultImages`, `accentColor` (empty → `"#F9B71D"`), `shadowEnabled`
 
-### WebSocket message types (plugin → app):
+### Message types (plugin → app):
 | Type | Payload | Effect |
 |---|---|---|
 | `get-sounds` | — | App responds with `sounds-list` to that client only |
-| `play-sound` | `{ key: string }` | App forwards to renderer via `ws-play-sound` IPC event; renderer searches `savedFolders` in priority order (active first) — plays from the first folder that contains the key, never from multiple |
-| `stop-all` | — | App forwards to renderer via `ws-stop-all` IPC event |
-| `save-clip` | — | If `shadowEnabled`: forwards to renderer via `ws-save-clip` (calls `saveClip()`); if disabled: forwards via `ws-open-shadow-settings` (opens shadow recording settings modal) |
+| `play-sound` | `{ key: string }` | Searches `savedFolders` in priority order; plays from first match |
+| `stop-all` | — | Forwards `ws-stop-all` IPC to renderer |
+| `save-clip` | — | If `shadowEnabled`: calls `saveClip()`; if disabled: opens shadow recording settings |
 
-### WS sound list item shape:
-```typescript
-{ key: string, displayName: string, category: string, categoryId: string }
-```
-
-### Plugin connection lifecycle:
-1. Plugin connects → sends `get-sounds`
-2. App responds with `sounds-list` (full payload)
-3. Plugin updates module-level state, calls `applyKeyImage` + `setTitle` on all active actions
-4. `onWillAppear`: if `currentSounds` already populated, use fresh name/category from list (handles race condition)
-
-### Play Sound action — image priority:
+### Image priority (Play Sound action):
 1. Category override (`categoryStreamDeckImages[categoryId]`) — wins if `useCategoryImage !== false`
 2. Global default (`streamDeckDefaultImages`)
-3. Composited SVG from `svg-compose.ts`: `background@2x.svg` (idle) or `background-active@2x.svg` (playing), with white fills replaced by accent color
+3. Composited SVG from `svg-compose.ts` (background + optional icon, white fills → accent color)
 
-### Stop All action — image priority:
-1. Global default (`streamDeckDefaultImages.stop`)
-2. Composited SVG from `svg-compose.ts`: `background@2x.svg` + `stop@2x.svg` icon overlaid, accent color applied
-
-### Save Clip action:
-- Composited SVG from `svg-compose.ts`: `background@2x.svg` + `save@2x.svg` icon overlaid
-- Accent color when `shadowEnabled` is true; `#444444` (dim gray) when disabled
-- Title is empty when enabled; `"Disabled"` when shadow recording is off
-- Key press sends `{ type: "save-clip" }` via WS; app routes to `saveClip()` or opens shadow recording settings based on `shadowEnabled`
-
-`useCategoryImage` defaults to on (`undefined` treated as `true`); user can explicitly set to `false` to opt out. Toggle only appears in PI when category has images defined.
-
-### Title formatting:
-- `showCategoryInTitle` prepends category display name on line 1
-- Sound name word-wrapped across remaining lines
-- `soundCategory` is persisted in button settings and back-filled from live sounds list if missing
-
-### Stop All action:
-- Applies `streamDeckDefaultImages.stop` if set, falls back to composited accent SVG
-- Updates immediately on `sounds-list`/`sounds-updated`
-
-### Accent color in the plugin:
-- `accentColor` is tracked as module-level state in both `play-sound.ts` and `stop-all.ts` (default `#F9B71D`)
-- Updated whenever a WS broadcast arrives; persisted to Stream Deck global plugin settings via `streamDeck.settings.setGlobalSettings({ accentColor })` on change
-- Property Inspector UIs request global settings immediately on open (`getGlobalSettings`) so the accent color is applied before the connecting spinner renders, without waiting for the `soundsList` roundtrip
-
-### SVG compositing system (`src/svg-compose.ts`):
-Source SVG assets live in `packages/rrr-streamdeck/action_svgs/`. They are bundled into `plugin.js` at build time via a raw-SVG import plugin in `rollup.config.mjs` (no runtime file I/O, no path issues on install).
-
-**Asset files:**
-| File | Purpose |
-|---|---|
-| `background@2x.svg` | Standard button frame — decorative border path in white (→ accent) on dark bg; used for idle and non-toggle buttons |
-| `background-active@2x.svg` | Toggle-active button fill — inverted: entire button filled white (→ accent) except the frame cutout; only used for actively-toggled states (e.g. sound currently playing) |
-| `stop@2x.svg` | Stop square icon — white, overlaid on active background |
-| `playing@2x.svg` | Playing center icon — currently empty (no icon for playing state) |
-| `clip@2x.svg` | Future: clip/open mode button icon |
-| `save@2x.svg` | Future: shadow record save button icon |
-
-**How compositing works:**
-1. The raw-SVG rollup plugin inlines each `.svg` file as a string constant at build time
-2. `extractInner()` strips the XML declaration, DOCTYPE, and outer `<svg>` wrapper from each asset
-3. White fills (`fill:#fff`) in the **background layer only** are replaced with the accent color
-4. Center icon fills stay white (for contrast on the accent background)
-5. Both layers are wrapped in a single `<svg viewBox="0 0 144 144">` with the original style attributes preserved
-6. The result is base64-encoded as a `data:image/svg+xml;base64,...` URI passed to `setImage()`
-
-**To add a new action with a custom button image:**
-1. Add the center icon SVG to `action_svgs/` (white fills, 144×144 viewBox)
-2. Import it in `svg-compose.ts` and export a new `build*Image(accent)` function — use `bgIdleSvg` for standard buttons, `bgActiveSvg` only for toggle-active states
-3. Import and call it from the new action file
-
-### Stream Deck dev workflow:
-```bash
-pnpm streamdeck:dev   # build + restart Stream Deck
-# symlink (run once):
-pnpm streamdeck:link  # runs: streamdeck link packages/rrr-streamdeck/com.pdog1.rum-runner-rhapsody.sdPlugin
-```
+### Adding a new SD action with a custom button image:
+1. Add center icon SVG to `action_svgs/` (white fills, 144×144 viewBox)
+2. Import in `svg-compose.ts`, export a `build*Image(accent)` function using `bgIdleSvg` or `bgActiveSvg`
+3. Import and call from the new action file
 
 ---
 
 ## Stream Deck Image Error Reporting
 
-**`useStreamDeckImageErrors.ts`** — module-level singleton:
-- `brokenCount: Ref<number>` — total broken image paths
-- `brokenSources: Ref<string[]>` — labels of affected sources ("Default" for global, category display name for per-category)
-- `scanAll(settings)` — scans all paths in `streamDeckDefaultImages` + `categoryStreamDeckImages` in parallel via `readSoundFile`; called on mount and after library refresh
+`useStreamDeckImageErrors.ts` singleton: `brokenCount`, `brokenSources` (labels), `scanAll(settings)`.
 
-**StatusBar.vue:**
-- Left side: `statusText` from `useAudioPlayer` (e.g. "Playing: Name", "Ready", "Stopped")
-- Right side: total sound count + hotkey reminder
-- Shows "⚠ N Stream Deck image(s) missing (Source1, Source2, ...)" in `--color-danger` when broken images exist; only shown when status is "Ready" or "Stopped"
-- Max 3 source names shown, truncated with "..." if more
-- Disappears when `brokenCount === 0`
-
-**Tab error badges:**
-- Both `SettingsModal.vue` and `CategorySettingsModal.vue` show a small error icon on the Stream Deck tab when images in that scope are broken
-- Driven by `errors` event from `StreamDeckImagePicker` + lookup into `brokenSources`
+StatusBar shows "⚠ N Stream Deck image(s) missing (…)" in `--color-danger` when broken images exist. SettingsModal and CategorySettingsModal show error badge on the Stream Deck tab.
 
 ---
 
 ## Changelog / Versioning
 
-- `CHANGELOG.md` in project root, keepachangelog format
-- Each version block split into **App** and **Stream Deck** subsections
-- Current version: **0.8.0** (app) / **0.8.0.0** (Stream Deck plugin, 4-part)
-- To update: use `scripts/update-changelog.md` prompt with Claude Code
-- `CHANGELOG.md` included in `extraResources` so it's readable at runtime from `process.resourcesPath`
+- Keepachangelog format, App + Stream Deck subsections per version
+- Current version: **0.8.0** (app) / **0.8.0.0** (Stream Deck, 4-part)
+- To update: use `scripts/update-changelog.md` prompt
+- Bundled in `extraResources` → readable at runtime from `process.resourcesPath`
 
 ---
 
 ## Windows Integration
 
-### Autostart:
-- `app.setLoginItemSettings()` with `path: process.env.PORTABLE_EXECUTABLE_FILE`
-- `--autostarted` argv flag detects login launch
-- `launchMinimized` only hides window if `--autostarted` is present
-- Skipped in dev (no `PORTABLE_EXECUTABLE_FILE`)
-
-### Close to tray:
-- `mainWindow.hide()` on close if `closeToTray` is true
-- Tray icon from `process.resourcesPath/app-icon.png` (packaged) or project root (dev)
-- `isQuitting` flag set in `before-quit` so tray quit bypasses close handler
-- Tray context menu: **Open** (show + focus), **Quit** (app.quit)
-
-### Port cleanup on startup:
-On `app.whenReady`, main.js uses `netstat` + `taskkill` to free port 57432 before starting the WebSocket server. A 2-second timeout ensures startup proceeds even if netstat/taskkill hangs (common at Windows login time).
+- **Autostart**: `app.setLoginItemSettings()` with `PORTABLE_EXECUTABLE_FILE`; `--autostarted` flag prevents minimizing unless `launchMinimized` is set
+- **Close to tray**: `mainWindow.hide()` on close; tray menu: Open + Quit; `isQuitting` flag bypasses handler on app.quit
+- **Port cleanup**: `netstat` + `taskkill` free port 57432 on startup with 2s timeout
 
 ---
 
@@ -644,21 +416,12 @@ On `app.whenReady`, main.js uses `netstat` + `taskkill` to free port 57432 befor
 
 ```bash
 pnpm build
-# = pnpm --filter @rrr/streamdeck build && vue-tsc --noEmit && vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win portable
+# = pnpm --filter @rrr/streamdeck build && vue-tsc --noEmit && vite build && electron-builder --win portable
 ```
 
-- Output: `release/Rum-Runner-Rhapsody.exe` (portable)
-- NSIS installer: `release/RRR-Setup.exe` (via `pnpm build:installer`)
-- `asar: true`, `compression: maximum`
-- `extraResources`: Stream Deck plugin, `app-icon.png`, `CHANGELOG.md`
-- No code signing currently (`CSC_IDENTITY_AUTO_DISCOVERY=false`)
-
-### Startup performance flags:
-```javascript
-app.commandLine.appendSwitch('disable-gpu-cache')
-app.commandLine.appendSwitch('js-flags', '--max-old-space-size=256')
-app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
-```
+- Portable: `release/Rum-Runner-Rhapsody.exe`; Installer: `release/RRR-Setup.exe`
+- `extraResources`: SD plugin, `app-icon.png`, `CHANGELOG.md`
+- No code signing (`CSC_IDENTITY_AUTO_DISCOVERY=false`)
 
 ---
 
@@ -668,162 +431,89 @@ app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion')
 const DEBUG_LOGGING = false  // top of electron/main.js
 ```
 
-Writes timestamped lines to `rrr-debug.log` next to the exe. Always `false` for production.
-
-Several test override flags also live at the top of `main.js` (all `false` for production):
-```javascript
-const TEST_SD_STREAM_DECK_NOT_FOUND = false
-const TEST_SD_INSTALL_FAIL         = false
-const TEST_SD_NOT_INSTALLED        = false
-const TEST_SD_UPDATE_AVAILABLE     = false
-```
+Always `false` for production. Test override flags (`TEST_SD_*`) also at the top of `main.js`.
 
 ---
 
 ## CSS Variables Reference
 
-All design tokens are defined via Tailwind v4's `@theme` in `src/assets/css/style.css`. They are available both as Tailwind utilities and as CSS custom properties. **Always use these — never hardcode hex values.**
+All design tokens in `src/assets/css/style.css` under `@theme`. Available as Tailwind utilities and CSS custom properties. **Always use these — never hardcode hex values.**
 
-### Dark mode (default):
 ```css
-/* Backgrounds (darkest → lightest) — pure neutral grays, R=G=B, no color tint */
+/* Backgrounds (darkest → lightest) */
 --color-bg-deepest        /* #000000 — titlebar, status bar */
 --color-bg-base           /* #0C0C0C — main app background */
---color-bg-raised         /* #161616 — card/panel surfaces (sound buttons, section headers) */
+--color-bg-raised         /* #161616 — card/panel surfaces */
 --color-bg-surface        /* #202020 — inputs, selects, dropdowns */
---color-bg-surface-hover  /* #2A2A2A — hover state for surfaces */
---color-bg-surface-active /* #333333 — active/pressed surface */
+--color-bg-surface-hover  /* #2A2A2A */
+--color-bg-surface-active /* #333333 */
 
-/* Accent — user-customizable; default gold #F9B71D */
---color-accent            /* #F9B71D — buttons, active states, badges */
---color-accent-dim        /* #D49A00 — hover state for accent elements */
---color-accent-glow       /* rgb(from var(--color-accent) r g b / 0.18) — auto-derives from accent */
+/* Accent — user-customizable; default gold */
+--color-accent            /* #F9B71D */
+--color-accent-dim        /* #D49A00 — hover */
+--color-accent-glow       /* rgba accent at 0.18 opacity */
 
 /* Text */
---color-text-primary      /* #EAE8E6 — main text */
---color-text-secondary    /* #B8B5B3 — muted/description text */
---color-text-dim          /* #5A5857 — very muted text (labels, placeholders) */
---color-text-on-accent    /* #000000 — text on gold accent background */
+--color-text-primary      /* #EAE8E6 */
+--color-text-secondary    /* #B8B5B3 — muted/description */
+--color-text-dim          /* #5A5857 — decoration only (see Code Style Rules) */
+--color-text-on-accent    /* #000000 */
 
 /* Semantic */
---color-danger            /* #FF5040 — destructive actions, error states */
+--color-danger            /* #FF5040 */
 
 /* Borders */
---color-border            /* #1E1E1E — used in SoundButton context menu separators */
---color-border-light      /* #282828 — all visible UI borders: inputs, cards, modals, dividers */
+--color-border            /* #1E1E1E — context menu separators */
+--color-border-light      /* #282828 — all visible UI borders */
 
 /* Radii */
---radius-sm               /* 0px — sharp; matches logo angular geometry */
---radius-lg               /* 8px — modals and large floating elements only */
+--radius-sm   /* 0px — sharp */
+--radius-lg   /* 8px — modals only */
 
 /* Fonts */
---font-sans               /* 'Outfit', -apple-system, sans-serif — weight 300 set on body */
---font-mono               /* monospace — used in changelog/code blocks */
---font-display            /* 'TavernloreBB', 'Outfit', serif — branding/headers */
+--font-sans     /* Outfit, weight 300 globally */
+--font-display  /* TavernloreBB — branding/headers */
 ```
 
-### Light mode overrides (`html.light`):
-Light mode is toggled by adding the `light` class to `<html>`. Neutral gray palette (no warm tint — works with any accent). Default light accent is darker gold (#C88800). Grain overlay disabled (`--grain-opacity: 0`). User-chosen custom accents override the default via inline style on `<html>` (set in App.vue) which takes precedence over the `html.light` rule.
+Light mode: toggled by `html.light` class. Neutral palette, default accent `#C88800`. User accent overrides via inline style on `<html>`.
 
-### Global button classes (in `style.css`):
-- `.btn` — base button style
-- `.btn-accent` — amber filled button (Browse, confirm actions)
-- `.btn-danger` — red tinted button (destructive actions)
-
-### Global utilities (in `style.css`):
-- `app-region-drag` / `app-region-no-drag` — `-webkit-app-region` for Electron drag regions (`@utility`)
-- `animate-fade-in` — `fadeIn 0.25s ease forwards`; keyframe defined in `@theme` as `--animate-fade-in`
-- `animate-playing-bar` — `playing-bar 0.8s ease-in-out infinite alternate`; keyframe defined in `@theme`
-- `guide-bullet` — accent-bullet list item for `<li>` in guides (14px indent, `•` in accent color)
-- `toolbar-icon-btn` — 32×36px transparent borderless icon button; `text-text-dim` at rest, steps up to `text-text-primary` + `bg-bg-surface` on hover; used for FolderBar utility icons (Refresh, etc.) where no border is wanted
-
-### Global base styles (`@layer base` in `style.css`):
-- `body` — font, background, overflow, user-select, app-region reset
-- `input[type="range"]` — shared slider track + `::webkit-slider-thumb` thumb styles; applies to all range inputs
-
-### Global component classes (`@layer components` in `style.css`):
-- `.btn`, `.btn-accent`, `.btn-danger` — button variants used across the app
-
-### Fonts:
-- Body: **Outfit** (variable, 100–900, local woff2 at `src/assets/fonts/Outfit.woff2`) — rendered at weight 300 globally
-- Headers/branding: **TavernloreBB** (used for version headings in patch notes, titlebar app name, category section headers)
+Global button classes: `.btn`, `.btn-accent`, `.btn-danger` — see `style.css`.
 
 ---
 
 ## Context Menu (SoundButton.vue)
 
-Two-page design: Page 1 for quick daily-use actions, Page 2 ("More Options") for less-frequent operations.
+Two-page design: Page 1 (daily use: hide/rename/shortcut/volume), Page 2 (move/delete).
 
-**Page 1 (main):**
-```
-┌──────────────────────────────────┐
-│ Played X times       [× reset]   │  ← fixed header; inline confirm (Clear count? Yes/No)
-├──────────────────────────────────┤
-│ Hide / Restore                   │  ↑ scrollable
-│ Rename                           │  │
-│ ─────────────────────────────── │  │
-│ Set shortcut / [key] [×]         │  ↓ inline listen mode when capturing
-├──────────────────────────────────┤
-│ More options                   → │  ← fixed; navigates to page 2
-├──────────────────────────────────┤
-│ Volume Offset                    │  ← fixed; bottommost; shrink-0
-│ [VolumeSlider -20 to +20 dB]     │
-│ Reset          [button]          │  ← only when offset !== 0
-└──────────────────────────────────┘
-```
-
-**Page 2 (more):**
-```
-┌──────────────────────────────────┐
-│ ← Back                           │  ← fixed header; white text; no label
-├──────────────────────────────────┤
-│ Move to             (expandable) │  ↑
-│   [category list…]               │  │ scrollable
-│ Reset to original   (if moved)   │  │
-│ Edit category                    │  ↓
-├──────────────────────────────────┤
-│ Delete…           (danger)       │  ← fixed footer; inline confirm when clicked
-└──────────────────────────────────┘
-```
-
-- `menuPage: Ref<'main' | 'more'>` tracks which page is visible; resets to `'main'` on open and on close
-- `goBack()` clears `showMoveTo`, `confirmingDelete`, stops shortcut capture, sets `menuPage = 'main'`
-- Shortcut badge: 9px monospace at bottom-left of button face (`style="color: var(--color-text-dim)"` inline to resist the playing-state color cascade)
-- Menu is a `flex flex-col` with `maxHeight` set dynamically from available viewport space; header and footers are `shrink-0`; actions section is `flex-1 min-h-0 overflow-y-auto`
-- Position computation: measures space above/below click point and opens in the direction with more room; upward opening uses `bottom` CSS positioning (anchored to click point) not `top`, so it never jumps to the top of the page
-- "Move to…" expands inline within the scrollable section showing all other categories
-- "Edit category…" opens `CategorySettingsModal` for the sound's current category; emits `edit-category` event that bubbles through AccordionSection → SoundGrid
-- Context menu is teleported to `<body>` to avoid scroll-container clipping
-- Closes on outside click or any scroll event (capture phase)
-- Only one menu open at a time via `activeDropdownId` singleton
-- Menu items use a 2px accent `::before` scaleY bar (0→1, 0.12s) on hover — this is the **unified design language** shared by ModalTabs, category quick-nav, and AppSelect items
+Key behaviors:
+- `menuPage: Ref<'main' | 'more'>` resets to `'main'` on open/close
+- Menu is `flex flex-col`; header/footer are `shrink-0`; actions are `flex-1 min-h-0 overflow-y-auto`
+- Upward opening uses `bottom` CSS (not `top`) — never jumps to page top
+- Shortcut badge: 9px monospace with `style="color: var(--color-text-dim)"` inline — resists playing-state color cascade
+- Teleported to `<body>`; closes on outside click or scroll (capture phase)
+- Hover: 2px accent `::before` scaleY bar — unified design language with ModalTabs, nav, AppSelect
 
 ### SoundButton hover overlays:
-- Top-right: `ToggleCircleButton` with `ellipsis-solid` icon → opens context menu
-- Bottom-right: `ToggleCircleButton` with `headphones-simple-solid` icon → toggle preview playback
+- Top-right: `ToggleCircleButton` (`ellipsis-solid`) → context menu
+- Bottom-right: `ToggleCircleButton` (`headphones-simple-solid`) → preview
 
 ---
 
 ## Icon System
 
-Custom Vite plugin (`scripts/vite-plugin-icons.ts`) scans `src/assets/icons/` for SVG files and generates:
-- `src/assets/css/icon-data.css` — CSS custom properties with SVG data-URIs + `.i-name-folder` mask/background classes
-- `src/types/icons.ts` — `IconName` union type + `IconsFolder` array
+Vite plugin (`scripts/vite-plugin-icons.ts`) generates `icon-data.css` and `src/types/icons.ts` from `src/assets/icons/`.
 
-**Usage in components:**
 ```vue
 <Icon name="gear-solid" />
-<!-- name format: <icon-name>-<folder> (e.g. "gear-solid", "eye-slash", "chevron-down-light") -->
-<!-- duotone folder icons omit the folder suffix (e.g. "gear" not "gear-duotone") -->
+<!-- format: <name>-<folder> e.g. "gear-solid", "eye-slash", "chevron-down-light" -->
+<!-- duotone icons omit folder suffix: "gear" not "gear-duotone" -->
 ```
-
-In production builds, `getIconsInUse()` logs unused icons. The tree-shaking fix (filtering `getSvgFiles()` by `getIconsInUse()` in `buildStart`) is listed as a deferred item.
 
 ---
 
 ## Known Deferred Items
 
-- **Icon tree shaking** — all icons still included in `icon-data.css`; fix is to filter `getSvgFiles()` by `getIconsInUse()` in `buildStart` hook
+- **Icon tree shaking** — filter `getSvgFiles()` by `getIconsInUse()` in `buildStart`
 - **Stream Deck cold start** — launching RRR from a Stream Deck button press
 - **Auto-updater** — post-launch
 - **GitHub Actions CI** — post-launch
@@ -843,6 +533,5 @@ In production builds, `getIconsInUse()` logs unused icons. The tree-shaking fix 
 | Stream Deck plugin (dev) | `packages/rrr-streamdeck/com.pdog1.rum-runner-rhapsody.sdPlugin/` |
 | Stream Deck plugin (packaged) | `resources/streamdeck-plugin/com.pdog1.rum-runner-rhapsody.sdPlugin/` |
 | Stream Deck installed | `%APPDATA%\Elgato\StreamDeck\Plugins\com.pdog1.rum-runner-rhapsody.sdPlugin\` |
-| Stream Deck logs | `%APPDATA%\Elgato\StreamDeck\logs\` |
 | Tray icon (packaged) | `process.resourcesPath/app-icon.png` |
 | Tray icon (dev) | Project root `app-icon.png` |

@@ -262,6 +262,19 @@
 ---
 
 ### 4.2 Clip Trimming Mode [#5]
+**Status: Done 2026-05-18.**
+
+- ✅ `src/utils/audio.ts` — `encodeWavFromAudioBuffer`, `trimAudioBuffer`, `generatePeaks` utilities
+- ✅ `src/clipEditorState.ts` — `clipEditorOpen`, `trimSidebarOpen`, `trimSidebarFile` module singletons
+- ✅ `useClipLibrary.ts` — lists `.wav` files from `recordingFolder`, manages selection/delete, `revealFolder()`
+- ✅ `useClipPlayer.ts` — loads WAV → `decodeAudioData`, generates 1024 peaks, playback with in/out trim, loop, export via `saveExportedClip` IPC
+- ✅ `WaveformCanvas.vue` — canvas waveform (gold, 75%/20% for selection), diamond-cap draggable handles, white playhead, auto-scaled timeline ruler
+- ✅ `ClipEditor.vue` — full-tab 3-panel editor replacing sound grid; file list (newest-first) + waveform/controls + export settings (folder picker, filename, delete-original); inline clip delete with 2-step confirm
+- ✅ `ClipTrimSidebar.vue` — fixed 320px right panel with slide-in transition; auto-opens after `saveClip()` if `clipAutoOpenTrim`; "Full Editor" button opens `ClipEditor`
+- ✅ TitleBar: scissors button opens `ClipEditor` when `recordingFolder` is configured; accent-colored when editor is open
+- ✅ IPC handlers: `list-clips-folder`, `trash-clip-file`, `reveal-in-explorer`, `save-exported-clip`
+- ⏳ `clipAutoOpenTrim` auto-open wired; full `wavesurfer.js` waveform library deferred — custom canvas renderer is sufficient
+
 **What:** Two UIs for trimming clips from the shadow record folder and exporting them to a soundboard folder.
 
 **Full-tab trim mode:**
